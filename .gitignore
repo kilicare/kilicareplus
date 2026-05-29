@@ -1,0 +1,46 @@
+# =========================
+# ENV FILES
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# PYTHON / DJANGO
+# =========================
+backend/venv/
+backend/__pycache__/
+backend/**/*.pyc
+backend/db.sqlite3
+backend/media/
+backend/staticfiles/
+
+# =========================
+# NODE / NEXTJS
+# =========================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+
+# =========================
+# LOGS
+# =========================
+*.log
+
+# =========================
+# VS CODE
+# =========================
+.vscode/
+
+# =========================
+# OS FILES
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# BUILD / CACHE
+# =========================
+.cache/
+coverage/

@@ -1,0 +1,30 @@
+{
+  "name": "KilicareGO+",
+  "short_name": "KilicareGO",
+  "description": "Tanzania Tourism Super-App",
+  "start_url": "/feed",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0A0F",
+  "theme_color": "#F5A623",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "lifestyle", "social"],
+  "shortcuts": [
+    { "name": "SOS", "url": "/sos" },
+    { "name": "AI Guide", "url": "/ai" },
+    { "name": "Feed", "url": "/feed" }
+  ]
+}
