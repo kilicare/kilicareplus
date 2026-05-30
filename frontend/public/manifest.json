@@ -1,30 +1,54 @@
 {
   "name": "KilicareGO+",
   "short_name": "Kilicare+",
-  "description": "Tanzania Tourism Super-App",
+  "description": "Tanzania Tourism, Travel, Safety and Social Super App",
+
   "start_url": "/feed",
+  "scope": "/",
+
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0A0A0F",
-  "theme_color": "#F5A623",
+
+  "background_color": "#000000",
+  "theme_color": "#000000",
+
   "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ],
-  "categories": ["travel", "lifestyle", "social"],
+
+  "categories": [
+    "travel",
+    "lifestyle",
+    "social",
+    "navigation"
+  ],
+
   "shortcuts": [
-    { "name": "SOS", "url": "/sos" },
-    { "name": "AI Guide", "url": "/ai" },
-    { "name": "Feed", "url": "/feed" }
+    {
+      "name": "SOS",
+      "short_name": "SOS",
+      "url": "/sos"
+    },
+    {
+      "name": "AI Guide",
+      "short_name": "AI",
+      "url": "/ai"
+    },
+    {
+      "name": "Feed",
+      "short_name": "Feed",
+      "url": "/feed"
+    }
   ]
 }

@@ -11,6 +11,11 @@ export const metadata: Metadata = {
     'Gundua Tanzania — uzoefu wa kipekee, usalama, na jamii.',
   keywords: ['Tanzania', 'tourism', 'safari', 'Zanzibar', 'Kilimanjaro'],
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -32,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="sw" suppressHydrationWarning>
+    <html lang="sw" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
