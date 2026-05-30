@@ -119,13 +119,21 @@ export default function RegisterPage() {
         {([1, 2, 3] as Step[]).map((s) => (
           <div key={s} className="flex items-center gap-2">
             <motion.div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-gradient-to-br from-[#F5A623] to-[#E8892A]"
+              initial={{ opacity: 0.4, scale: 0.8 }}
               animate={{
-                background:
-                  s <= step
-                    ? 'linear-gradient(135deg, #F5A623, #E8892A)'
-                    : 'rgba(42,42,58,0.8)',
+                opacity: s <= step ? 1 : 0.4,
+                scale: s <= step ? 1 : 0.8,
+                backgroundColor: s <= step ? '#F5A623' : 'rgba(42,42,58,0.8)',
                 color: s <= step ? '#000' : '#8B8BA7',
+                boxShadow: s <= step 
+                  ? '0px 4px 12px rgba(245,166,35,0.3)'
+                  : '0px 0px 0px rgba(245,166,35,0)',
+              }}
+              transition={{
+                type: 'spring',
+                stiffness: 280,
+                damping: 18,
               }}
             >
               {s}

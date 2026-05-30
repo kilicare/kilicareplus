@@ -39,8 +39,8 @@ def _send_otp(user, purpose):
     
     # Email subject lines
     subjects = {
-        'EMAIL_VERIFY': 'KilicareGO+ — Verify Your Email Address',
-        'PASSWORD_RESET': 'KilicareGO+ — Password Reset Request',
+        'EMAIL_VERIFY': 'KilicarePlus — Verify Your Email Address',
+        'PASSWORD_RESET': 'KilicarePlus — Password Reset Request',
     }
     
     # Email body with professional OTP format (15-minute validity)
@@ -53,10 +53,10 @@ def _send_otp(user, purpose):
             f'    ═══════════════════════════════════════\n\n'
             f'⏳ Valid for: 15 minutes\n'
             f'🚫 Do not share this code with anyone\n\n'
-            f'This code is required to verify your email address and activate your KilicareGO+ account.\n\n'
+            f'This code is required to verify your email address and activate your Kilicare+ account.\n\n'
             f'If you did not request this OTP, please ignore this email.\n\n'
             f'—\n'
-            f'KilicareGO+ Team 🇹🇿'
+            f'KilicarePlus+ '
         ),
         'PASSWORD_RESET': (
             f'Habari {user.first_name or user.username},\n\n'
@@ -69,7 +69,7 @@ def _send_otp(user, purpose):
             f'This code is required to reset your password. Use it to complete your password reset process.\n\n'
             f'If you did not request a password reset, please ignore this email and your account will remain secure.\n\n'
             f'—\n'
-            f'KilicareGO+ Team 🇹🇿'
+            f'KilicarePlus+ '
         ),
     }
     
