@@ -16,7 +16,21 @@ from .services import build_messages, chat_with_groq, transcribe_audio
 @permission_classes([IsAuthenticated])
 def chat_stream_view(request):
     """Streaming AI response — real-time typewriter"""
+
     message = request.data.get('message', '').strip()
+
+    print("\n" + "=" * 60)
+    print("MESSAGE RAW:")
+    print(repr(message))
+
+    try:
+        message.encode("utf-8")
+        print("UTF8 OK")
+    except Exception as e:
+        print("UTF8 ERROR:", repr(e))
+
+    print("=" * 60 + "\n")
+
     thread_id = request.data.get('thread_id')
     lang = request.data.get('lang', 'sw')
 

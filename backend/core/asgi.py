@@ -13,12 +13,15 @@ django_asgi_app = get_asgi_application()
 from apps.messaging.routing import websocket_urlpatterns as chat_ws
 from apps.sos.routing import websocket_urlpatterns as sos_ws
 from apps.notifications.routing import websocket_urlpatterns as notif_ws
+from core.jwt_auth_middleware import TokenAuthMiddleware
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AllowedHostsOriginValidator(
         AuthMiddlewareStack(
-            URLRouter(chat_ws + sos_ws + notif_ws)
+            TokenAuthMiddleware(
+                URLRouter(chat_ws + sos_ws + notif_ws)
+            )
         )
     ),
 })

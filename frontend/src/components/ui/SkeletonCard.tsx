@@ -1,12 +1,17 @@
+import type { CSSProperties } from 'react'
 import { cn } from '@/lib/utils'
+
+interface SkeletonCardProps {
+  className?: string
+  rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  style?: CSSProperties
+}
 
 export function SkeletonCard({
   className,
   rounded = 'xl',
-}: {
-  className?: string
-  rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
-}) {
+  style,
+}: SkeletonCardProps) {
   const r = {
     sm: 'rounded-lg', md: 'rounded-xl',
     lg: 'rounded-2xl', xl: 'rounded-3xl', full: 'rounded-full',
@@ -14,6 +19,7 @@ export function SkeletonCard({
   return (
     <div
       className={cn('skeleton', r[rounded], className)}
+      style={style}
       aria-hidden="true"
     />
   )
