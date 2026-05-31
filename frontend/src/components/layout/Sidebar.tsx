@@ -1,36 +1,60 @@
 'use client'
+
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-  Home, Compass, Shield, MessageSquare, User,
-  Lightbulb, Award, Bell, Store, TrendingUp,
-  BarChart2, LogOut,
+  Home,
+  Compass,
+  Shield,
+  MessageSquare,
+  User,
+  Lightbulb,
+  Award,
+  Bell,
+  Store,
+  TrendingUp,
+  BarChart2,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Bot,
+  Map,
 } from 'lucide-react'
+
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
+import { authService } from '@/services/auth.service'
 import { KiliAvatar } from '@/components/ui/KiliAvatar'
 import { KiliBadge } from '@/components/ui/KiliBadge'
 import { useUIStore } from '@/stores/ui.store'
 
 const MAIN = [
-  { href: '/feed',         Icon: Home,          label: 'Feed' },
-  { href: '/discover',     Icon: Compass,       label: 'Gundua' },
-  { href: '/ai',           emoji: '🤖',         label: 'AI Guide' },
-  { href: '/chat',         Icon: MessageSquare, label: 'Ujumbe' },
-  { href: '/map',          emoji: '🗺️',         label: 'Ramani' },
-  { href: '/tips',         Icon: Lightbulb,     label: 'Vidokezo' },
-  { href: '/passport',     Icon: Award,         label: 'Passport' },
-  { href: '/notifications',Icon: Bell,          label: 'Arifa', isBell: true },
+  { href: '/feed', Icon: Home, label: 'Feed' },
+  { href: '/discover', Icon: Compass, label: 'Gundua' },
+  { href: '/ai', Icon: Bot, label: 'AI Guide' },
+  { href: '/chat', Icon: MessageSquare, label: 'Ujumbe' },
+  { href: '/map', Icon: Map, label: 'Ramani' },
+  { href: '/tips', Icon: Lightbulb, label: 'Vidokezo' },
+  { href: '/passport', Icon: Award, label: 'Passport' },
+  { href: '/notifications', Icon: Bell, label: 'Arifa', isBell: true },
 ]
 
 const CREATOR = [
-  { href: '/creator/dashboard', Icon: BarChart2,  label: 'Dashboard' },
-  { href: '/showcase',          Icon: Store,      label: 'Showcase' },
-  { href: '/predictions',       Icon: TrendingUp, label: 'Predictions' },
+  { href: '/creator/dashboard', Icon: BarChart2, label: 'Dashboard' },
+  { href: '/showcase', Icon: Store, label: 'Showcase' },
+  { href: '/predictions', Icon: TrendingUp, label: 'Predictions' },
 ]
 
-export function Sidebar({ className }: { className?: string }) {
+export function Sidebar({
+  className,
+  collapsed = false,
+  toggleCollapsed,
+}: {
+  className?: string
+  collapsed?: boolean
+  toggleCollapsed?: () => void
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuthStore()
@@ -40,45 +64,55 @@ export function Sidebar({ className }: { className?: string }) {
   const isAdmin = user?.role === 'ADMIN'
 
   function NavItem({
-    href, Icon, emoji, label, isBell,
+    href,
+    Icon,
+    label,
+    isBell,
   }: {
     href: string
     Icon?: React.ComponentType<{ size: number; strokeWidth: number }>
-    emoji?: string
     label: string
     isBell?: boolean
   }) {
     const active =
-      pathname === href ||
-      (href !== '/' && pathname.startsWith(href + '/'))
+      pathname === href || (href !== '/' && pathname.startsWith(href + '/'))
+
     return (
-      <Link href={href}>
+      <Link href={href} title={label}>
         <motion.div
           whileTap={{ scale: 0.97 }}
           className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all relative',
+            'flex items-center gap-3 py-2.5 rounded-xl transition-all relative',
+            collapsed ? 'justify-center px-2' : 'px-3',
             active
-              ? 'bg-gold/8 text-gold'
-              : 'text-text-muted hover:text-text-primary hover:bg-white/4'
+              ? 'bg-gold/10 text-gold'
+              : 'text-text-muted hover:text-text-primary hover:bg-white/5'
           )}
         >
-          <div className="w-5 flex-shrink-0 flex items-center justify-center">
-            {emoji ? (
-              <span className="text-lg leading-none">{emoji}</span>
-            ) : Icon ? (
+          {/* ICON */}
+          <div className="w-5 flex items-center justify-center">
+            {Icon && (
               <Icon size={18} strokeWidth={active ? 2.5 : 1.8} />
-            ) : null}
+            )}
           </div>
-          <span className="text-sm font-medium">{label}</span>
+
+          {/* LABEL */}
+          {!collapsed && (
+            <span className="text-sm font-medium">{label}</span>
+          )}
+
+          {/* NOTIFICATION */}
           {isBell && notificationCount > 0 && (
-            <span className="ml-auto bg-kili-red text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+            <span className="ml-auto bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
               {notificationCount > 9 ? '9+' : notificationCount}
             </span>
           )}
+
+          {/* ACTIVE INDICATOR */}
           {active && (
             <motion.div
               layoutId="sidebar-active"
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-gold rounded-r-full"
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gold rounded-r-full"
             />
           )}
         </motion.div>
@@ -88,95 +122,111 @@ export function Sidebar({ className }: { className?: string }) {
 
   return (
     <aside
-      className={cn('flex flex-col h-dvh', className)}
+      className={cn(
+        'flex flex-col h-dvh transition-[width] duration-300 ease-in-out',
+        className
+      )}
       style={{
-        width: 'var(--sidebar-width)',
+        width: collapsed ? '72px' : '280px',
         background: '#0D0D14',
         borderRight: '1px solid rgba(255,255,255,0.06)',
       }}
     >
-      {/* Logo */}
-      <div className="px-4 py-5 flex-shrink-0">
+      {/* LOGO */}
+      <div className="px-4 py-5 flex items-center justify-between">
         <Link href="/feed" className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-black text-black flex-shrink-0"
-            style={{ background: 'var(--gradient-gold)' }}
-          >
-            K
+          <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-r from-yellow-400 to-yellow-600">
+            <img
+              src="/icon-192.png"
+              alt="Kilicare+"
+              className="w-full h-full object-cover"
+            />
           </div>
-          <div>
-            <p className="text-sm font-black text-text-primary leading-tight">
-              Kilicare+
-            </p>
-            <p className="text-[10px] text-text-muted">Tanzania 🇹🇿</p>
-          </div>
+
+          {!collapsed && (
+            <div>
+              <p className="text-sm font-bold text-white">Kilicare+</p>
+              <p className="text-[10px] text-gray-400">Tanzania 🇹🇿</p>
+            </div>
+          )}
         </Link>
+
+        {/* COLLAPSE BUTTON */}
+        {toggleCollapsed && (
+          <button
+            onClick={toggleCollapsed}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5"
+          >
+            {collapsed ? (
+              <ChevronRight size={18} />
+            ) : (
+              <ChevronLeft size={18} />
+            )}
+          </button>
+        )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-2 space-y-0.5 pb-4 no-scrollbar">
+      {/* NAVIGATION */}
+      <nav className="flex-1 overflow-y-auto px-2 space-y-1">
         {MAIN.map((item) => (
           <NavItem key={item.href} {...item} />
         ))}
+
         {(isGuide || isAdmin) && (
           <>
-            <div className="pt-3 pb-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-text-disabled px-3">
+            {!collapsed && (
+              <p className="text-[10px] px-3 pt-4 pb-2 text-gray-500 uppercase">
                 Creator
               </p>
-            </div>
+            )}
+
             {CREATOR.map((item) => (
               <NavItem key={item.href} {...item} />
             ))}
           </>
         )}
-        {isAdmin && (
-          <>
-            <div className="pt-3 pb-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-text-disabled px-3">
-                Admin
-              </p>
-            </div>
-            <NavItem href="/admin/users" Icon={User} label="Users" />
-            <NavItem href="/admin/sos-monitor" Icon={Shield} label="SOS Monitor" />
-          </>
-        )}
       </nav>
 
-      {/* User card */}
-      <div
-        className="flex-shrink-0 p-3 border-t"
-        style={{ borderColor: 'rgba(255,255,255,0.06)' }}
-      >
+      {/* USER */}
+      <div className="p-3 border-t border-white/10">
         {user && (
           <div
-            className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/4 transition-colors cursor-pointer"
             onClick={() => router.push('/profile')}
+            className={cn(
+              'flex items-center rounded-xl cursor-pointer hover:bg-white/5 transition',
+              collapsed ? 'justify-center p-2' : 'gap-3 p-2'
+            )}
           >
             <KiliAvatar
               src={user.profile?.avatar_url}
-              name={`${user.first_name} ${user.last_name}`}
+              name={user.first_name || user.username}
               role={user.role}
               isVerified={user.is_verified}
               size="sm"
             />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-text-primary truncate">
-                {user.first_name || user.username}
-              </p>
-              <KiliBadge variant={user.role} size="xs" />
-            </div>
-            <motion.button
-              onClick={(e) => {
-                e.stopPropagation()
-                logout()
-                router.push('/login')
-              }}
-              whileTap={{ scale: 0.9 }}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-text-muted hover:text-kili-red hover:bg-kili-red/10 transition-colors"
-            >
-              <LogOut size={14} />
-            </motion.button>
+
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {user.first_name || user.username}
+                </p>
+                <KiliBadge variant={user.role} size="xs" />
+              </div>
+            )}
+
+            {!collapsed && (
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  await authService.logout()
+                  logout()
+                  router.push('/login')
+                }}
+                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500"
+              >
+                <LogOut size={14} />
+              </button>
+            )}
           </div>
         )}
       </div>

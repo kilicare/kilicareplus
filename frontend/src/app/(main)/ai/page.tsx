@@ -379,7 +379,10 @@ export default function AIPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div
+          className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+          style={{ paddingBottom: 'calc(var(--bottom-nav-height) + 2.5rem)' }}
+        >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full pb-20">
               <motion.div
@@ -452,7 +455,7 @@ export default function AIPage() {
             background: 'rgba(10,10,15,0.9)',
             backdropFilter: 'blur(20px)',
             borderColor: 'var(--border)',
-            paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+            paddingBottom: 'calc(max(12px, env(safe-area-inset-bottom)) + var(--bottom-nav-height))',
           }}
         >
           <div

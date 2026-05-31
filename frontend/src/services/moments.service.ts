@@ -9,6 +9,8 @@ export interface Moment {
   media: string
   media_url: string | null
   thumbnail_url: string | null
+  audio: string | null
+  audio_url: string | null
   media_type: 'image' | 'video'
   caption: string | null
   location: string | null

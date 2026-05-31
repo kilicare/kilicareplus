@@ -5,9 +5,14 @@ import type { User } from '@/types'
 interface AuthStore {
   user: User | null
   isAuthenticated: boolean
-  setAuth: (user: User, access: string, refresh: string) => void
+  isLoading: boolean
+  
   setUser: (user: User) => void
+  setAuthenticated: (authenticated: boolean) => void
+  setLoading: (loading: boolean) => void
   logout: () => void
+  setAuthState: (user: User | null, authenticated: boolean) => void
+  setAuth: (user: User, accessToken: string, refreshToken: string) => void
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -15,20 +20,30 @@ export const useAuthStore = create<AuthStore>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
-      setAuth: (user, access, refresh) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('kili_access', access)
-          localStorage.setItem('kili_refresh', refresh)
-        }
-        set({ user, isAuthenticated: true })
-      },
+      isLoading: true, // Start as loading until /auth/me/ is called
+      
       setUser: (user) => set({ user }),
+      
+      setAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
+      
+      setLoading: (loading) => set({ isLoading: loading }),
+      
       logout: () => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('kili_access')
-          localStorage.removeItem('kili_refresh')
-        }
         set({ user: null, isAuthenticated: false })
+      },
+      
+      setAuthState: (user, authenticated) => {
+        set({ user, isAuthenticated: authenticated })
+      },
+      
+      setAuth: (user, accessToken, refreshToken) => {
+        // Store tokens in localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('kili_access_token', accessToken)
+          localStorage.setItem('kili_refresh_token', refreshToken)
+        }
+        // Update auth state
+        set({ user, isAuthenticated: true })
       },
     }),
     {
@@ -37,6 +52,7 @@ export const useAuthStore = create<AuthStore>()(
       partialize: (s) => ({
         user: s.user,
         isAuthenticated: s.isAuthenticated,
+        // Do NOT persist isLoading - always start as loading on mount
       }),
     }
   )

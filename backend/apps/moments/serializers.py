@@ -43,6 +43,7 @@ class MomentSerializer(serializers.ModelSerializer):
     )
     media_url = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
+    audio_url = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
@@ -55,6 +56,7 @@ class MomentSerializer(serializers.ModelSerializer):
             'id', 'posted_by_username', 'posted_by_avatar',
             'posted_by_role', 'posted_by_verified',
             'media', 'media_url', 'thumbnail_url', 'media_type',
+            'audio', 'audio_url',
             'caption', 'location', 'latitude', 'longitude',
             'views', 'shares', 'trending_score',
             'like_count', 'comment_count', 'is_liked', 'is_saved',
@@ -75,6 +77,15 @@ class MomentSerializer(serializers.ModelSerializer):
         req = self.context.get('request')
         if obj.thumbnail:
             url = obj.thumbnail.url
+            if req and not url.startswith('http'):
+                return req.build_absolute_uri(url)
+            return url
+        return None
+
+    def get_audio_url(self, obj):
+        req = self.context.get('request')
+        if obj.audio:
+            url = obj.audio.url
             if req and not url.startswith('http'):
                 return req.build_absolute_uri(url)
             return url

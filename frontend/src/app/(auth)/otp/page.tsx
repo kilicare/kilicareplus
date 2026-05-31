@@ -5,11 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { authService } from '@/services/auth.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { KiliButton } from '@/components/ui/KiliButton'
 import { parseApiError } from '@/lib/utils'
 
 function OTPContent() {
   const router = useRouter()
+  const { setAuth } = useAuthStore()
   const params = useSearchParams()
   const email = params.get('email') || ''
   const purpose = params.get('purpose') || 'EMAIL_VERIFY'
@@ -27,11 +29,28 @@ function OTPContent() {
   const verifyMut = useMutation({
     mutationFn: () =>
       authService.verifyOtp(email, otp.join(''), purpose),
-    onSuccess: () => {
+    onSuccess: (data) => {
       if (purpose === 'EMAIL_VERIFY') {
-        toast.success('Email imethibitishwa! Ingia sasa 🎉')
-        router.push('/login')
+        // ✅ AUTO-LOGIN AFTER EMAIL VERIFICATION
+        console.log('[OTP] Email verified. Auto-logging in...')
+        
+        // Store tokens and update auth state
+        if (data.access && data.refresh && data.user) {
+          setAuth(data.user, data.access, data.refresh)
+          
+          toast.success('Email imethibitishwa! Karibu! 🎉')
+          console.log('[OTP] ✅ Redirecting to /feed')
+          
+          // Redirect to feed (already authenticated)
+          router.push('/feed')
+        } else {
+          // Fallback: tokens not in response, redirect to login
+          console.warn('[OTP] ⚠️  Tokens not in response, redirecting to login')
+          toast.success('Email imethibitishwa! Ingia sasa 🎉')
+          router.push('/login')
+        }
       } else {
+        // PASSWORD_RESET flow
         router.push(
           `/reset-password/new?email=${encodeURIComponent(email)}&code=${otp.join('')}`
         )

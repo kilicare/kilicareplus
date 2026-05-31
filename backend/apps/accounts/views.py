@@ -113,32 +113,135 @@ def register_view(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
+    """
+    Login endpoint - Returns JWT tokens in response body
+    
+    FLOW:
+    1. Authenticate user (email + password)
+    2. Generate JWT tokens (access + refresh)
+    3. Return tokens + user data in JSON response
+    4. Frontend stores tokens in localStorage
+    
+    Request: { "email": "...", "password": "..." }
+    
+    Response: {
+        'success': True,
+        'access': '<access_token>',
+        'refresh': '<refresh_token>',
+        'user': {...},
+        'message': '...'
+    }
+    """
     email = request.data.get('email', '').lower().strip()
     password = request.data.get('password', '')
+    
+    logger.info(f'[LOGIN] Attempt from email: {email}')
+    
     if not email or not password:
+        logger.warning(f'[LOGIN] Missing email or password')
         return Response(
             {'message': 'Email na password zinahitajika.'},
             status=status.HTTP_400_BAD_REQUEST
         )
+    
     user = authenticate(request, username=email, password=password)
     if not user:
+        logger.warning(f'[LOGIN] Authentication failed for email: {email}')
         return Response(
             {'message': 'Email au password si sahihi.'},
             status=status.HTTP_401_UNAUTHORIZED
         )
+    
     if not user.is_active:
+        logger.warning(f'[LOGIN] Account not active for email: {email}')
         return Response(
-            {'message': 'Akaunti haijathibitishwa. '
-                        'Angalia email yako kwa OTP.'},
+            {'message': 'Akaunti haijathibitishwa. Angalia email yako kwa OTP.'},
             status=status.HTTP_403_FORBIDDEN
         )
+    
+    # Generate tokens
     refresh = RefreshToken.for_user(user)
-    return Response({
+    access_token = str(refresh.access_token)
+    refresh_token = str(refresh)
+    
+    logger.info(f'[LOGIN] ✅ Tokens generated for user: {user.id} ({email})')
+    
+    # Return tokens in response body (localStorage-based auth)
+    response = Response({
         'success': True,
-        'access': str(refresh.access_token),
-        'refresh': str(refresh),
+        'message': 'Karibu KilicareGO+! 🎉',
+        'access': access_token,        # ← Client stores in localStorage
+        'refresh': refresh_token,      # ← Client stores in localStorage
         'user': UserSerializer(user, context={'request': request}).data,
-    })
+    }, status=status.HTTP_200_OK)
+    
+    logger.info(f'[LOGIN] ✅ Login successful for user: {user.id} ({email})')
+    
+    return response
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def token_refresh_view(request):
+    """
+    Token Refresh endpoint - Accepts refresh token from request body
+    
+    FLOW:
+    1. Extract refresh token from request body
+    2. Validate refresh token
+    3. Generate new access token
+    4. Return new access token in response body
+    
+    Request: { "refresh": "<refresh_token>" }
+    
+    Response: {
+        'success': True,
+        'access': '<new_access_token>',
+        'message': '...'
+    }
+    
+    IMPORTANT:
+    - Refresh token comes from request body (sent by frontend)
+    - New access token returned in response body
+    - Frontend updates localStorage with new token
+    - Called automatically by frontend interceptor on 401
+    """
+    # Get refresh token from request body (localStorage-based auth)
+    refresh_token = request.data.get('refresh')
+    
+    if not refresh_token:
+        logger.warning(f'[REFRESH] Refresh token not provided in request')
+        return Response(
+            {'message': 'Refresh token not found. Please login again.'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+    
+    logger.debug(f'[REFRESH] Refresh token received. Validating...')
+    
+    try:
+        # Validate and generate new access token from refresh token
+        refresh = RefreshToken(refresh_token)
+        new_access_token = str(refresh.access_token)
+        
+        logger.info(f'[REFRESH] ✅ Refresh token validated. New access token generated.')
+        
+        # Return new access token in response body
+        response = Response({
+            'success': True,
+            'message': 'Access token refreshed.',
+            'access': new_access_token,  # ← Client updates localStorage
+        }, status=status.HTTP_200_OK)
+        
+        logger.info(f'[REFRESH] ✅ Token refresh successful')
+        return response
+    
+    except Exception as e:
+        error_type = type(e).__name__
+        logger.warning(f'[REFRESH] ❌ Failed to refresh token: {error_type}: {str(e)}')
+        return Response(
+            {'message': 'Invalid or expired refresh token. Please login again.'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
 
 
 @api_view(['POST'])
@@ -226,11 +329,32 @@ def verify_otp_view(request):
     otp.refresh_from_db()
     logger.debug(f'[OTP VERIFY] After: is_verified={otp.is_verified}, is_used={otp.is_used}')
     
+    # For EMAIL_VERIFY: Issue JWT tokens for auto-login
+    if purpose == 'EMAIL_VERIFY':
+        logger.info(f'[OTP VERIFY] Generating JWT tokens for auto-login: user={user.id}')
+        
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+        
+        logger.info(f'[OTP VERIFY] ✅ Tokens generated successfully for user: {user.id}')
+        
+        return Response({
+            'success': True,
+            'message': 'Email imethibitishwa kwa mafanikio! Karibu!',
+            'purpose': purpose,
+            'access': access_token,
+            'refresh': refresh_token,
+            'user': UserSerializer(user, context={'request': request}).data,
+        }, status=status.HTTP_200_OK)
+    
+    # For PASSWORD_RESET: Just confirm OTP verification (tokens will be issued after password reset)
     return Response({
         'success': True,
         'message': 'OTP imethibitishwa!',
         'purpose': purpose,
-    })
+    }, status=status.HTTP_200_OK)
 
 
 # ============================================================================
@@ -439,23 +563,46 @@ def password_confirm_view(request):
 @api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def me_view(request):
+    """
+    Current User endpoint
+    
+    GET: Return authenticated user's profile
+    PUT/PATCH: Update authenticated user's profile
+    
+    CRITICAL: This endpoint is used to verify authentication
+    - Frontend calls this on app load to check if cookies are valid
+    - If valid (200) → user is authenticated
+    - If invalid (401) → cookies are invalid, user should login
+    
+    AUTHENTICATION:
+    - Requires valid access token from cookie
+    - Backend's JWTAuthentication validates the token
+    - If token invalid → returns 401 automatically
+    """
     if request.method == 'GET':
+        logger.debug(f'[ME] Returning user profile for user: {request.user.id}')
         return Response(
             UserSerializer(
                 request.user, context={'request': request}
             ).data
         )
+    
+    logger.info(f'[ME] Updating user profile for user: {request.user.id}')
+    
     serializer = UpdateProfileSerializer(
         request.user, data=request.data,
         partial=True, context={'request': request},
     )
     if serializer.is_valid():
         serializer.save()
+        logger.info(f'[ME] ✅ Profile updated successfully for user: {request.user.id}')
         return Response(
             UserSerializer(
                 request.user, context={'request': request}
             ).data
         )
+    
+    logger.warning(f'[ME] Profile update failed for user: {request.user.id}')
     return Response(
         serializer.errors, status=status.HTTP_400_BAD_REQUEST
     )
@@ -482,3 +629,49 @@ def update_fcm_token_view(request):
         request.user.fcm_token = token
         request.user.save(update_fields=['fcm_token'])
     return Response({'success': True})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    """
+    Logout endpoint - Blacklist refresh token
+    
+    FLOW:
+    1. User calls /auth/logout/ with refresh token (optional)
+    2. Backend blacklists the refresh token if provided
+    3. Frontend clears tokens from localStorage
+    4. User is logged out
+    
+    AUTHENTICATION:
+    - Requires valid access token in Authorization header
+    - Refresh token in request body is optional (for explicit blacklisting)
+    
+    Request: { "refresh": "token" } (optional)
+    
+    Response: {
+        'success': True,
+        'message': '...'
+    }
+    """
+    user_id = request.user.id
+    logger.info(f'[LOGOUT] Logout requested by user: {user_id}')
+    
+    # Optionally blacklist the refresh token
+    refresh_token = request.data.get('refresh')
+    if refresh_token:
+        try:
+            from rest_framework_simplejwt.tokens import RefreshToken
+            RefreshToken(refresh_token).blacklist()
+            logger.debug(f'[LOGOUT] Refresh token blacklisted for user: {user_id}')
+        except Exception as e:
+            logger.warning(f'[LOGOUT] Failed to blacklist refresh token: {str(e)}')
+    
+    response = Response({
+        'success': True,
+        'message': 'Umaloged out kwa mafanikio. Karibu tena!',
+    }, status=status.HTTP_200_OK)
+    
+    logger.info(f'[LOGOUT] ✅ Logout successful for user: {user_id}')
+    
+    return response

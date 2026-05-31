@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from cloudinary.models import CloudinaryField
 
 
 class Moment(models.Model):
@@ -15,12 +16,16 @@ class Moment(models.Model):
         on_delete=models.CASCADE,
         related_name='moments',
     )
-    media = models.FileField(upload_to='moments/')
+    media = CloudinaryField(resource_type="auto")
     media_type = models.CharField(
         max_length=10, choices=MEDIA_CHOICES, default='image'
     )
-    thumbnail = models.ImageField(
-        upload_to='thumbnails/', null=True, blank=True
+    thumbnail = CloudinaryField(
+        resource_type="image", null=True, blank=True
+    )
+    audio = CloudinaryField(
+        resource_type="video", null=True, blank=True,
+        help_text="Background music for this moment"
     )
     caption = models.TextField(max_length=500, null=True, blank=True)
     location = models.CharField(max_length=200, null=True, blank=True)

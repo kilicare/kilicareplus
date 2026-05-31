@@ -1,11 +1,11 @@
 'use client'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Heart, MessageCircle, Bookmark, Share2, Plus,
-  Volume2, VolumeX, MapPin, Flame,
+  Volume2, VolumeX, MapPin, Flame, Music,
 } from 'lucide-react'
 import { momentsService, type Moment, type Comment } from '@/services/moments.service'
 import { KiliAvatar } from '@/components/ui/KiliAvatar'
@@ -17,6 +17,9 @@ import { KiliBottomSheet } from '@/components/ui/KiliBottomSheet'
 import { KiliButton } from '@/components/ui/KiliButton'
 import { mediaUrl, timeAgo, formatCount, vibrate } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
+import { useAudio } from '@/hooks/useAudio'
+import { useFeedAudio } from '@/hooks/useFeedAudio'
+import { useInViewport } from '@/hooks/useInViewport'
 import Image from 'next/image'
 
 // ── Heart burst animation ───────────────────────────
@@ -157,10 +160,13 @@ function CreateMomentSheet({
   onClose: () => void
 }) {
   const [file, setFile] = useState<File | null>(null)
+  const [audio, setAudio] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [audioPreview, setAudioPreview] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const audioRef = useRef<HTMLInputElement>(null)
   const qc = useQueryClient()
 
   const createMut = useMutation({
@@ -170,13 +176,16 @@ function CreateMomentSheet({
       form.append('media_type', file!.type.startsWith('video') ? 'video' : 'image')
       if (caption) form.append('caption', caption)
       if (location) form.append('location', location)
+      if (audio) form.append('audio', audio)
       return momentsService.create(form)
     },
     onSuccess: () => {
       toast.success('Moment imechapishwa! 🎉')
       qc.invalidateQueries({ queryKey: ['feed'] })
       setFile(null)
+      setAudio(null)
       setPreview(null)
+      setAudioPreview(null)
       setCaption('')
       setLocation('')
       onClose()
@@ -193,6 +202,21 @@ function CreateMomentSheet({
     }
     setFile(f)
     setPreview(URL.createObjectURL(f))
+  }
+
+  const handleAudio = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (f.size > 20 * 1024 * 1024) {
+      toast.error('Faili la sauti lazima iwe chini ya 20MB')
+      return
+    }
+    if (!f.type.startsWith('audio')) {
+      toast.error('Chagua faili la sauti (MP3, WAV, M4A, etc)')
+      return
+    }
+    setAudio(f)
+    setAudioPreview(f.name)
   }
 
   return (
@@ -252,6 +276,45 @@ function CreateMomentSheet({
           </div>
         )}
 
+        {/* Audio picker */}
+        {preview && (
+          <motion.button
+            className="w-full rounded-2xl border-2 border-dashed p-4 flex items-center gap-3 cursor-pointer"
+            style={{ borderColor: 'var(--border-gold)' }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => audioRef.current?.click()}
+          >
+            <div className="text-2xl">🎵</div>
+            <div className="flex-1 text-left">
+              <p className="text-text-primary text-sm font-bold">
+                {audioPreview ? `✅ Sauti iliyochaguliwa` : 'Chagua Sauti (Iختار)'}
+              </p>
+              <p className="text-text-muted text-xs mt-0.5">
+                {audioPreview ? audioPreview : 'MP3, WAV, M4A — max 20MB (zingira)'}
+              </p>
+            </div>
+            {audio && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setAudio(null)
+                  setAudioPreview(null)
+                }}
+                className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 text-sm"
+              >
+                ✕
+              </button>
+            )}
+            <input
+              ref={audioRef}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={handleAudio}
+            />
+          </motion.button>
+        )}
+
         {/* Caption */}
         <textarea
           value={caption}
@@ -291,9 +354,11 @@ function CreateMomentSheet({
 function MomentCard({
   moment,
   onComment,
+  feedAudio,
 }: {
   moment: Moment
   onComment: (id: number) => void
+  feedAudio: ReturnType<typeof useFeedAudio>
 }) {
   const qc = useQueryClient()
   const [muted, setMuted] = useState(true)
@@ -301,15 +366,75 @@ function MomentCard({
   const [localLiked, setLocalLiked] = useState(moment.is_liked)
   const [localLikes, setLocalLikes] = useState(moment.like_count)
   const [localSaved, setLocalSaved] = useState(moment.is_saved)
+  const [audioPlaying, setAudioPlaying] = useState(false)
   const lastTap = useRef(0)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  // Detect when moment is in viewport
+  const { elementRef, isVisible } = useInViewport({
+    onEnter: async () => {
+      // Play audio when moment enters viewport
+      if (moment.audio_url) {
+        await feedAudio.playMoment(moment.id)
+        setAudioPlaying(true)
+      }
+    },
+    onLeave: () => {
+      // Stop audio when moment leaves viewport
+      feedAudio.stopMoment(moment.id)
+      setAudioPlaying(false)
+    },
+    threshold: 0.5,
+  })
+
+  // Register audio element with feed audio manager
+  useEffect(() => {
+    if (audioRef.current && moment.audio_url) {
+      feedAudio.registerAudio(moment.id, audioRef.current)
+      return () => {
+        feedAudio.registerAudio(moment.id, null)
+      }
+    }
+  }, [moment.id, moment.audio_url, feedAudio])
+
+  // Handle double tap to trigger audio play (for manual control)
+  const handleDoubleTap = useCallback(
+    async (e: React.MouseEvent) => {
+      const now = Date.now()
+      if (now - lastTap.current < 300) {
+        // Double tap
+        vibrate(10)
+        const { clientX: x, clientY: y } = e
+        const id = Date.now()
+        setHearts((prev) => [...prev, { id, x, y }])
+        setTimeout(() => {
+          setHearts((prev) => prev.filter((h) => h.id !== id))
+        }, 700)
+        if (!localLiked) likeMut.mutate()
+
+        // Also trigger audio play on double tap
+        if (moment.audio_url && audioRef.current && !audioPlaying) {
+          try {
+            await audioRef.current.play()
+            await feedAudio.playMoment(moment.id)
+            setAudioPlaying(true)
+          } catch (error) {
+            // Autoplay restriction
+          }
+        }
+      }
+      lastTap.current = now
+    },
+    [localLiked, audioPlaying, moment, feedAudio]
+  )
 
   const likeMut = useMutation({
     mutationFn: () => momentsService.like(moment.id),
     onMutate: () => {
       const newLiked = !localLiked
       setLocalLiked(newLiked)
-      setLocalLikes((c) => newLiked ? c + 1 : c - 1)
+      setLocalLikes((c) => (newLiked ? c + 1 : c - 1))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed'] }),
   })
@@ -320,29 +445,26 @@ function MomentCard({
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed'] }),
   })
 
-  const handleDoubleTap = useCallback((e: React.MouseEvent) => {
-    const now = Date.now()
-    if (now - lastTap.current < 300) {
-      // Double tap
-      vibrate(10)
-      const { clientX: x, clientY: y } = e
-      const id = Date.now()
-      setHearts((prev) => [...prev, { id, x, y }])
-      setTimeout(() => {
-        setHearts((prev) => prev.filter((h) => h.id !== id))
-      }, 700)
-      if (!localLiked) likeMut.mutate()
-    }
-    lastTap.current = now
-  }, [localLiked, likeMut])
-
   const shareUrl = `${window.location.origin}/moments/${moment.id}`
 
   return (
     <div
+      ref={elementRef}
       className="relative snap-start flex-shrink-0"
       style={{ height: '100dvh', width: '100%' }}
     >
+      {/* Hidden audio element for background music */}
+      {moment.audio_url && (
+        <audio
+          ref={audioRef}
+          src={moment.audio_url}
+          loop
+          crossOrigin="anonymous"
+          onPlay={() => setAudioPlaying(true)}
+          onPause={() => setAudioPlaying(false)}
+        />
+      )}
+
       {/* Media */}
       <div
         className="absolute inset-0 bg-black"
@@ -388,9 +510,9 @@ function MomentCard({
       />
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 pt-safe flex items-start justify-between px-4 pt-4">
+      <div className="absolute top-0 left-0 right-0 pt-safe flex items-center justify-between px-4 pt-4">
         {/* User info */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <KiliAvatar
             src={moment.posted_by_avatar}
             name={moment.posted_by_username}
@@ -398,9 +520,9 @@ function MomentCard({
             isVerified={moment.posted_by_verified}
             size="md"
           />
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-white">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="text-sm font-bold text-white truncate">
                 @{moment.posted_by_username}
               </p>
               <KiliBadge
@@ -417,27 +539,58 @@ function MomentCard({
           </div>
         </div>
 
-        {/* Mute toggle for video */}
-        {moment.media_type === 'video' && (
-          <motion.button
-            onClick={() => setMuted(!muted)}
-            whileTap={{ scale: 0.9 }}
-            className="w-10 h-10 rounded-full glass flex items-center justify-center"
-          >
-            {muted ? (
-              <VolumeX size={18} className="text-white" />
-            ) : (
-              <Volume2 size={18} className="text-white" />
-            )}
-          </motion.button>
-        )}
+        {/* Audio and video controls */}
+        <div className="flex items-center gap-2">
+          {/* Audio indicator */}
+          {moment.audio_url && (
+            <motion.button
+              onClick={() => {
+                if (audioRef.current) {
+                  if (audioPlaying) {
+                    audioRef.current.pause()
+                  } else {
+                    audioRef.current.play()
+                  }
+                }
+              }}
+              whileTap={{ scale: 0.9 }}
+              className="w-10 h-10 rounded-full glass flex items-center justify-center"
+              animate={audioPlaying ? { scale: [1, 1.1, 1] } : {}}
+              transition={{ duration: 0.6, repeat: Infinity }}
+            >
+              <Music
+                size={18}
+                className={audioPlaying ? 'text-gold' : 'text-white'}
+                fill={audioPlaying ? 'currentColor' : 'none'}
+              />
+            </motion.button>
+          )}
+
+          {/* Mute toggle for video */}
+          {moment.media_type === 'video' && (
+            <motion.button
+              onClick={() => setMuted(!muted)}
+              whileTap={{ scale: 0.9 }}
+              className="w-10 h-10 rounded-full glass flex items-center justify-center"
+            >
+              {muted ? (
+                <VolumeX size={18} className="text-white" />
+              ) : (
+                <Volume2 size={18} className="text-white" />
+              )}
+            </motion.button>
+          )}
+        </div>
       </div>
 
       {/* Right actions */}
       <div className="absolute right-4 bottom-32 flex flex-col items-center gap-5">
         {/* Like */}
         <motion.button
-          onClick={() => { vibrate(10); likeMut.mutate() }}
+          onClick={() => {
+            vibrate(10)
+            likeMut.mutate()
+          }}
           whileTap={{ scale: 0.8 }}
           className="flex flex-col items-center gap-1"
         >
@@ -547,6 +700,7 @@ export default function FeedPage() {
   const [activeComment, setActiveComment] = useState<number | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const { user } = useAuthStore()
+  const feedAudio = useFeedAudio()
 
   const {
     data,
@@ -621,6 +775,7 @@ export default function FeedPage() {
             key={moment.id}
             moment={moment}
             onComment={(id) => setActiveComment(id)}
+            feedAudio={feedAudio}
           />
         ))}
 

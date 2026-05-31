@@ -1,22 +1,39 @@
 'use client'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Home, Compass, Shield, MessageSquare, User } from 'lucide-react'
+import { Home, Compass, Shield, MessageSquare, User, Grid, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui.store'
+import { useMoreGridStore } from '@/stores/moreGrid.store'
+import { useLongPress, useSwipeUp } from '@/hooks/useGestures'
 
 const NAV = [
-  { href: '/feed',     Icon: Home,          label: 'Feed',   id: 'feed'     },
-  { href: '/discover', Icon: Compass,       label: 'Gundua', id: 'discover' },
-  { href: '/sos',      Icon: Shield,        label: 'SOS',    id: 'sos', isSOS: true },
-  { href: '/chat',     Icon: MessageSquare, label: 'Ujumbe', id: 'chat'     },
-  { href: '/profile',  Icon: User,          label: 'Mimi',   id: 'profile'  },
+  { href: '/feed',     Icon: Home,          label: 'Feed',     id: 'feed'     },
+  { href: '/discover', Icon: Compass,       label: 'Gundua',   id: 'discover' },
+  { href: '/ai',       Icon: Bot,           label: 'AI Guide', id: 'ai'       },
+  { href: '/sos',      Icon: Shield,        label: 'SOS',      id: 'sos', isSOS: true },
+  { href: '/chat',     Icon: MessageSquare, label: 'Ujumbe',   id: 'chat'     },
+  { href: '/profile',  Icon: User,          label: 'Mimi',     id: 'profile'  },
+  { href: '/more',     Icon: Grid,          label: 'More',     id: 'more',   isMore: true },
 ]
 
 export function BottomNav({ className }: { className?: string }) {
   const pathname = usePathname()
   const router = useRouter()
   const { notificationCount } = useUIStore()
+  const { openMoreGrid } = useMoreGridStore()
+
+  // Long press to open MoreGrid
+  const longPressHandlers = useLongPress({
+    duration: 500,
+    onLongPress: () => openMoreGrid(),
+  })
+
+  // Swipe up to open MoreGrid
+  const swipeUpHandlers = useSwipeUp({
+    threshold: 50,
+    onSwipeUp: () => openMoreGrid(),
+  })
 
   return (
     <nav
@@ -29,9 +46,11 @@ export function BottomNav({ className }: { className?: string }) {
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         height: 'var(--bottom-nav-height)',
       }}
+      {...longPressHandlers}
+      {...swipeUpHandlers}
     >
       <div className="flex items-center justify-around h-full px-1">
-        {NAV.map(({ href, Icon, label, id, isSOS }) => {
+          {NAV.map(({ href, Icon, label, id, isSOS, isMore }) => {
           const active =
             pathname === href ||
             (href !== '/' && pathname.startsWith(href + '/'))
@@ -57,6 +76,29 @@ export function BottomNav({ className }: { className?: string }) {
                 </div>
                 <span className="text-[10px] font-bold text-kili-red mt-1">
                   SOS
+                </span>
+              </motion.button>
+            )
+          }
+
+          if (isMore) {
+            return (
+              <motion.button
+                key={id}
+                onClick={openMoreGrid}
+                whileTap={{ scale: 0.9 }}
+                className="relative flex flex-col items-center gap-1 px-3 py-2 min-w-[52px]"
+                aria-label="More features"
+              >
+                <div className="relative">
+                  <Icon
+                    size={22}
+                    strokeWidth={1.8}
+                    style={{ color: 'var(--text-muted)' }}
+                  />
+                </div>
+                <span className="text-[10px] font-medium text-text-disabled">
+                  {label}
                 </span>
               </motion.button>
             )

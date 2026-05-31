@@ -124,18 +124,24 @@ REST_FRAMEWORK = {
 
 from datetime import timedelta
 SIMPLE_JWT = {
+    # Token Lifetimes
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    
+    # Rotation & Blacklist
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),
+    
+    # localStorage-based JWT (no cookies)
+    # Tokens are returned in response body and stored in frontend localStorage
 }
 
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     'http://localhost:3000',
 ])
-CORS_ALLOW_CREDENTIALS = True
+# No credentials needed - tokens sent via Authorization headers
+CORS_ALLOW_CREDENTIALS = False
 
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': env('CLOUDINARY_CLOUD_NAME', default=''),

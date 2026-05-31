@@ -78,17 +78,54 @@ def chat_stream_view(request):
     pref.daily_message_count += 1
     pref.save(update_fields=['daily_message_count'])
 
-    # Stream response
+    def _parse_stream_event(line: str) -> tuple[str | None, str | None]:
+        if not line:
+            return None, None
+
+        if line.strip() == 'data: [DONE]':
+            return 'DONE', None
+
+        if not line.startswith('data:'):
+            return None, None
+
+        payload = line[len('data:'):].strip()
+        if not payload:
+            return None, None
+
+        try:
+            event = json.loads(payload)
+        except json.JSONDecodeError:
+            return None, None
+
+        error = event.get('error')
+        if error:
+            return 'ERROR', str(error)
+
+        choice = event.get('choices', [{}])[0]
+        delta = choice.get('delta', {}) or {}
+        text = delta.get('content') or ''
+        if text:
+            return 'TEXT', text
+
+        return None, None
+
     def generate():
         full_response = ''
         try:
             msgs = build_messages(history, lang=lang)
             stream = chat_with_groq(msgs, stream=True)
-            for chunk in stream:
-                text = chunk.choices[0].delta.content or ''
-                full_response += text
-                yield f"data: {json.dumps({'text': text, 'thread_id': thread.id})}\n\n"
-            # Save assistant response
+            stream.raise_for_status()
+            for line in stream.iter_lines(decode_unicode=True):
+                event_type, text = _parse_stream_event(line)
+                if event_type == 'TEXT' and text:
+                    full_response += text
+                    yield f"data: {json.dumps({'text': text, 'thread_id': thread.id})}\n\n"
+                elif event_type == 'DONE':
+                    break
+                elif event_type == 'ERROR':
+                    yield f"data: {json.dumps({'error': text})}\n\n"
+                    return
+
             AIMessage.objects.create(
                 thread=thread,
                 role='assistant',
@@ -134,7 +171,13 @@ def chat_regular_view(request):
 
     try:
         response = chat_with_groq(msgs, stream=False)
-        reply = response.choices[0].message.content
+        response.raise_for_status()
+        data = response.json()
+        reply = (
+            data.get('choices', [])[0]
+            .get('message', {})
+            .get('content', '')
+        )
     except Exception as e:
         return Response(
             {'message': f'AI error: {str(e)}'},

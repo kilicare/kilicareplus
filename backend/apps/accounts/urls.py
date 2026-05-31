@@ -1,15 +1,12 @@
 from django.urls import path
-from rest_framework_simplejwt.views import (
-    TokenRefreshView, TokenBlacklistView,
-)
 from . import views
 
 urlpatterns = [
     # Authentication
     path('register/', views.register_view),
     path('login/', views.login_view),
-    path('refresh/', TokenRefreshView.as_view()),
-    path('logout/', TokenBlacklistView.as_view()),
+    path('refresh/', views.token_refresh_view),  # Custom view for cookie-based refresh
+    path('logout/', views.logout_view),  # Custom view for cookie-based logout
     
     # OTP Management
     path('otp/send/', views.send_otp_view),
