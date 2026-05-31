@@ -36,13 +36,15 @@ const MAIN = [
   { href: '/chat', Icon: MessageSquare, label: 'Ujumbe' },
   { href: '/map', Icon: Map, label: 'Ramani' },
   { href: '/tips', Icon: Lightbulb, label: 'Vidokezo' },
+  { href: '/subscribe', Icon: Shield, label: 'Panda Kiwango' },
   { href: '/passport', Icon: Award, label: 'Passport' },
   { href: '/notifications', Icon: Bell, label: 'Arifa', isBell: true },
 ]
 
 const CREATOR = [
-  { href: '/creator/dashboard', Icon: BarChart2, label: 'Dashboard' },
+  { href: '/dashboard', Icon: BarChart2, label: 'Dashboard' },
   { href: '/showcase', Icon: Store, label: 'Showcase' },
+  { href: '/analytics', Icon: TrendingUp, label: 'Analytics' },
   { href: '/predictions', Icon: TrendingUp, label: 'Predictions' },
 ]
 
