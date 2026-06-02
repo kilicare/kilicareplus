@@ -5,43 +5,32 @@ from core.model_loader import ModelLoader
 
 router = APIRouter()
 
-
 def _sync_bg(league: str):
     from core.predictor import predict_match
     TEAMS = {
-        'EPL': [
-            'Manchester City FC', 'Arsenal FC', 'Liverpool FC',
-            'Chelsea FC', 'Tottenham Hotspur FC',
-        ],
-        'LA_LIGA': [
-            'Real Madrid CF', 'FC Barcelona', 'Atletico de Madrid',
-        ],
-        'BUNDESLIGA': [
-            'FC Bayern München', 'Borussia Dortmund', 'RB Leipzig',
-        ],
+        'EPL':       ['Manchester City FC','Arsenal FC','Liverpool FC','Chelsea FC'],
+        'LA_LIGA':   ['Real Madrid CF','FC Barcelona','Atletico de Madrid'],
+        'BUNDESLIGA':['FC Bayern München','Borussia Dortmund','RB Leipzig'],
     }
-    teams = TEAMS.get(league, [])
-    for i in range(0, len(teams) - 1, 2):
+    for i in range(0, len(TEAMS.get(league,[]))-1, 2):
+        t = TEAMS[league]
         try:
-            pred = predict_match(teams[i], teams[i+1], league)
-            print(f"  Synced: {teams[i]} vs {teams[i+1]} → {pred['value_bet']}")
+            p = predict_match(t[i], t[i+1], league)
+            print(f"  Synced: {t[i]} vs {t[i+1]} → {p['value_bet']} | {p['signal_category']}")
         except Exception as e:
-            print(f"  Sync error: {e}")
-
+            print(f"  Error: {e}")
 
 @router.post("/trigger")
-def trigger_sync(league: str = "EPL", background_tasks: BackgroundTasks = None):
+def trigger(league: str = "EPL", background_tasks: BackgroundTasks = None):
     if background_tasks:
         background_tasks.add_task(_sync_bg, league)
-        return {"message": f"Sync triggered for {league}", "status": "background"}
+        return {"message": f"Sync triggered for {league}"}
     return {"message": "Not available"}
 
-
 @router.get("/status")
-def sync_status():
-    return {
-        "models_loaded": ModelLoader.is_loaded(),
-        "api_key_set":   bool(os.getenv("FOOTBALL_API_KEY", "")),
-        "version":       "3.0-elite",
-        "timestamp":     datetime.now().isoformat(),
-    }
+def status():
+    return {"models_loaded": ModelLoader.is_loaded(),
+            "loaded_leagues": ModelLoader.get_loaded_leagues(),
+            "api_key_set": bool(os.getenv("FOOTBALL_API_KEY","")),
+            "version":"4.0-per-league",
+            "timestamp": datetime.now().isoformat()}

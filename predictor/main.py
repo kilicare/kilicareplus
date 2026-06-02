@@ -12,55 +12,46 @@ from core.model_loader import ModelLoader
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🔄 Loading Elite ML Models v3.0...")
+    print("🔄 Loading KilicareGO Elite V4 Models...")
     success = ModelLoader.load()
     if success:
-        print("✅ Elite models loaded!")
+        print(f"✅ Loaded leagues: {ModelLoader.get_loaded_leagues()}")
     else:
-        print("⚠️ Models not loaded — using ELO fallback")
+        print("⚠️ Using ELO fallback")
     yield
-    print("👋 Predictor shutting down...")
 
 
 app = FastAPI(
-    title="KilicareGO Elite Predictor API v3.0",
-    description="Elite match prediction — All 15 problems solved",
-    version="3.0.0",
+    title="KilicareGO Elite Predictor V4",
+    description="Per-league specific models — ELO consistent",
+    version="4.0.0",
     lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000", "http://localhost:3000",
-                   "http://127.0.0.1:8000"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["http://localhost:8000","http://localhost:3000","http://127.0.0.1:8000"],
+    allow_methods=["*"], allow_headers=["*"],
 )
 
 app.include_router(predictions.router, prefix="/predictions", tags=["predictions"])
-app.include_router(matches.router, prefix="/matches", tags=["matches"])
-app.include_router(sync.router, prefix="/sync", tags=["sync"])
+app.include_router(matches.router,     prefix="/matches",     tags=["matches"])
+app.include_router(sync.router,        prefix="/sync",        tags=["sync"])
 
 
 @app.get("/health")
 def health():
     return {
         "status": "ok",
+        "version": "4.0-per-league",
+        "loaded_leagues": ModelLoader.get_loaded_leagues(),
         "models_loaded": ModelLoader.is_loaded(),
-        "version": "3.0-elite",
-        "problems_solved": 15,
     }
-
 
 @app.get("/")
 def root():
     return {
-        "message": "KilicareGO Elite Predictor v3.0 🎯",
-        "features": [
-            "ELO Rating System",
-            "Exponential Form Weighting",
-            "True H2H Analysis",
-            "Probability Calibration",
-            "Value Bet Signal Engine",
-        ]
+        "message": "KilicareGO Elite V4 🎯",
+        "architecture": "per_league_specific",
+        "leagues": ModelLoader.get_loaded_leagues(),
     }
