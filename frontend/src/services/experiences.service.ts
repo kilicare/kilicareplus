@@ -10,6 +10,7 @@ export interface ExperienceMedia {
 
 export interface Experience {
   id: number
+  guide_id: number
   guide_username: string
   guide_avatar: string | null
   guide_trust: number

@@ -11,6 +11,7 @@ interface AuthStore {
   setAuthenticated: (authenticated: boolean) => void
   setLoading: (loading: boolean) => void
   logout: () => void
+  clearAuth: () => void
   setAuthState: (user: User | null, authenticated: boolean) => void
   setAuth: (user: User, accessToken: string, refreshToken: string) => void
 }
@@ -29,6 +30,15 @@ export const useAuthStore = create<AuthStore>()(
       setLoading: (loading) => set({ isLoading: loading }),
       
       logout: () => {
+        set({ user: null, isAuthenticated: false })
+      },
+      
+      clearAuth: () => {
+        // Clear both localStorage and zustand state
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('kili_access_token')
+          localStorage.removeItem('kili_refresh_token')
+        }
         set({ user: null, isAuthenticated: false })
       },
       

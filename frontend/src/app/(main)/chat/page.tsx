@@ -2,11 +2,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { Send, ArrowLeft, Phone, MoreVertical, CheckCheck } from 'lucide-react'
+import { Send, ArrowLeft, Phone, MoreVertical, CheckCheck, LogOut } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { chatService, type ChatContact, type ChatMessage } from '@/services/chat.service'
 import { createWsManager } from '@/core/websocket/wsManager'
 import { KiliAvatar } from '@/components/ui/KiliAvatar'
 import { KiliBadge } from '@/components/ui/KiliBadge'
+import { KiliButton } from '@/components/ui/KiliButton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { useAuthStore } from '@/stores/auth.store'
@@ -360,14 +362,24 @@ function ContactsList({
 
 // ── Main Chat Page ──────────────────────────────────
 export default function ChatPage() {
+  const router = useRouter()
+  const { clearAuth } = useAuthStore()
   const [activeContact, setActiveContact] = useState<ChatContact | null>(null)
 
-  const { data: contacts = [], isLoading } = useQuery({
+  const { data: contacts = [], isLoading, error } = useQuery({
     queryKey: ['contacts'],
     queryFn: chatService.getContacts,
     refetchInterval: 10000,
     staleTime: 5000,
   })
+
+  // Handle auth errors (401)
+  const isAuthError = error && (error as any)?.response?.status === 401
+  
+  const handleLogout = () => {
+    clearAuth()
+    router.push('/login')
+  }
 
   // Desktop: side by side
   // Mobile: one or the other
@@ -382,11 +394,25 @@ export default function ChatPage() {
         )}
       >
         <div className="w-full">
-          <ContactsList
-            contacts={contacts}
-            onSelect={setActiveContact}
-            isLoading={isLoading}
-          />
+          {isAuthError ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4 px-4">
+              <EmptyState
+                icon="🔐"
+                title="Session expired"
+                subtitle="Your session has expired. Please log in again."
+              />
+              <KiliButton onClick={handleLogout} className="w-full" variant="primary">
+                <LogOut className="w-4 h-4 mr-2" />
+                Log out
+              </KiliButton>
+            </div>
+          ) : (
+            <ContactsList
+              contacts={contacts}
+              onSelect={setActiveContact}
+              isLoading={isLoading}
+            />
+          )}
         </div>
       </div>
 

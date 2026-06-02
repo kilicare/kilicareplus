@@ -20,6 +20,7 @@ class ExperienceMediaSerializer(serializers.ModelSerializer):
 
 
 class ExperienceSerializer(serializers.ModelSerializer):
+    guide_id = serializers.IntegerField(source='local.id', read_only=True)
     guide_username = serializers.CharField(
         source='local.username', read_only=True
     )
@@ -34,7 +35,7 @@ class ExperienceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Experience
         fields = [
-            'id', 'guide_username', 'guide_avatar',
+            'id', 'guide_id', 'guide_username', 'guide_avatar',
             'guide_trust', 'guide_verified',
             'title', 'description', 'location',
             'latitude', 'longitude', 'category',

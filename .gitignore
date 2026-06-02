@@ -44,3 +44,6 @@ Thumbs.db
 # =========================
 .cache/
 coverage/
+# IGNORE VENV
+venv/
+predictor/venv/

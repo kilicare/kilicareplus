@@ -17,10 +17,24 @@ def create_booking_view(request):
     guide_id = request.data.get('guide_id')
     experience_id = request.data.get('experience_id')
     amount = request.data.get('amount')
+    scheduled_date = request.data.get('scheduled_date')
+    scheduled_time = request.data.get('scheduled_time')
+    location = request.data.get('location')
 
+    # Validate required fields
     if not guide_id or not amount:
         return Response(
             {'message': 'guide_id na amount zinahitajika.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not scheduled_date or not scheduled_time:
+        return Response(
+            {'message': 'Tarehe na wakati zinahitajika.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not location:
+        return Response(
+            {'message': 'Eneo linahitajika.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -36,10 +50,10 @@ def create_booking_view(request):
         guide=guide,
         title=request.data.get('title', f'Booking na {guide.username}'),
         description=request.data.get('description', ''),
-        scheduled_date=request.data.get('scheduled_date'),
-        scheduled_time=request.data.get('scheduled_time'),
+        scheduled_date=scheduled_date,
+        scheduled_time=scheduled_time,
         duration_hours=float(request.data.get('duration_hours', 2)),
-        location=request.data.get('location', ''),
+        location=location,
         participants=int(request.data.get('participants', 1)),
         amount=amount,
         special_requests=request.data.get('special_requests', ''),

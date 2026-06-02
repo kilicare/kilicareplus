@@ -55,7 +55,7 @@ const QUICK_ACTIONS = [
     icon: '⭐',
     label: 'Ongeza Uzoefu',
     sub: 'Add Experience',
-    href: '/creator/experiences/new',
+    href: '/experiences/new',
     color: '#F5A623',
   },
   {
@@ -69,7 +69,7 @@ const QUICK_ACTIONS = [
     icon: '📅',
     label: 'Bookings',
     sub: 'Manage Bookings',
-    href: '/creator/bookings',
+    href: '/bookings',
     color: '#3B82F6',
   },
   {
@@ -245,7 +245,7 @@ export default function CreatorDashboardPage() {
           <h2 className="text-sm font-bold text-text-muted uppercase tracking-wider">
             Uzoefu Wangu
           </h2>
-          <Link href="/creator/experiences">
+          <Link href="/experiences">
             <span className="text-xs text-gold flex items-center gap-1">
               Zote <ChevronRight size={12} />
             </span>
@@ -270,7 +270,7 @@ export default function CreatorDashboardPage() {
             <p className="text-text-muted text-sm mb-4">
               Waambie watalii kuhusu Tanzania yako
             </p>
-            <Link href="/creator/experiences/new">
+            <Link href="/experiences/new">
               <KiliButton size="sm">
                 <Plus size={14} /> Ongeza Uzoefu
               </KiliButton>
