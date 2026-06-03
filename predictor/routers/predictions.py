@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from core.predictor import predict_match
 from core.model_loader import ModelLoader
+from core.validator import validate_team_name, get_all_teams
 import numpy as np
 
 router = APIRouter()
@@ -55,15 +56,103 @@ def predict(
     league: str   = Query("EPL"),
     matchday: int = Query(20),
 ):
+    """
+    Predict match outcome with DATA VALIDATION GATEWAY.
+    
+    PHASE 1: Fuzzy validation of team names
+    - Score >= 85%: Auto-correct and use
+    - Score 60-84%: Return suggestion (AMBIGUOUS)
+    - Score < 60%: Reject (NOT_FOUND)
+    
+    Args:
+        home_team: Home team name (will be validated)
+        away_team: Away team name (will be validated)
+        league: League code ('EPL', 'LA_LIGA', 'BUNDESLIGA')
+        matchday: Match day number (default 20)
+    
+    Returns:
+        Prediction with validation metadata
+    """
     if not home_team or not away_team:
         raise HTTPException(400, "home_team and away_team required")
     
-    result = predict_match(home_team, away_team, league, matchday)
+    # ════════════════════════════════════════════════════════════════════════════
+    # VALIDATION GATEWAY - PHASE 1
+    # ════════════════════════════════════════════════════════════════════════════
+    
+    h_valid, h_canonical, h_confidence, h_status = validate_team_name(
+        home_team, league, threshold=85
+    )
+    a_valid, a_canonical, a_confidence, a_status = validate_team_name(
+        away_team, league, threshold=85
+    )
+    
+    # Handle home team validation
+    if h_status == "AMBIGUOUS":
+        # Suggest closest match
+        raise HTTPException(
+            422,
+            f"AMBIGUOUS_HOME_TEAM: Jina '{home_team}' sio wazi. "
+            f"Je, ulimaanisha '{h_canonical}'? (Ujumbe: {h_confidence:.0f}%) | "
+            f"Team '{home_team}' is ambiguous. Did you mean '{h_canonical}'? "
+            f"(Confidence: {h_confidence:.0f}%)"
+        )
+    elif h_status == "NOT_FOUND":
+        # Team not found
+        raise HTTPException(
+            404,
+            f"HOME_TEAM_NOT_FOUND: Timu '{home_team}' haipo kwenye ligi {league}. "
+            f"Tafadhali hakikisha umeandika jina sahihi. | "
+            f"Team '{home_team}' not found in league {league}. Please check spelling."
+        )
+    
+    # Handle away team validation
+    if a_status == "AMBIGUOUS":
+        # Suggest closest match
+        raise HTTPException(
+            422,
+            f"AMBIGUOUS_AWAY_TEAM: Jina '{away_team}' sio wazi. "
+            f"Je, ulimaanisha '{a_canonical}'? (Ujumbe: {a_confidence:.0f}%) | "
+            f"Team '{away_team}' is ambiguous. Did you mean '{a_canonical}'? "
+            f"(Confidence: {a_confidence:.0f}%)"
+        )
+    elif a_status == "NOT_FOUND":
+        # Team not found
+        raise HTTPException(
+            404,
+            f"AWAY_TEAM_NOT_FOUND: Timu '{away_team}' haipo kwenye ligi {league}. "
+            f"Tafadhali hakikisha umeandika jina sahihi. | "
+            f"Team '{away_team}' not found in league {league}. Please check spelling."
+        )
+    
+    # ════════════════════════════════════════════════════════════════════════════
+    # BOTH TEAMS VALIDATED - NOW USE CANONICAL NAMES
+    # ════════════════════════════════════════════════════════════════════════════
+    
+    result = predict_match(h_canonical, a_canonical, league, matchday)
     
     output = {
-        'home_team': home_team, 
-        'away_team': away_team,
-        'league': league, 
+        'home_team': h_canonical, 
+        'away_team': a_canonical,
+        'league': league,
+        'meta': {
+            'validation': {
+                'home_team': {
+                    'input': home_team,
+                    'canonical': h_canonical,
+                    'confidence': round(h_confidence, 2),
+                    'status': 'VALID'
+                },
+                'away_team': {
+                    'input': away_team,
+                    'canonical': a_canonical,
+                    'confidence': round(a_confidence, 2),
+                    'status': 'VALID'
+                },
+                'threshold': 85,
+                'phase': 'data_validation_gateway_v1',
+            }
+        },
         **result
     }
     return clean_data(output)

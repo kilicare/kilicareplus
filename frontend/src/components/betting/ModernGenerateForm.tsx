@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Zap, ArrowRight, Loader2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Zap, ArrowRight, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 import { KiliButton } from '@/components/ui/KiliButton'
 
 interface ModernGenerateFormProps {
@@ -14,10 +14,40 @@ export function ModernGenerateForm({ onSubmit, isLoading = false }: ModernGenera
   const [away, setAway] = useState('')
   const [league, setLeague] = useState('EPL')
   const [focusedField, setFocusedField] = useState<string | null>(null)
+  
+  // Message states
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [isValidating, setIsValidating] = useState(false)
 
   const handleSubmit = async () => {
-    if (home && away) {
-      await onSubmit(home, away, league)
+    if (!home.trim() || !away.trim()) {
+      setError('Both home and away teams are required')
+      return
+    }
+
+    setError(null)
+    setSuccess(null)
+    setIsValidating(true)
+    
+    try {
+      // Send directly to backend - let it handle team resolution like AI Chat does
+      await onSubmit(home.trim(), away.trim(), league)
+      
+      // Show success message
+      setSuccess(`Prediction generated! ${home} vs ${away}`)
+      
+      // Reset form after successful submission
+      setTimeout(() => {
+        setHome('')
+        setAway('')
+        setSuccess(null)
+      }, 2000)
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.error || err?.message || 'Failed to generate prediction'
+      setError(errorMsg)
+    } finally {
+      setIsValidating(false)
     }
   }
 
@@ -34,7 +64,47 @@ export function ModernGenerateForm({ onSubmit, isLoading = false }: ModernGenera
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Error Alert */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-start gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/50 backdrop-blur-sm"
+          >
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-red-300 text-sm font-medium">Error</p>
+              <p className="text-red-200/80 text-sm mt-0.5">{error}</p>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-400/60 hover:text-red-300 ml-auto flex-shrink-0"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success Alert */}
+      <AnimatePresence>
+        {success && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-start gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/50 backdrop-blur-sm"
+          >
+            <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-green-300 text-sm font-medium">Success!</p>
+              <p className="text-green-200/80 text-sm mt-0.5">{success}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-2">
         <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gold to-gold-dim">
           Generate Prediction 🎯
@@ -45,7 +115,7 @@ export function ModernGenerateForm({ onSubmit, isLoading = false }: ModernGenera
       {/* Form container */}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="space-y-4">
         {/* Teams input grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Home Team */}
           <motion.div
             animate={{
@@ -63,7 +133,7 @@ export function ModernGenerateForm({ onSubmit, isLoading = false }: ModernGenera
                 onChange={(e) => setHome(e.target.value)}
                 onFocus={() => setFocusedField('home')}
                 onBlur={() => setFocusedField(null)}
-                disabled={isLoading}
+                disabled={isLoading || isValidating}
                 className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border-2 border-white/20 text-white placeholder-white/40 outline-none transition-all focus:border-gold/60 focus:bg-slate-800/80 disabled:opacity-50"
               />
               <div className="absolute right-3 top-1/2 transform translate-y-2 text-2xl opacity-0 group-focus-within:opacity-100 transition-opacity">🏠</div>
@@ -87,7 +157,7 @@ export function ModernGenerateForm({ onSubmit, isLoading = false }: ModernGenera
                 onChange={(e) => setAway(e.target.value)}
                 onFocus={() => setFocusedField('away')}
                 onBlur={() => setFocusedField(null)}
-                disabled={isLoading}
+                disabled={isLoading || isValidating}
                 className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border-2 border-white/20 text-white placeholder-white/40 outline-none transition-all focus:border-red-400/60 focus:bg-slate-800/80 disabled:opacity-50"
               />
               <div className="absolute right-3 top-1/2 transform translate-y-2 text-2xl opacity-0 group-focus-within:opacity-100 transition-opacity">✈️</div>
@@ -125,17 +195,22 @@ export function ModernGenerateForm({ onSubmit, isLoading = false }: ModernGenera
         <KiliButton
           fullWidth
           size="lg"
-          loading={isLoading}
-          disabled={!isValid || isLoading}
+          loading={isLoading || isValidating}
+          disabled={!isValid || isLoading || isValidating}
           onClick={handleSubmit}
           className="relative group overflow-hidden"
         >
           <motion.div
             className="flex items-center justify-center gap-2"
-            animate={isLoading ? { x: [0, 5, 0] } : { x: 0 }}
-            transition={{ repeat: isLoading ? Infinity : 0, duration: 1 }}
+            animate={isLoading || isValidating ? { x: [0, 5, 0] } : { x: 0 }}
+            transition={{ repeat: isLoading || isValidating ? Infinity : 0, duration: 1 }}
           >
-            {isLoading ? (
+            {isValidating ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                <span>Validating...</span>
+              </>
+            ) : isLoading ? (
               <>
                 <Loader2 size={18} className="animate-spin" />
                 <span>Analyzing...</span>

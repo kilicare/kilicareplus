@@ -12,4 +12,6 @@ urlpatterns = [
     # Betting AI
     path('betting/predict/', views.betting_predict_view),
     path('betting/accumulator/', views.betting_accumulator_view),
+    path('betting/prediction/<int:prediction_id>/delete/', views.delete_betting_prediction_view),
+    path('betting/history/', views.betting_prediction_history_view),
 ]

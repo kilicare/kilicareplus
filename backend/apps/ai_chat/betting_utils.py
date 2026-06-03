@@ -1,156 +1,78 @@
 """
 Betting AI Utilities
-- Team fuzzy matching
+- Team resolution via universal resolver
 - League detection
 - Prediction explanation generation
 - Market recommendations
+
+NOTE: This module delegates team resolution to the universal TeamResolverService
+in backend/apps/predictions/services/team_resolver.py. This ensures all components
+use the same team registry and matching logic.
 """
 
-from difflib import SequenceMatcher
 from typing import Optional, Tuple, Dict, List, Any
 import requests
 from django.conf import settings
 
+# Import universal team resolver
+from ..predictions.services.team_resolver import get_resolver, ResolutionStatus
 
 # ════════════════════════════════════════════════════════════════════════════
-# TEAM & LEAGUE REGISTRY
+# TEAM & LEAGUE RESOLUTION (via universal resolver)
 # ════════════════════════════════════════════════════════════════════════════
-
-TEAM_REGISTRY = {
-    # EPL
-    'manchester city': ['Man City', 'Manchester City', 'Man C', 'City'],
-    'manchester united': ['Man United', 'Manchester United', 'Man U', 'United'],
-    'arsenal': ['Arsenal FC', 'Arsenal', 'ARS'],
-    'liverpool': ['Liverpool FC', 'Liverpool', 'LFC'],
-    'chelsea': ['Chelsea FC', 'Chelsea', 'CHE'],
-    'tottenham': ['Tottenham', 'Spurs', 'Tottenham Hotspur'],
-    'newcastle': ['Newcastle United', 'Newcastle', 'NUFC'],
-    'aston villa': ['Aston Villa', 'Villa'],
-    'everton': ['Everton FC', 'Everton'],
-    'brighton': ['Brighton', 'Brighton & Hove Albion'],
-    'crystal palace': ['Crystal Palace', 'Palace'],
-    'west ham': ['West Ham United', 'West Ham', 'WHU'],
-    'fulham': ['Fulham FC', 'Fulham'],
-    'brentford': ['Brentford FC', 'Brentford'],
-    'luton': ['Luton Town', 'Luton'],
-    
-    # LA LIGA
-    'real madrid': ['Real Madrid', 'Real', 'RM', 'Madrid'],
-    'barcelona': ['Barcelona', 'Barca', 'FCB'],
-    'atletico madrid': ['Atletico Madrid', 'Atlético', 'Atletico', 'ATM'],
-    'real sociedad': ['Real Sociedad', 'Sociedad'],
-    'athletic bilbao': ['Athletic Bilbao', 'Athletic', 'Bilbao'],
-    'villarreal': ['Villarreal CF', 'Villarreal'],
-    'sevilla': ['Sevilla FC', 'Sevilla'],
-    'real betis': ['Real Betis', 'Betis'],
-    
-    # BUNDESLIGA
-    'bayern munich': ['Bayern Munich', 'Bayern', 'FCB'],
-    'borussia dortmund': ['Borussia Dortmund', 'Dortmund', 'BVB'],
-    'rb leipzig': ['RB Leipzig', 'Leipzig'],
-    'bayer leverkusen': ['Bayer Leverkusen', 'Leverkusen'],
-    'vfl wolfsburg': ['Wolfsburg'],
-    'eintracht frankfurt': ['Eintracht Frankfurt', 'Frankfurt'],
-    'mainz': ['Mainz 05', 'Mainz'],
-    'union berlin': ['Union Berlin', 'Berlin'],
-    
-    # SERIE A
-    'inter milan': ['Inter Milan', 'Inter', 'Internazionale'],
-    'ac milan': ['AC Milan', 'Milan'],
-    'juventus': ['Juventus', 'Juve'],
-    'napoli': ['SSC Napoli', 'Napoli'],
-    'roma': ['AS Roma', 'Roma'],
-    'lazio': ['Lazio'],
-    'fiorentina': ['Fiorentina', 'Viola'],
-    
-    # LIGUE 1
-    'psg': ['PSG', 'Paris Saint-Germain', 'Paris SG', 'PSJ'],
-    'olympique marseille': ['Olympique Marseille', 'Marseille', 'OM'],
-    'monaco': ['AS Monaco', 'Monaco'],
-    'lyon': ['Lyon', 'Olympique Lyonnais'],
-    'lens': ['RC Lens', 'Lens'],
-}
-
-LEAGUE_TEAMS_COMMON = {
-    'EPL': [
-        'Manchester City', 'Arsenal', 'Liverpool', 'Chelsea', 'Tottenham',
-        'Manchester United', 'Newcastle', 'Aston Villa', 'Everton', 'Brighton',
-    ],
-    'LA_LIGA': [
-        'Real Madrid', 'Barcelona', 'Atletico Madrid', 'Real Sociedad',
-        'Villarreal', 'Athletic Bilbao', 'Sevilla', 'Real Betis',
-    ],
-    'BUNDESLIGA': [
-        'Bayern Munich', 'Borussia Dortmund', 'RB Leipzig', 'Bayer Leverkusen',
-        'Wolfsburg', 'Frankfurt', 'Union Berlin',
-    ],
-    'SERIE_A': [
-        'Inter Milan', 'AC Milan', 'Juventus', 'Napoli', 'Roma',
-    ],
-    'LIGUE_1': [
-        'PSG', 'Marseille', 'Monaco', 'Lyon', 'Lens',
-    ],
-}
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# FUZZY MATCHING
-# ════════════════════════════════════════════════════════════════════════════
-
-def _similarity(a: str, b: str) -> float:
-    """Calculate string similarity (0-1)"""
-    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
-
 
 def find_team(query: str, league: Optional[str] = None) -> Optional[Dict[str, str]]:
     """
-    Find team by fuzzy matching.
+    Find team using universal resolver.
     
-    Returns: {'canonical': 'Manchester City', 'alias': 'Man City', 'league': 'EPL'}
+    Uses TeamResolverService for consistent team matching across all components.
+    
+    Strategy for ambiguous terms:
+    - VALID: Return the team directly
+    - AMBIGUOUS: Pick first suggestion (AI Chat context - assume user's likely intent)
+    - NOT_FOUND: Return None
+    
+    Returns: {'canonical': 'Manchester City', 'league': 'EPL', 'confidence': 100.0}
+    or None if not found
     """
-    query = query.strip().lower()
-    best_match = None
-    best_score = 0
-    
-    for canonical, aliases in TEAM_REGISTRY.items():
-        for alias in aliases:
-            score = _similarity(query, alias.lower())
-            if score > best_score:
-                best_score = score
-                best_match = canonical
-    
-    # Require at least 60% similarity
-    if best_score < 0.60:
+    if not query:
         return None
     
-    # Detect league
-    detected_league = None
-    if league:
-        detected_league = league.upper()
-    else:
-        for lname, teams in LEAGUE_TEAMS_COMMON.items():
-            if any(_similarity(best_match, t.lower()) > 0.8 for t in teams):
-                detected_league = lname
-                break
+    resolver = get_resolver()
+    result = resolver.resolve(query, league)
     
-    if not detected_league:
-        detected_league = 'EPL'  # Default
+    # Handle VALID results
+    if result.status == ResolutionStatus.VALID:
+        return {
+            'canonical': result.canonical_name,
+            'league': result.league or 'EPL',
+            'confidence': result.confidence,
+            'method': result.method.value,
+        }
     
-    return {
-        'canonical': best_match.title(),
-        'similarity': best_score,
-        'league': detected_league,
-    }
+    # Handle AMBIGUOUS results - pick first suggestion for AI Chat context
+    # (User is typing in natural language, likely has intent)
+    if result.status == ResolutionStatus.AMBIGUOUS and result.suggestions:
+        first_suggestion = result.suggestions[0]
+        return {
+            'canonical': first_suggestion['name'],
+            'league': result.league or 'EPL',
+            'confidence': first_suggestion.get('confidence', 80.0),
+            'method': 'AMBIGUOUS_RESOLVED',
+            'note': f'Clarified: {query} → {first_suggestion["name"]}',
+        }
+    
+    # NOT_FOUND or no suggestions - return None
+    return None
 
 
 def find_teams_in_query(query: str) -> Optional[Tuple[str, str, Optional[str]]]:
     """
-    Extract two teams from query string.
+    Extract two teams from query string using universal resolver.
     
     Examples:
     - "Chelsea vs Arsenal" → ('Chelsea', 'Arsenal', 'EPL')
-    - "Man City - Barca" → ('Manchester City', 'Barcelona', None) [ambiguous league]
-    - "Real Madrid dhidi ya Barca" → ('Real Madrid', 'Barcelona', 'LA_LIGA')
+    - "Man City - Barca" → ('Manchester City', 'Barcelona', 'LA_LIGA')
     
     Returns: (home_team, away_team, league) or None if can't parse
     """

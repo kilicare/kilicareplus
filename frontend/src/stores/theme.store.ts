@@ -10,6 +10,47 @@ interface ThemeStore {
   initializeTheme: () => void
 }
 
+// Safe storage handler with quota error handling
+const createSafeStorage = () => ({
+  getItem: (name: string) => {
+    try {
+      if (typeof window === 'undefined') return null
+      const item = localStorage.getItem(name)
+      return item ? JSON.parse(item) : null
+    } catch (e) {
+      console.warn('Failed to read from localStorage:', e)
+      return null
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      if (typeof window === 'undefined') return
+      localStorage.setItem(name, value)
+    } catch (e: any) {
+      if (e.name === 'QuotaExceededError' || e.message?.includes('quota')) {
+        console.warn('localStorage quota exceeded, clearing old data...')
+        // Try to clear some space by removing old data
+        try {
+          localStorage.clear()
+          localStorage.setItem(name, value)
+        } catch (e2) {
+          console.warn('Failed to save to localStorage even after clearing:', e2)
+        }
+      } else {
+        console.warn('Failed to write to localStorage:', e)
+      }
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      if (typeof window === 'undefined') return
+      localStorage.removeItem(name)
+    } catch (e) {
+      console.warn('Failed to remove from localStorage:', e)
+    }
+  },
+})
+
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set, get) => ({
@@ -33,14 +74,20 @@ export const useThemeStore = create<ThemeStore>()(
       
       initializeTheme: () => {
         if (typeof window !== 'undefined') {
-          const stored = localStorage.getItem('app-theme') as Theme | null
-          const theme = stored || 'dark'
-          get().setTheme(theme)
+          try {
+            const stored = localStorage.getItem('app-theme') as Theme | null
+            const theme = stored || 'dark'
+            get().setTheme(theme)
+          } catch (e) {
+            console.warn('Failed to initialize theme:', e)
+            get().setTheme('dark')
+          }
         }
       },
     }),
     {
       name: 'app-theme',
+      storage: createSafeStorage(),
       partialize: (state) => ({ theme: state.theme }),
     }
   )

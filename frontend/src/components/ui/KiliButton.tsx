@@ -3,7 +3,7 @@ import { motion, HTMLMotionProps } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type Variant = 'primary' | 'ghost' | 'danger' | 'outline' | 'success'
+type Variant = 'primary' | 'ghost' | 'danger' | 'outline' | 'success' | 'secondary'
 type Size = 'xs' | 'sm' | 'md' | 'lg'
 
 interface Props
@@ -28,6 +28,8 @@ const VARIANTS: Record<Variant, string> = {
     'bg-transparent text-gold border border-border-gold hover:bg-gold-muted',
   success:
     'bg-kili-green/10 text-kili-green border border-kili-green/25 hover:bg-kili-green/20',
+  secondary:
+    'bg-white/10 text-white/80 border border-white/20 hover:bg-white/15 hover:text-white',
 }
 
 const SIZES: Record<Size, string> = {

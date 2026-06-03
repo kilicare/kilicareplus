@@ -86,5 +86,27 @@ class ModelLoader:
 
     @classmethod
     def get_elo(cls, team: str) -> float:
+        """
+        Get ELO rating for a team.
+        
+        KILL-SWITCH PROTOCOL:
+        - If team is not in ELO_RATINGS, raise ValueError
+        - Never return default ELO_BASE (1500) for invalid teams
+        - This ensures validation happens at API boundary
+        
+        Args:
+            team: Team name (must be from master registry)
+        
+        Returns:
+            float: ELO rating
+        
+        Raises:
+            ValueError: If team not found in registry (prevents hallucination)
+        """
         er = cls._elo_ratings or {}
-        return float(er.get(team, ELO_BASE))
+        if team not in er:
+            raise ValueError(
+                f"TeamNotFound: '{team}' not in ELO registry. "
+                f"Team name must be validated before calling get_elo()."
+            )
+        return float(er[team])

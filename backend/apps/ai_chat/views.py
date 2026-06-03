@@ -296,6 +296,7 @@ def preferences_view(request):
 def betting_predict_view(request):
     """
     Get prediction for a match with explanations.
+    Records prediction in analytics for history tracking.
     
     Body:
     {
@@ -307,6 +308,7 @@ def betting_predict_view(request):
         find_teams_in_query, call_predictor, 
         generate_explanation_block
     )
+    from apps.admin_ops.models import BettingPredictionRecord
     
     query = request.data.get('query', '').strip()
     league = request.data.get('league', '').upper() or None
@@ -355,6 +357,22 @@ def betting_predict_view(request):
     # Generate explanations
     explanations = generate_explanation_block(prediction)
     
+    # ╔════════════════════════════════════════════════════════════════════════╗
+    # ║ ANALYTICS TRACKING - Record prediction in BettingPredictionRecord     ║
+    # ╚════════════════════════════════════════════════════════════════════════╝
+    try:
+        BettingPredictionRecord.objects.create(
+            user=request.user,
+            home_team=home_team,
+            away_team=away_team,
+            league=final_league,
+            original_query=query,
+            prediction_data=prediction,
+        )
+    except Exception as e:
+        print(f"[WARNING] Failed to record prediction in analytics: {e}")
+        # Don't fail the request if analytics recording fails
+    
     return Response({
         'home_team': home_team,
         'away_team': away_team,
@@ -395,4 +413,86 @@ def betting_accumulator_view(request):
     return Response({
         'accumulators': accumulators,
         'count': len(accumulators),
+    })
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_betting_prediction_view(request, prediction_id):
+    """
+    DELETE /api/ai-chat/betting/prediction/{id}/
+    
+    Soft-delete a betting prediction via analytics.
+    Records deletion in BettingPredictionRecord (not removed, just marked deleted).
+    """
+    from apps.admin_ops.models import BettingPredictionRecord
+    
+    try:
+        record = BettingPredictionRecord.objects.get(
+            id=prediction_id, user=request.user
+        )
+        record.soft_delete(reason="User deleted from AI chat")
+        
+        return Response({
+            'message': 'Prediction deleted',
+            'id': prediction_id,
+            'deleted_at': record.deleted_at.isoformat(),
+        })
+    except BettingPredictionRecord.DoesNotExist:
+        return Response(
+            {'error': 'Prediction not found'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def betting_prediction_history_view(request):
+    """
+    GET /api/ai-chat/betting/history/
+    
+    Get user's betting prediction history from analytics.
+    
+    Query params:
+    - league: Filter by league
+    - limit: Default 50
+    - include_deleted: Include soft-deleted predictions (default: False)
+    """
+    from apps.admin_ops.models import BettingPredictionRecord
+    
+    league = request.query_params.get('league')
+    limit = int(request.query_params.get('limit', 50))
+    include_deleted = request.query_params.get('include_deleted', 'false').lower() == 'true'
+    
+    qs = BettingPredictionRecord.objects.filter(user=request.user)
+    
+    # Filter out soft-deleted by default
+    if not include_deleted:
+        qs = qs.filter(deleted_at__isnull=True)
+    
+    if league:
+        qs = qs.filter(league=league)
+    
+    qs = qs.order_by('-created_at')[:limit]
+    
+    data = [{
+        'id': p.id,
+        'home_team': p.home_team,
+        'away_team': p.away_team,
+        'league': p.league,
+        'original_query': p.original_query,
+        'prediction': p.prediction_data,
+        'created_at': p.created_at.isoformat(),
+        'deleted_at': p.deleted_at.isoformat() if p.deleted_at else None,
+        'is_deleted': p.deleted_at is not None,
+    } for p in qs]
+    
+    return Response({
+        'count': len(data),
+        'predictions': data,
     })

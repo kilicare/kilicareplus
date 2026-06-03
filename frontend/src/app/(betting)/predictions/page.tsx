@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  TrendingUp, Zap, Target, MessageCircle, History, BarChart3,
-  Lock, Play, ArrowRight, Brain, Loader2, Send, Calendar,
+  TrendingUp, Target, MessageCircle, History,
+  Lock, Play, ArrowRight, Brain, Loader2, Send, Calendar, Trash2, Check, X,
 } from 'lucide-react'
 import api from '@/core/api/axios'
 import { KiliButton } from '@/components/ui/KiliButton'
@@ -17,7 +17,7 @@ import { ModernGenerateForm } from '@/components/betting/ModernGenerateForm'
 import { PredictionWelcomeCard } from '@/components/betting/PredictionWelcomeCard'
 
 // Types
-type Mode = 'today' | 'generate' | 'ai-chat' | 'history' | 'analytics'
+type Mode = 'today' | 'ai-chat' | 'history'
 
 interface Prediction {
   home_win_prob?: number
@@ -36,10 +36,8 @@ interface Prediction {
 function ModeSwitcher({ mode, onChangeMode, isPremium }: any) {
   const modes = [
     { key: 'today', label: '📅 Today', icon: Calendar },
-    { key: 'generate', label: '✨ Generate', icon: Zap },
     { key: 'ai-chat', label: '🤖 AI Chat', icon: Brain },
     { key: 'history', label: '📜 History', icon: History },
-    { key: 'analytics', label: '📊 Analytics', icon: BarChart3 },
   ]
 
   return (
@@ -259,75 +257,6 @@ function TodayMode({ isPremium }: any) {
   )
 }
 
-// Generate Prediction
-function GenerateMode() {
-  const [home, setHome] = useState('')
-  const [away, setAway] = useState('')
-  const [league, setLeague] = useState('EPL')
-  const [prediction, setPrediction] = useState<Prediction | null>(null)
-
-  const mut = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post('/api/predictions/generate/', {
-        home_team: home,
-        away_team: away,
-        league,
-      })
-      return data
-    },
-    onSuccess: (data) => {
-      setPrediction(data.prediction)
-      toast.success('Prediction generated!')
-    },
-    onError: (e: any) => {
-      toast.error(e.response?.data?.error || 'Error generating prediction')
-    },
-  })
-
-  const handleGenerate = async () => {
-    await mut.mutateAsync()
-  }
-
-  return (
-    <div className="space-y-6">
-      <ModernGenerateForm 
-        onSubmit={async (homeTeam, awayTeam, selectedLeague) => {
-          setHome(homeTeam)
-          setAway(awayTeam)
-          setLeague(selectedLeague)
-          await mut.mutateAsync()
-        }}
-        isLoading={mut.isPending}
-      />
-
-      {/* Result Card */}
-      {prediction && (
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          className="pt-4"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-max">
-            <Modern3DPredictionCard
-              homeTeam={home}
-              awayTeam={away}
-              league={league}
-              homeWin={prediction.home_win_prob ? prediction.home_win_prob * 100 : 0}
-              draw={prediction.draw_prob ? prediction.draw_prob * 100 : 0}
-              awayWin={prediction.away_win_prob ? prediction.away_win_prob * 100 : 0}
-              confidence={prediction.confidence ? prediction.confidence * 100 : 0}
-              btts={prediction.btts_prob ? prediction.btts_prob * 100 : 0}
-              over25={prediction.over_25_prob ? prediction.over_25_prob * 100 : 0}
-              valueMarket={prediction.value_bet}
-              index={0}
-            />
-          </div>
-        </motion.div>
-      )}
-    </div>
-  )
-}
-
 // AI Chat Mode (Now FREE for everyone!)
 function AIChatMode() {
   const [messages, setMessages] = useState<any[]>([])
@@ -337,23 +266,24 @@ function AIChatMode() {
   
   const mut = useMutation({
     mutationFn: async (query: string) => {
-      // Try betting prediction first (if query looks like a match request)
+      // Check if query looks like a match (contains "vs", "versus", "v ", etc.)
       const matchKeywords = ['vs', 'versus', 'v ', 'against', 'dhidi ya', '-']
       const isMatchQuery = matchKeywords.some(kw => query.toLowerCase().includes(kw))
       
       if (isMatchQuery) {
+        // Match query - use betting prediction
         const { data } = await api.post('/api/ai/betting/predict/', {
           query,
         })
         return { type: 'prediction', data }
       } else {
-        // Regular AI chat
+        // General betting question - use regular AI chat with betting context
         const { data } = await api.post('/api/ai/chat/', {
           message: query,
           context: 'betting',
           lang: 'en',
         })
-        return { type: 'chat', data }
+        return { type: 'betting-tips', data }
       }
     },
     onSuccess: (result) => {
@@ -379,6 +309,17 @@ function AIChatMode() {
             },
           },
         ])
+      } else if (result.type === 'betting-tips') {
+        // Display betting advice/tips
+        setMessages((prev) => [
+          ...prev,
+          { role: 'user', content: input },
+          { 
+            role: 'assistant', 
+            type: 'betting-tips', 
+            content: result.data.reply || result.data.tips || result.data.message 
+          },
+        ])
       } else {
         setMessages((prev) => [
           ...prev,
@@ -401,6 +342,8 @@ function AIChatMode() {
     },
   })
 
+  const [showLegend, setShowLegend] = useState(true)
+
   const handleSend = () => {
     if (!input.trim()) return
     mut.mutate(input)
@@ -408,14 +351,133 @@ function AIChatMode() {
 
   return (
     <div className="flex flex-col h-[700px] gap-4">
+      {/* Legend Bar - Always Visible */}
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ 
+          opacity: showLegend ? 1 : 0.5, 
+          height: showLegend ? 'auto' : 0 
+        }}
+        className={`overflow-hidden bg-gold/5 border border-gold/20 rounded-xl p-3 transition-all ${
+          showLegend ? 'block' : 'hidden'
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div>
+              <span className="font-bold text-gold">🏠 Home %</span>
+              <p className="text-text-muted">Home win chance</p>
+            </div>
+            <div>
+              <span className="font-bold text-gold">⚪ Draw %</span>
+              <p className="text-text-muted">Draw chance</p>
+            </div>
+            <div>
+              <span className="font-bold text-gold">⚽⚽ BTTS</span>
+              <p className="text-text-muted">Both score</p>
+            </div>
+            <div>
+              <span className="font-bold text-gold">📈 Over 2.5</span>
+              <p className="text-text-muted">3+ goals</p>
+            </div>
+          </div>
+          <motion.button
+            onClick={() => setShowLegend(!showLegend)}
+            whileTap={{ scale: 0.9 }}
+            className="flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center hover:bg-gold/10"
+          >
+            {showLegend ? '▼' : '▶'}
+          </motion.button>
+        </div>
+      </motion.div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-2">
         {messages.length === 0 && (
-          <div className="text-center py-12 text-text-muted">
-            <Brain size={48} className="mx-auto mb-4 opacity-50" />
-            <p className="mb-2">🤖 AI Betting Assistant</p>
-            <p className="text-sm">Try: "Chelsea vs Arsenal" or "Who wins Man City vs Liverpool?"</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="h-full flex flex-col items-center justify-center space-y-6 py-12"
+          >
+            {/* Modern Welcome Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              className="w-full max-w-md bg-gradient-to-br from-gold/10 via-white/5 to-gold/5 border border-gold/30 rounded-2xl p-8 space-y-6 shadow-lg shadow-gold/10"
+            >
+              {/* Icon & Title */}
+              <div className="text-center space-y-3">
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                  className="text-5xl flex justify-center"
+                >
+                  🤖
+                </motion.div>
+                <h2 className="text-2xl font-black bg-gradient-to-r from-text-primary to-gold bg-clip-text text-transparent">
+                  AI Betting Assistant
+                </h2>
+                <p className="text-text-muted text-sm leading-relaxed">
+                  Professional match predictions & betting insights powered by advanced AI
+                </p>
+              </div>
+
+              {/* Quick Examples */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-gold uppercase tracking-widest">Try asking:</p>
+                <div className="space-y-2">
+                  {[
+                    'Chelsea vs Arsenal',
+                    'Bayern Munich vs Dortmund',
+                    'Best bets for EPL today',
+                  ].map((example, idx) => (
+                    <motion.button
+                      key={idx}
+                      onClick={() => {
+                        setInput(example)
+                        setTimeout(() => handleSend(), 50)
+                      }}
+                      whileHover={{ scale: 1.02, x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-gold/10 border border-white/10 hover:border-gold/30 text-sm text-text-primary transition-all group"
+                    >
+                      <span className="text-gold">→</span> {example}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Features Badges */}
+              <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/10">
+                <div className="text-center">
+                  <div className="text-2xl mb-1">📊</div>
+                  <p className="text-xs text-text-muted">Live Data</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl mb-1">🎯</div>
+                  <p className="text-xs text-text-muted">Accurate</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl mb-1">⚡</div>
+                  <p className="text-xs text-text-muted">Instant</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Info Box */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="w-full max-w-md bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-center text-sm text-blue-100"
+            >
+              <p className="font-semibold mb-1">💡 Pro Tip</p>
+              <p className="text-xs opacity-90">
+                Get realistic match predictions with confidence levels and betting recommendations
+              </p>
+            </motion.div>
+          </motion.div>
         )}
 
         {messages.map((msg, idx) => {
@@ -483,6 +545,24 @@ function AIChatMode() {
             )
           }
 
+          if (msg.type === 'betting-tips') {
+            return (
+              <motion.div
+                key={idx}
+                className="flex justify-start"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="px-4 py-3 rounded-2xl bg-gradient-to-br from-gold/10 to-gold/5 border border-gold/30 max-w-lg text-sm text-text-primary">
+                  <div className="flex gap-2">
+                    <span className="text-lg flex-shrink-0">💡</span>
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                  </div>
+                </div>
+              </motion.div>
+            )
+          }
+
           return (
             <motion.div
               key={idx}
@@ -535,135 +615,260 @@ function AIChatMode() {
   )
 }
 
-// History Mode
+// History Mode - Now using AI Chat betting analytics endpoints
 function HistoryMode() {
-  const { data: history, isLoading } = useQuery({
-    queryKey: ['prediction-history'],
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
+  
+  const { data: history, isLoading, refetch } = useQuery({
+    queryKey: ['betting-prediction-history'],
     queryFn: async () => {
-      const { data } = await api.get('/api/predictions/history/?limit=50')
+      const { data } = await api.get('/api/ai/betting/history/?limit=50')
       return data
     },
   })
 
+  // Delete single prediction mutation (soft delete via analytics)
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/api/ai/betting/prediction/${id}/delete/`)
+    },
+    onSuccess: () => {
+      toast.success('Prediction deleted')
+      refetch()
+      setConfirmDelete(null)
+    },
+    onError: (e: any) => {
+      toast.error(e.response?.data?.error || 'Failed to delete prediction')
+    },
+  })
+
+  // Delete multiple predictions mutation (soft delete via analytics)
+  const deleteMultipleMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      // Delete all selected predictions (soft delete)
+      await Promise.all(ids.map(id => api.delete(`/api/ai/betting/prediction/${id}/delete/`)))
+    },
+    onSuccess: () => {
+      toast.success(`${selectedIds.length} predictions deleted`)
+      refetch()
+      setSelectedIds([])
+    },
+    onError: (e: any) => {
+      toast.error(e.response?.data?.error || 'Failed to delete predictions')
+    },
+  })
+
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 animate-spin text-gold" />
+      </div>
+    )
   }
 
   const preds = history?.predictions || []
+  const isSelectingMultiple = selectedIds.length > 0
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-max">
-      {preds.map((p: any, idx: number) => (
-        <Modern3DPredictionCard
-          key={p.id}
-          index={idx}
-          homeTeam={p.home_team}
-          awayTeam={p.away_team}
-          league={p.league}
-          homeWin={p.prediction?.home_win_prob ? p.prediction.home_win_prob * 100 : 0}
-          draw={p.prediction?.draw_prob ? p.prediction.draw_prob * 100 : 0}
-          awayWin={p.prediction?.away_win_prob ? p.prediction.away_win_prob * 100 : 0}
-          confidence={p.prediction?.confidence ? p.prediction.confidence * 100 : 0}
-          btts={p.prediction?.btts_prob ? p.prediction.btts_prob * 100 : 0}
-          over25={p.prediction?.over_25_prob ? p.prediction.over_25_prob * 100 : 0}
-          valueMarket={p.prediction?.value_bet}
-          explanations={p.explanations}
-        />
-      ))}
-    </div>
-  )
-}
+  const handleToggleSelect = (id: number) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
 
-// Analytics Mode
-function AnalyticsMode() {
-  const { data: analytics, isLoading } = useQuery({
-    queryKey: ['prediction-analytics'],
-    queryFn: async () => {
-      const { data } = await api.get('/api/predictions/analytics/')
-      return data
-    },
-  })
+  const handleSelectAll = () => {
+    if (selectedIds.length === preds.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(preds.map((p: any) => p.id))
+    }
+  }
 
-  if (isLoading) {
-    return <div>Loading...</div>
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return
+    await deleteMultipleMutation.mutateAsync(selectedIds)
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-4"
-    >
-      {/* Stats Grid */}
-      <motion.div
-        className="grid grid-cols-2 md:grid-cols-3 gap-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <motion.div
-          whileHover={{ y: -4 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-gold/30 to-gold/10 border border-gold/30 backdrop-blur-xl text-center group cursor-pointer"
-        >
-          <p className="text-4xl font-black text-gold group-hover:scale-110 transition-transform">
-            {analytics?.total_predictions || 0}
-          </p>
-          <p className="text-sm text-white/70 mt-2">Total Predictions</p>
-          <p className="text-xs text-gold/60 mt-1">📊</p>
-        </motion.div>
-        <motion.div
-          whileHover={{ y: -4 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-green-500/30 to-green-600/10 border border-green-400/30 backdrop-blur-xl text-center group cursor-pointer"
-        >
-          <p className="text-4xl font-black text-green-400 group-hover:scale-110 transition-transform">
-            {analytics?.with_feedback || 0}
-          </p>
-          <p className="text-sm text-white/70 mt-2">With Results</p>
-          <p className="text-xs text-green-400/60 mt-1">✅</p>
-        </motion.div>
-        <motion.div
-          whileHover={{ y: -4 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-blue-500/30 to-blue-600/10 border border-blue-400/30 backdrop-blur-xl text-center group cursor-pointer"
-        >
-          <p className="text-4xl font-black text-blue-400 group-hover:scale-110 transition-transform">
-            {analytics?.accuracy_rate?.toFixed(1) || 0}%
-          </p>
-          <p className="text-sm text-white/70 mt-2">Accuracy</p>
-          <p className="text-xs text-blue-400/60 mt-1">🎯</p>
-        </motion.div>
-      </motion.div>
-
-      {/* League breakdown */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="p-6 rounded-2xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/80 border border-white/15 backdrop-blur-xl"
-      >
-        <h3 className="font-bold text-text-primary mb-4 flex items-center gap-2">
-          <TrendingUp size={18} className="text-gold" />
-          By League
-        </h3>
-        <div className="space-y-3">
-          {Object.entries(analytics?.by_league || {}).map(([league, count]: any, idx: number) => (
-            <motion.div
-              key={league}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-colors group"
-            >
-              <span className="text-sm font-semibold text-white/80 group-hover:text-white transition-colors">{league}</span>
-              <motion.span
-                whileHover={{ scale: 1.1 }}
-                className="text-lg font-black text-gold bg-gold/20 px-3 py-1 rounded-lg"
+    <div className="space-y-4">
+      {/* Selection toolbar */}
+      <AnimatePresence>
+        {isSelectingMultiple && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center justify-between p-4 rounded-lg bg-red-500/10 border border-red-500/50 backdrop-blur-sm"
+          >
+            <div className="flex items-center gap-3">
+              <Trash2 className="w-5 h-5 text-red-400" />
+              <span className="text-sm font-medium text-red-300">
+                {selectedIds.length} selected
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <KiliButton
+                size="sm"
+                variant="outline"
+                onClick={() => setSelectedIds([])}
+                disabled={deleteMultipleMutation.isPending}
               >
-                {count}
-              </motion.span>
+                <X className="w-4 h-4" />
+              </KiliButton>
+              <KiliButton
+                size="sm"
+                onClick={handleDeleteSelected}
+                loading={deleteMultipleMutation.isPending}
+                className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Selected
+              </KiliButton>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Predictions grid */}
+      <div className="space-y-4">
+        {preds.length > 0 && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={handleSelectAll}
+            className="text-xs font-medium text-white/60 hover:text-white/80 transition-colors px-3 py-1 rounded hover:bg-white/10"
+          >
+            {selectedIds.length === preds.length ? 'Deselect All' : 'Select All'}
+          </motion.button>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-max">
+          {preds.map((p: any, idx: number) => (
+            <motion.div
+              key={p.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative group"
+            >
+              {/* Selection checkbox */}
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleToggleSelect(p.id)}
+                className={`absolute -left-4 top-4 z-10 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                  selectedIds.includes(p.id)
+                    ? 'bg-gold border-gold'
+                    : 'border-white/30 hover:border-gold'
+                }`}
+              >
+                {selectedIds.includes(p.id) && (
+                  <Check className="w-4 h-4 text-slate-900" />
+                )}
+              </motion.button>
+
+              {/* Prediction card */}
+              <div className="relative">
+                <Modern3DPredictionCard
+                  key={p.id}
+                  index={idx}
+                  homeTeam={p.home_team}
+                  awayTeam={p.away_team}
+                  league={p.league}
+                  homeWin={
+                    p.prediction?.home_win_prob ? p.prediction.home_win_prob * 100 : 0
+                  }
+                  draw={p.prediction?.draw_prob ? p.prediction.draw_prob * 100 : 0}
+                  awayWin={
+                    p.prediction?.away_win_prob ? p.prediction.away_win_prob * 100 : 0
+                  }
+                  confidence={
+                    p.prediction?.confidence ? p.prediction.confidence * 100 : 0
+                  }
+                  btts={p.prediction?.btts_prob ? p.prediction.btts_prob * 100 : 0}
+                  over25={p.prediction?.over_25_prob ? p.prediction.over_25_prob * 100 : 0}
+                  valueMarket={p.prediction?.value_bet}
+                  explanations={p.explanations}
+                />
+
+                {/* Delete button - shown on hover */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileHover={{ opacity: 1, scale: 1 }}
+                  className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() =>
+                      confirmDelete === p.id ? setConfirmDelete(null) : setConfirmDelete(p.id)
+                    }
+                    className="relative w-10 h-10 rounded-full bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 flex items-center justify-center transition-all group/btn"
+                  >
+                    <Trash2 className="w-5 h-5 text-red-400 group-hover/btn:text-red-300" />
+                  </motion.button>
+                </motion.div>
+              </div>
+
+              {/* Delete confirmation */}
+              <AnimatePresence>
+                {confirmDelete === p.id && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="absolute inset-0 rounded-2xl bg-slate-900/95 backdrop-blur-sm border border-red-500/50 flex flex-col items-center justify-center gap-3 p-4 z-20"
+                  >
+                    <Trash2 className="w-8 h-8 text-red-400" />
+                    <p className="text-sm text-white font-medium text-center">
+                      Delete {p.home_team} vs {p.away_team}?
+                    </p>
+                    <div className="flex gap-2">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setConfirmDelete(null)}
+                        disabled={deleteMutation.isPending}
+                        className="px-3 py-1 text-xs font-medium rounded bg-white/10 hover:bg-white/20 text-white transition-colors"
+                      >
+                        Cancel
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => deleteMutation.mutate(p.id)}
+                        disabled={deleteMutation.isPending}
+                        className="px-3 py-1 text-xs font-medium rounded bg-red-500/20 hover:bg-red-500/40 text-red-300 transition-colors disabled:opacity-50"
+                      >
+                        {deleteMutation.isPending ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          'Delete'
+                        )}
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           ))}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+
+      {/* Empty state */}
+      {preds.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center justify-center p-12 rounded-lg bg-white/5 border border-white/10"
+        >
+          <History className="w-12 h-12 text-white/30 mb-4" />
+          <p className="text-white/60 text-sm">No predictions yet</p>
+          <p className="text-white/40 text-xs mt-1">
+            Generate predictions to see them here
+          </p>
+        </motion.div>
+      )}
+    </div>
   )
 }
 
@@ -745,16 +950,6 @@ export default function PredictionsPage() {
               <TodayMode isPremium={isPremium} />
             </motion.div>
           )}
-          {mode === 'generate' && (
-            <motion.div
-              key="generate"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <GenerateMode />
-            </motion.div>
-          )}
           {mode === 'ai-chat' && (
             <motion.div
               key="ai"
@@ -773,16 +968,6 @@ export default function PredictionsPage() {
               exit={{ opacity: 0, y: -20 }}
             >
               <HistoryMode />
-            </motion.div>
-          )}
-          {mode === 'analytics' && (
-            <motion.div
-              key="analytics"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <AnalyticsMode />
             </motion.div>
           )}
         </AnimatePresence>

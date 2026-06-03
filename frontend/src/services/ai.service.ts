@@ -87,6 +87,7 @@ export const aiService = {
       return
     }
 
+
     const runStream = async (token: string) => {
       return fetch(`${API_URL}/api/ai/chat/stream/`, {
         method: 'POST',
