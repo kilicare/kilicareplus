@@ -168,6 +168,7 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='KilicareGO+ <noreply@kilicarego.com>')
 
 GROQ_API_KEY = env('GROQ_API_KEY', default='')
+PREDICTOR_ENGINE_URL = env('PREDICTOR_ENGINE_URL', default='http://localhost:8001')
 MPESA_CONSUMER_KEY = env('MPESA_CONSUMER_KEY', default='')
 MPESA_CONSUMER_SECRET = env('MPESA_CONSUMER_SECRET', default='')
 MPESA_SHORTCODE = env('MPESA_SHORTCODE', default='174379')

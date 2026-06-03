@@ -11,8 +11,20 @@ import {
   BarChart3,
   Star,
   Settings,
+  TrendingUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// Color mapping for each feature
+const FEATURE_COLORS: { [key: string]: { gradient: string; glow: string; text: string } } = {
+  predictions: { gradient: 'from-blue-500/20 to-cyan-500/10', glow: 'rgba(59, 130, 246, 0.3)', text: 'text-blue-300' },
+  bookings: { gradient: 'from-purple-500/20 to-pink-500/10', glow: 'rgba(168, 85, 247, 0.3)', text: 'text-purple-300' },
+  'map-tips': { gradient: 'from-green-500/20 to-emerald-500/10', glow: 'rgba(34, 197, 94, 0.3)', text: 'text-green-300' },
+  payments: { gradient: 'from-orange-500/20 to-red-500/10', glow: 'rgba(249, 115, 22, 0.3)', text: 'text-orange-300' },
+  analytics: { gradient: 'from-red-500/20 to-pink-500/10', glow: 'rgba(239, 68, 68, 0.3)', text: 'text-red-300' },
+  showcase: { gradient: 'from-yellow-500/20 to-amber-500/10', glow: 'rgba(234, 179, 8, 0.3)', text: 'text-yellow-300' },
+  settings: { gradient: 'from-slate-500/20 to-gray-500/10', glow: 'rgba(100, 116, 139, 0.3)', text: 'text-slate-300' },
+}
 
 export interface MoreFeature {
   id: string
@@ -25,6 +37,13 @@ export interface MoreFeature {
 }
 
 const FEATURES: MoreFeature[] = [
+  {
+    id: 'predictions',
+    label: 'Predictions',
+    description: 'Betting predictions',
+    Icon: TrendingUp,
+    href: '/predictions',
+  },
   {
     id: 'bookings',
     label: 'Bookings',
@@ -88,7 +107,7 @@ export function MoreGrid({ isOpen, onClose, features = FEATURES }: MoreGridProps
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.05,
+        staggerChildren: 0.06,
         delayChildren: 0.1,
       },
     },
@@ -96,12 +115,12 @@ export function MoreGrid({ isOpen, onClose, features = FEATURES }: MoreGridProps
   }
 
   const itemVariants = {
-    hidden: { opacity: 0, scale: 0.8, y: 10 },
+    hidden: { opacity: 0, scale: 0.8, y: 20 },
     visible: {
       opacity: 1,
       scale: 1,
       y: 0,
-      transition: { type: 'spring' as const, stiffness: 300, damping: 30 },
+      transition: { type: 'spring' as const, stiffness: 350, damping: 35 },
     },
   }
 
@@ -170,74 +189,118 @@ export function MoreGrid({ isOpen, onClose, features = FEATURES }: MoreGridProps
                 animate="visible"
                 className="grid grid-cols-2 gap-4"
               >
-                {features.map((feature) => (
-                  <motion.button
-                    key={feature.id}
-                    variants={itemVariants}
-                    onClick={() => handleFeatureClick(feature.href)}
-                    disabled={feature.disabled}
-                    whileTap={{ scale: 0.95 }}
-                    className={cn(
-                      'relative overflow-hidden rounded-2xl p-4 transition-all duration-300 group',
-                      'border border-white/10 hover:border-gold/50',
-                      'hover:bg-white/5 active:bg-white/10',
-                      feature.disabled && 'opacity-50 cursor-not-allowed hover:bg-transparent hover:border-white/10'
-                    )}
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
-                    }}
-                  >
-                    {/* Gradient background on hover */}
-                    <div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.03))',
-                        pointerEvents: 'none',
+                {features.map((feature) => {
+                  const colors = FEATURE_COLORS[feature.id] || FEATURE_COLORS.settings
+                  return (
+                    <motion.button
+                      key={feature.id}
+                      variants={itemVariants}
+                      onClick={() => handleFeatureClick(feature.href)}
+                      disabled={feature.disabled}
+                      whileHover={{ 
+                        y: -8,
+                        rotateX: -8,
+                        rotateY: 2,
                       }}
-                    />
+                      whileTap={{ scale: 0.92 }}
+                      className={cn(
+                        'relative overflow-hidden rounded-2xl p-5 transition-all duration-300 group',
+                        'border border-white/10 hover:border-white/30',
+                        feature.disabled && 'opacity-50 cursor-not-allowed'
+                      )}
+                      style={{
+                        background: `linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))`,
+                        perspective: '1000px',
+                      }}
+                    >
+                      {/* Glow background on hover */}
+                      <motion.div
+                        className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-2xl`}
+                        style={{
+                          background: `radial-gradient(circle, ${colors.glow}, transparent)`,
+                          pointerEvents: 'none',
+                        }}
+                      />
 
-                    {/* Content */}
-                    <div className="relative z-10 flex flex-col items-center gap-2 text-center">
-                      <div className="relative">
-                        <feature.Icon
-                          size={28}
-                          className={cn(
-                            'transition-all duration-300 group-hover:text-gold',
-                            feature.disabled ? 'text-text-disabled' : 'text-text-muted'
-                          )}
-                        />
+                      {/* Gradient overlay */}
+                      <div
+                        className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl`}
+                        style={{
+                          background: `linear-gradient(135deg, ${colors.glow}, transparent)`,
+                          pointerEvents: 'none',
+                        }}
+                      />
+
+                      {/* Top accent line */}
+                      <div
+                        className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        style={{
+                          background: `linear-gradient(90deg, transparent, ${colors.glow}, transparent)`,
+                        }}
+                      />
+
+                      {/* Content */}
+                      <div className="relative z-10 flex flex-col items-center gap-3 text-center">
+                        {/* Icon container */}
+                        <motion.div
+                          whileHover={{ scale: 1.15, rotate: 5 }}
+                          className="p-3 rounded-xl transition-all duration-300"
+                          style={{
+                            background: `linear-gradient(135deg, ${colors.glow}, transparent)`,
+                            border: `1px solid ${colors.glow}`,
+                          }}
+                        >
+                          <feature.Icon
+                            size={32}
+                            className={cn(
+                              'transition-all duration-300',
+                              colors.text,
+                              feature.disabled && 'text-text-disabled'
+                            )}
+                          />
+                        </motion.div>
+
+                        {/* Badge */}
                         {feature.badge && (
-                          <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-kili-red text-[9px] font-bold text-white rounded-full">
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="absolute -top-2 -right-2 px-2 py-1 bg-gradient-to-r from-kili-red to-red-600 text-[9px] font-bold text-white rounded-full shadow-lg"
+                          >
                             {feature.badge}
-                          </span>
+                          </motion.span>
                         )}
-                      </div>
 
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-white group-hover:text-gold transition-colors">
-                          {feature.label}
-                        </span>
-                        {feature.description && (
-                          <span className="text-[11px] text-text-disabled group-hover:text-text-muted transition-colors">
-                            {feature.description}
+                        {/* Text */}
+                        <div className="flex flex-col gap-1 w-full">
+                          <span className={cn(
+                            'text-sm font-bold transition-colors duration-300',
+                            colors.text
+                          )}>
+                            {feature.label}
                           </span>
-                        )}
+                          {feature.description && (
+                            <span className="text-[11px] text-white/50 group-hover:text-white/70 transition-colors">
+                              {feature.description}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </motion.button>
-                ))}
+                    </motion.button>
+                  )
+                })}
               </motion.div>
 
               {/* Footer tip */}
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="mt-8 p-4 rounded-xl border border-white/5 text-center"
-                style={{ background: 'rgba(255,255,255,0.02)' }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mt-8 p-4 rounded-2xl border border-white/10 text-center group cursor-pointer hover:border-white/30 transition-colors"
+                style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))' }}
               >
-                <p className="text-[12px] text-text-muted">
-                  💡 Tip: Swipe down to close this menu
+                <p className="text-[12px] text-white/60 group-hover:text-white/80 transition-colors">
+                  💡 <span className="font-semibold">Tip:</span> Swipe down to close
                 </p>
               </motion.div>
             </div>

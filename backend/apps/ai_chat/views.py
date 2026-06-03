@@ -18,21 +18,14 @@ def chat_stream_view(request):
     """Streaming AI response — real-time typewriter"""
 
     message = request.data.get('message', '').strip()
-
-    print("\n" + "=" * 60)
-    print("MESSAGE RAW:")
-    print(repr(message))
-
-    try:
-        message.encode("utf-8")
-        print("UTF8 OK")
-    except Exception as e:
-        print("UTF8 ERROR:", repr(e))
-
-    print("=" * 60 + "\n")
-
     thread_id = request.data.get('thread_id')
     lang = request.data.get('lang', 'sw')
+    context = request.data.get('context', 'tourism')  # 'tourism' or 'betting'
+
+    print("\n" + "=" * 60)
+    print(f"CONTEXT: {context}")
+    print(f"MESSAGE RAW: {repr(message)}")
+    print("=" * 60 + "\n")
 
     if not message:
         return Response(
@@ -126,7 +119,7 @@ def chat_stream_view(request):
     def generate():
         full_response = ''
         try:
-            msgs = build_messages(history, lang=lang)
+            msgs = build_messages(history, lang=lang, context=context)
             stream = chat_with_groq(msgs, stream=True)
             stream.raise_for_status()
             for line in stream.iter_lines(decode_unicode=True):
@@ -292,3 +285,114 @@ def preferences_view(request):
         pref.preferred_language = lang
         pref.save(update_fields=['preferred_language'])
     return Response({'preferred_language': pref.preferred_language})
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# BETTING AI ENDPOINTS
+# ════════════════════════════════════════════════════════════════════════════
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def betting_predict_view(request):
+    """
+    Get prediction for a match with explanations.
+    
+    Body:
+    {
+        "query": "Chelsea vs Arsenal",  // or "Manchester City - Liverpool"
+        "league": "EPL"  // optional
+    }
+    """
+    from .betting_utils import (
+        find_teams_in_query, call_predictor, 
+        generate_explanation_block
+    )
+    
+    query = request.data.get('query', '').strip()
+    league = request.data.get('league', '').upper() or None
+    
+    if not query:
+        return Response(
+            {'error': 'Match query required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    # Parse teams from query
+    result = find_teams_in_query(query)
+    if not result:
+        return Response(
+            {
+                'error': 'Could not parse teams from query',
+                'example': 'Try "Chelsea vs Arsenal" or "Man City - Liverpool"',
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    home_team, away_team, detected_league = result
+    final_league = league or detected_league or 'EPL'
+    
+    # Call predictor
+    prediction = call_predictor(home_team, away_team, final_league)
+    if not prediction:
+        return Response(
+            {'error': 'Predictor engine unavailable'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    
+    # Map signal_category to signal for explanations
+    if 'signal_category' in prediction and 'signal' not in prediction:
+        # Extract signal type from category
+        category = prediction['signal_category']
+        if 'STRONG' in category:
+            prediction['signal'] = 'STRONG'
+        elif 'MEDIUM' in category:
+            prediction['signal'] = 'MODERATE'
+        elif 'WEAK' in category:
+            prediction['signal'] = 'WEAK'
+        else:
+            prediction['signal'] = 'SKIP'
+    
+    # Generate explanations
+    explanations = generate_explanation_block(prediction)
+    
+    return Response({
+        'home_team': home_team,
+        'away_team': away_team,
+        'league': final_league,
+        'prediction': prediction,
+        'explanations': explanations,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def betting_accumulator_view(request):
+    """
+    Build accumulator suggestions from matches.
+    
+    Body:
+    {
+        "matches": [
+            {"home_team": "Chelsea", "away_team": "Arsenal", ...prediction data...},
+            ...
+        ],
+        "size": 3
+    }
+    """
+    from .betting_utils import build_accumulator_suggestions
+    
+    matches = request.data.get('matches', [])
+    size = request.data.get('size', 3)
+    
+    if not matches:
+        return Response(
+            {'error': 'Matches required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    accumulators = build_accumulator_suggestions(matches, size=size)
+    
+    return Response({
+        'accumulators': accumulators,
+        'count': len(accumulators),
+    })

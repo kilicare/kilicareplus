@@ -9,4 +9,7 @@ urlpatterns = [
     path('threads/<int:thread_id>/messages/', views.thread_messages_view),
     path('threads/<int:thread_id>/delete/', views.delete_thread_view),
     path('preferences/', views.preferences_view),
+    # Betting AI
+    path('betting/predict/', views.betting_predict_view),
+    path('betting/accumulator/', views.betting_accumulator_view),
 ]

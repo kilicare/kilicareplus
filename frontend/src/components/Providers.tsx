@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useUIStore } from '@/stores/ui.store'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import { MoreGridProvider } from '@/components/navigation/MoreGridProvider'
+import { ThemeProvider } from '@/components/providers/ThemeProvider'
 
 function OfflineWatcher() {
   const { setOffline } = useUIStore()
@@ -38,27 +39,29 @@ export function Providers({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <QueryClientProvider client={qc}>
-      <AuthProvider>
-        <MoreGridProvider>
-          <OfflineWatcher />
-          {children}
-        </MoreGridProvider>
-        <Toaster
-          position="top-center"
-          duration={3000}
-          toastOptions={{
-            style: {
-              background: '#1A1A24',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#F0F0F5',
-              fontFamily: 'Inter, sans-serif',
-              fontSize: '14px',
-              borderRadius: '14px',
-            },
-          }}
-        />
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={qc}>
+        <AuthProvider>
+          <MoreGridProvider>
+            <OfflineWatcher />
+            {children}
+          </MoreGridProvider>
+          <Toaster
+            position="top-center"
+            duration={3000}
+            toastOptions={{
+              style: {
+                background: '#1A1A24',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: '#F0F0F5',
+                fontFamily: 'Inter, sans-serif',
+                fontSize: '14px',
+                borderRadius: '14px',
+              },
+            }}
+          />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   )
 }
