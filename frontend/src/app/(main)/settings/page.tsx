@@ -41,7 +41,7 @@ export default function SettingsPage() {
 
   const [activeCategory, setActiveCategory] = useState('general')
 
-  const handleToggle = (key: string) => {
+  const handleToggle = (key: keyof typeof settings) => {
     setSettings((prev) => ({
       ...prev,
       [key]: !prev[key],
@@ -294,7 +294,7 @@ export default function SettingsPage() {
                       onChange={(e) => setSettings(prev => ({ ...prev, [setting.id]: e.target.value }))}
                       className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-white/10 to-white/5 border border-white/20 text-white text-sm font-semibold hover:border-white/40 transition-all cursor-pointer backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-gold/50"
                     >
-                      {setting.options?.map((opt) => (
+                      {setting.options?.map((opt: { label: string; value: string }) => (
                         <option key={opt.value} value={opt.value} className="bg-slate-900 text-white">
                           {opt.label}
                         </option>

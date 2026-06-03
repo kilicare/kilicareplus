@@ -117,7 +117,6 @@ function OTPContent() {
       y: 0,
       transition: {
         duration: 0.6,
-        ease: [0.23, 1, 0.320, 1],
       },
     },
     exit: {
@@ -145,7 +144,6 @@ function OTPContent() {
       opacity: 1,
       scale: 1,
       transition: {
-        type: 'spring',
         stiffness: 200,
         damping: 20,
       },
@@ -159,7 +157,6 @@ function OTPContent() {
       opacity: 1,
       scale: 1,
       transition: {
-        type: 'spring',
         stiffness: 200,
         damping: 20,
       },
