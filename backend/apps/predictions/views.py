@@ -1,3 +1,4 @@
+from .models import UserPrediction # Au from apps.predictions.models import UserPrediction
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -6,8 +7,10 @@ import requests
 from django.conf import settings
 
 from .models import Match
-from .validators import get_all_teams
+from .validators import get_all_teams, validate_teams_for_prediction
 from apps.ai_chat.betting_utils import find_team
+from apps.ai_chat.services import build_messages, chat_with_groq
+from .services.team_resolver import get_resolver, ResolutionStatus
 
 PREDICTOR_URL = getattr(settings, 'PREDICTOR_URL', 'http://localhost:8001')
 
