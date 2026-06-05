@@ -12,8 +12,13 @@ import {
   Star,
   Settings,
   TrendingUp,
+  Shield,
+  Users,
+  Activity,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth.store'
 
 // Color mapping for each feature
 const FEATURE_COLORS: { [key: string]: { gradient: string; glow: string; text: string } } = {
@@ -24,6 +29,12 @@ const FEATURE_COLORS: { [key: string]: { gradient: string; glow: string; text: s
   analytics: { gradient: 'from-red-500/20 to-pink-500/10', glow: 'rgba(239, 68, 68, 0.3)', text: 'text-red-300' },
   showcase: { gradient: 'from-yellow-500/20 to-amber-500/10', glow: 'rgba(234, 179, 8, 0.3)', text: 'text-yellow-300' },
   settings: { gradient: 'from-slate-500/20 to-gray-500/10', glow: 'rgba(100, 116, 139, 0.3)', text: 'text-slate-300' },
+  // Admin-specific colors
+  'admin-dashboard': { gradient: 'from-red-600/20 to-rose-500/10', glow: 'rgba(220, 38, 38, 0.3)', text: 'text-red-400' },
+  'admin-users': { gradient: 'from-blue-600/20 to-indigo-500/10', glow: 'rgba(37, 99, 235, 0.3)', text: 'text-blue-400' },
+  'admin-moderation': { gradient: 'from-purple-600/20 to-violet-500/10', glow: 'rgba(147, 51, 234, 0.3)', text: 'text-purple-400' },
+  'admin-sos': { gradient: 'from-rose-600/20 to-pink-500/10', glow: 'rgba(225, 29, 72, 0.3)', text: 'text-rose-400' },
+  'admin-b2b': { gradient: 'from-teal-600/20 to-cyan-500/10', glow: 'rgba(13, 148, 136, 0.3)', text: 'text-teal-400' },
 }
 
 export interface MoreFeature {
@@ -88,6 +99,45 @@ const FEATURES: MoreFeature[] = [
   },
 ]
 
+// Admin-specific features
+const ADMIN_FEATURES: MoreFeature[] = [
+  {
+    id: 'admin-dashboard',
+    label: 'Admin Dashboard',
+    description: 'System overview',
+    Icon: Activity,
+    href: '/admin/dashboard',
+  },
+  {
+    id: 'admin-users',
+    label: 'User Management',
+    description: 'Manage users',
+    Icon: Users,
+    href: '/admin/users',
+  },
+  {
+    id: 'admin-moderation',
+    label: 'Moderation',
+    description: 'Content moderation',
+    Icon: Shield,
+    href: '/admin/moderation',
+  },
+  {
+    id: 'admin-sos',
+    label: 'SOS Monitor',
+    description: 'Emergency alerts',
+    Icon: AlertTriangle,
+    href: '/admin/sos-monitor',
+  },
+  {
+    id: 'admin-b2b',
+    label: 'B2B Portal',
+    description: 'Business partners',
+    Icon: Building2,
+    href: '/admin/b2b',
+  },
+]
+
 interface MoreGridProps {
   isOpen: boolean
   onClose: () => void
@@ -96,6 +146,11 @@ interface MoreGridProps {
 
 export function MoreGrid({ isOpen, onClose, features = FEATURES }: MoreGridProps) {
   const router = useRouter()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'ADMIN'
+
+  // Combine features with admin features if user is admin
+  const allFeatures = isAdmin ? [...FEATURES, ...ADMIN_FEATURES] : FEATURES
 
   const handleFeatureClick = (href: string) => {
     router.push(href)
@@ -189,7 +244,7 @@ export function MoreGrid({ isOpen, onClose, features = FEATURES }: MoreGridProps
                 animate="visible"
                 className="grid grid-cols-2 gap-4"
               >
-                {features.map((feature) => {
+                {allFeatures.map((feature) => {
                   const colors = FEATURE_COLORS[feature.id] || FEATURE_COLORS.settings
                   return (
                     <motion.button

@@ -1,4 +1,5 @@
 'use client'
+import DynamicMap from '@/components/map/DynamicMap'
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'

@@ -3,7 +3,7 @@ import api from '@/core/api/axios'
 export interface Moment {
   id: number
   posted_by_username: string
-  posted_by_avatar: string | null
+  posted_by_avatar_url: string | null
   posted_by_role: string
   posted_by_verified: boolean
   media: string

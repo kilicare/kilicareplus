@@ -83,7 +83,8 @@ export const useAuthStore = create<AuthStore>()(
       setLoading: (loading) => set({ isLoading: loading }),
       
       logout: () => {
-        set({ user: null, isAuthenticated: false })
+        // CRITICAL: Set isLoading to false to prevent loading loop after logout
+        set({ user: null, isAuthenticated: false, isLoading: false })
       },
       
       clearAuth: () => {
@@ -92,11 +93,13 @@ export const useAuthStore = create<AuthStore>()(
           localStorage.removeItem('kili_access_token')
           localStorage.removeItem('kili_refresh_token')
         }
-        set({ user: null, isAuthenticated: false })
+        // CRITICAL: Set isLoading to false to prevent loading loop after clear
+        set({ user: null, isAuthenticated: false, isLoading: false })
       },
       
       setAuthState: (user, authenticated) => {
-        set({ user, isAuthenticated: authenticated })
+        // CRITICAL: Set isLoading to false when auth state is set
+        set({ user, isAuthenticated: authenticated, isLoading: false })
       },
       
       setAuth: (user, accessToken, refreshToken) => {
@@ -110,7 +113,8 @@ export const useAuthStore = create<AuthStore>()(
           }
         }
         // Update auth state
-        set({ user, isAuthenticated: true })
+        // CRITICAL: Set isLoading to false to prevent infinite loading loop
+        set({ user, isAuthenticated: true, isLoading: false })
       },
     }),
     {

@@ -8,6 +8,7 @@ from datetime import timedelta
 from .models import Booking, BookingReview
 from .serializers import BookingSerializer, BookingReviewSerializer
 from core.permissions import IsLocalGuide
+from apps.notifications.event_dispatcher import notify_event
 
 
 @api_view(['POST'])
@@ -69,6 +70,22 @@ def create_booking_view(request):
 
     booking.calculate_fees()
     booking.save()
+
+    # Send booking request notification to guide
+    try:
+        notify_event(
+            'BOOKING_REQUEST',
+            actor=request.user,
+            target=guide,
+            payload={
+                'booking_id': booking.id,
+                'title': booking.title,
+                'amount': booking.amount,
+                'scheduled_date': booking.scheduled_date,
+            }
+        )
+    except Exception:
+        pass
 
     return Response(
         BookingSerializer(booking, context={'request': request}).data,
@@ -145,10 +162,41 @@ def booking_action_view(request, pk, action):
             return Response({'message': 'Booking si PENDING.'}, status=400)
         booking.status = 'CONFIRMED'
 
+        # Send booking confirmed notification to tourist
+        try:
+            notify_event(
+                'BOOKING_CONFIRMED',
+                actor=request.user,
+                target=booking.tourist,
+                payload={
+                    'booking_id': booking.id,
+                    'title': booking.title,
+                    'scheduled_date': booking.scheduled_date,
+                    'scheduled_time': booking.scheduled_time,
+                }
+            )
+        except Exception:
+            pass
+
     elif action == 'payment_received':
         # Mark escrow held after M-Pesa confirmation
         booking.status = 'ESCROW_HELD'
         booking.mpesa_code = request.data.get('mpesa_code')
+
+        # Send payment received notification to guide
+        try:
+            notify_event(
+                'PAYMENT_RECEIVED',
+                actor=booking.tourist,
+                target=booking.guide,
+                payload={
+                    'booking_id': booking.id,
+                    'amount': booking.amount,
+                    'mpesa_code': booking.mpesa_code,
+                }
+            )
+        except Exception:
+            pass
 
     elif action == 'start':
         # Guide starts experience
@@ -219,6 +267,20 @@ def add_review_view(request, pk):
         rating=rating,
         review=request.data.get('review', ''),
     )
+
+    # Send review received notification to guide
+    try:
+        notify_event(
+            'REVIEW_RECEIVED',
+            actor=request.user,
+            target=booking.guide,
+            payload={
+                'booking_id': booking.id,
+                'rating': rating,
+            }
+        )
+    except Exception:
+        pass
 
     return Response(
         BookingReviewSerializer(review).data,

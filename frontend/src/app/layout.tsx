@@ -12,14 +12,45 @@ export const metadata: Metadata = {
   keywords: ['Tanzania', 'tourism', 'safari', 'Zanzibar', 'Kilimanjaro'],
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    shortcut: [
+      { url: '/icons/shortcut-sos.png', sizes: '96x96', type: 'image/png' },
+      { url: '/icons/shortcut-ai.png', sizes: '96x96', type: 'image/png' },
+      { url: '/icons/shortcut-feed.png', sizes: '96x96', type: 'image/png' },
+      { url: '/icons/shortcut-bet.png', sizes: '96x96', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Kilicare+',
+    startupImage: [
+      {
+        url: '/icon-512.png',
+        media: '(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)',
+      },
+      {
+        url: '/icon-512.png',
+        media: '(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)',
+      },
+      {
+        url: '/icon-512.png',
+        media: '(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)',
+      },
+    ],
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'black-translucent',
+    'apple-mobile-web-app-title': 'Kilicare+',
+    'format-detection': 'telephone=no',
   },
 }
 

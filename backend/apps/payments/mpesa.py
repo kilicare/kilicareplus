@@ -72,14 +72,14 @@ class MPesaDaraja:
             'TransactionDesc': description[:13],
         }
 
-        response = requests.post(
+        response = self._make_request(
+            'POST',
             f'{self.base_url}/mpesa/stkpush/v1/processrequest',
             json=payload,
             headers={
                 'Authorization': f'Bearer {token}',
                 'Content-Type': 'application/json',
             },
-            timeout=30,
         )
         return response.json()
 
@@ -96,14 +96,14 @@ class MPesaDaraja:
             'CheckoutRequestID': checkout_request_id,
         }
 
-        response = requests.post(
+        response = self._make_request(
+            'POST',
             f'{self.base_url}/mpesa/stkpushquery/v1/query',
             json=payload,
             headers={
                 'Authorization': f'Bearer {token}',
                 'Content-Type': 'application/json',
             },
-            timeout=30,
         )
         return response.json()
 

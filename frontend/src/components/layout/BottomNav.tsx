@@ -1,7 +1,7 @@
 'use client'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Home, Compass, Shield, MessageSquare, User, Grid, Bot, TrendingUp } from 'lucide-react'
+import { Home, Compass, Shield, MessageSquare, User, Grid, Bot, TrendingUp, Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui.store'
 import { useMoreGridStore } from '@/stores/moreGrid.store'
@@ -13,6 +13,7 @@ const ICON_COLORS: { [key: string]: { base: string; active: string; glow: string
   discover: { base: '#A1A1AA', active: '#00D4FF', glow: 'rgba(0, 212, 255, 0.4)' },
   ai: { base: '#A1A1AA', active: '#FF6B9D', glow: 'rgba(255, 107, 157, 0.4)' },
   chat: { base: '#A1A1AA', active: '#A78BFA', glow: 'rgba(167, 139, 250, 0.4)' },
+  notifications: { base: '#A1A1AA', active: '#FF6B9D', glow: 'rgba(255, 107, 157, 0.4)' },
   profile: { base: '#A1A1AA', active: '#FFA500', glow: 'rgba(255, 165, 0, 0.4)' },
   more: { base: '#A1A1AA', active: '#64B5F6', glow: 'rgba(100, 181, 246, 0.4)' },
 }
@@ -23,6 +24,7 @@ const NAV = [
   { href: '/ai',       Icon: Bot,           label: 'AI',       id: 'ai'       },
   { href: '/sos',      Icon: Shield,        label: 'SOS',      id: 'sos', isSOS: true },
   { href: '/chat',     Icon: MessageSquare, label: 'Chat',     id: 'chat'     },
+  { href: '/notifications', Icon: Bell,     label: 'Arifa',   id: 'notifications', isNotifications: true },
   { href: '/profile',  Icon: User,          label: 'Mimi',     id: 'profile'  },
   { href: '/more',     Icon: Grid,          label: 'More',     id: 'more',   isMore: true },
 ]
@@ -60,11 +62,11 @@ export function BottomNav({ className }: { className?: string }) {
       {...swipeUpHandlers}
     >
       <div className="flex items-center justify-around h-full px-1">
-          {NAV.map(({ href, Icon, label, id, isSOS, isMore }) => {
+          {NAV.map(({ href, Icon, label, id, isSOS, isMore, isNotifications }) => {
           const active =
             pathname === href ||
             (href !== '/' && pathname.startsWith(href + '/'))
-          const hasBadge = id === 'chat' && notificationCount > 0
+          const hasBadge = isNotifications && notificationCount > 0
           const colors = ICON_COLORS[id] || ICON_COLORS.feed
 
           if (isSOS) {
@@ -138,6 +140,97 @@ export function BottomNav({ className }: { className?: string }) {
             )
           }
 
+          if (isNotifications) {
+            return (
+              <motion.button
+                key={id}
+                onClick={() => router.push(href)}
+                whileTap={{ scale: 0.88 }}
+                whileHover={{ y: -4 }}
+                className="relative flex flex-col items-center gap-1 px-3 py-2 min-w-[56px] group"
+                aria-label={label}
+              >
+                {/* Glow background on active/hover */}
+                <motion.div
+                  animate={{ 
+                    opacity: active ? 1 : 0,
+                    scale: active ? 1 : 0.8,
+                  }}
+                  className="absolute inset-0 rounded-xl transition-all blur-lg"
+                  style={{
+                    background: `radial-gradient(circle, ${colors.glow}, transparent)`,
+                    top: '-8px',
+                  }}
+                />
+
+                {/* Icon container */}
+                <div className="relative">
+                  <motion.div
+                    animate={{
+                      background: active 
+                        ? `radial-gradient(circle at 30% 30%, ${colors.active}20, transparent)` 
+                        : 'transparent',
+                    }}
+                    className="absolute inset-0 rounded-lg transition-all"
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      top: '-9px',
+                      left: '-9px',
+                    }}
+                  />
+                  <Icon
+                    size={22}
+                    strokeWidth={active ? 2.5 : 1.8}
+                    style={{ color: active ? colors.active : colors.base }}
+                    className={cn(
+                      'relative z-10 transition-all duration-200',
+                      active && 'filter drop-shadow-lg'
+                    )}
+                  />
+                  {hasBadge && (
+                    <motion.span 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-r from-kili-red to-red-600 flex items-center justify-center text-[9px] font-bold text-white shadow-lg"
+                    >
+                      {notificationCount > 9 ? '9+' : notificationCount}
+                    </motion.span>
+                  )}
+                </div>
+
+                {/* Label */}
+                <motion.span
+                  animate={{
+                    color: active ? colors.active : '#9CA3AF',
+                    textShadow: active ? `0 0 8px ${colors.active}40` : 'none',
+                  }}
+                  className="text-[10px] font-medium transition-colors duration-200"
+                >
+                  {label}
+                </motion.span>
+
+                {/* Active indicator */}
+                <AnimatePresence>
+                  {active && (
+                    <motion.div
+                      layoutId="nav-indicator"
+                      className="absolute -bottom-1.5 h-1 rounded-full"
+                      style={{ 
+                        background: `linear-gradient(90deg, transparent, ${colors.active}, transparent)`,
+                        width: '24px',
+                      }}
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      exit={{ scaleX: 0 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+                    />
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            )
+          }
+
           return (
             <motion.button
               key={id}
@@ -185,15 +278,6 @@ export function BottomNav({ className }: { className?: string }) {
                     active && 'filter drop-shadow-lg'
                   )}
                 />
-                {hasBadge && (
-                  <motion.span 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-r from-kili-red to-red-600 flex items-center justify-center text-[9px] font-bold text-white shadow-lg"
-                  >
-                    {notificationCount > 9 ? '9+' : notificationCount}
-                  </motion.span>
-                )}
               </div>
 
               {/* Label */}

@@ -55,73 +55,64 @@ export const authService = {
     email: string
     password: string
     password2: string
-    first_name?: string
-    last_name?: string
-    role: 'TOURIST' | 'LOCAL_GUIDE'
+    role?: 'TOURIST' | 'LOCAL_GUIDE'
     phone?: string
   }) {
+    // Runtime safeguard: Remove undefined/null fields
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => v !== undefined && v !== null)
+    ) as typeof data
+
+    // Runtime safeguard: Ensure password fields exist
+    if (!cleanData.password || !cleanData.password2) {
+      throw new Error('Password fields are required')
+    }
+
+    // Runtime safeguard: Ensure password fields match
+    if (cleanData.password !== cleanData.password2) {
+      throw new Error('Passwords do not match')
+    }
+
     try {
-      const { data: res } = await api.post('/auth/register/', data)
-      console.log('[AuthService] ✅ Registration successful', { email: data.email })
+      const { data: res } = await api.post('/auth/register/', cleanData)
       return res
     } catch (error: any) {
-      console.error('[AuthService] ❌ Registration failed', {
-        email: data.email,
-        error: error.response?.data?.message || error.message,
-      })
       throw error
     }
   },
 
   async login(email: string, password: string): Promise<AuthResponse> {
     try {
-      console.log('[AuthService] 🔄 Login attempt...', { email })
-      
       const { data } = await api.post<AuthResponse>('/auth/login/', {
         email,
         password,
       })
-      
+
       // Store tokens in localStorage
       tokenStorage.setTokens(data.access, data.refresh)
-      
-      console.log('[AuthService] ✅ Login successful. Tokens stored in localStorage.', {
-        email,
-        userId: data.user?.id,
-      })
-      
+
       return data
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message
-      console.error('[AuthService] ❌ Login failed', { email, error: errorMessage })
       throw error
     }
   },
 
   async logout() {
     try {
-      console.log('[AuthService] 🔄 Logout attempt...')
-      
       // Get refresh token before clearing
       const refreshToken = tokenStorage.getRefreshToken()
-      
+
       // Clear tokens from localStorage first (even if API call fails)
       tokenStorage.clearTokens()
-      
+
       try {
         // Send refresh token to backend for blacklisting (optional)
         await api.post('/auth/logout/', { refresh: refreshToken })
-        console.log('[AuthService] ✅ Logout successful. Tokens cleared from localStorage.')
       } catch (error: any) {
         // Log error but don't throw - tokens are already cleared
-        console.warn('[AuthService] ⚠️  Logout API call failed (tokens already cleared)', {
-          error: error.response?.data?.message || error.message,
-        })
+        // Silently ignore API errors
       }
     } catch (error: any) {
-      console.error('[AuthService] ❌ Logout failed', {
-        error: error.message,
-      })
       throw error
     }
   },
@@ -132,14 +123,8 @@ export const authService = {
         email,
         purpose,
       })
-      console.log('[AuthService] ✅ OTP sent successfully', { email, purpose })
       return data
     } catch (error: any) {
-      console.error('[AuthService] ❌ OTP send failed', {
-        email,
-        purpose,
-        error: error.response?.data?.message || error.message,
-      })
       throw error
     }
   },
@@ -155,14 +140,8 @@ export const authService = {
         code,
         purpose,
       })
-      console.log('[AuthService] ✅ OTP verified successfully', { email, purpose })
       return data
     } catch (error: any) {
-      console.error('[AuthService] ❌ OTP verification failed', {
-        email,
-        purpose,
-        error: error.response?.data?.message || error.message,
-      })
       throw error
     }
   },
@@ -170,13 +149,8 @@ export const authService = {
   async resetPassword(email: string) {
     try {
       const { data } = await api.post('/auth/password/reset/', { email })
-      console.log('[AuthService] ✅ Password reset initiated', { email })
       return data
     } catch (error: any) {
-      console.error('[AuthService] ❌ Password reset failed', {
-        email,
-        error: error.response?.data?.message || error.message,
-      })
       throw error
     }
   },
@@ -194,13 +168,8 @@ export const authService = {
         new_password,
         new_password2,
       })
-      console.log('[AuthService] ✅ Password confirmed', { email })
       return data
     } catch (error: any) {
-      console.error('[AuthService] ❌ Password confirm failed', {
-        email,
-        error: error.response?.data?.message || error.message,
-      })
       throw error
     }
   },
@@ -211,13 +180,8 @@ export const authService = {
         email,
         otp,
       })
-      console.log('[AuthService] ✅ Forgot OTP verified', { email })
       return data
     } catch (error: any) {
-      console.error('[AuthService] ❌ Forgot OTP verification failed', {
-        email,
-        error: error.response?.data?.message || error.message,
-      })
       throw error
     }
   },
@@ -235,13 +199,8 @@ export const authService = {
         new_password,
         new_password_confirm,
       })
-      console.log('[AuthService] ✅ Password reset completed', { email })
       return data
     } catch (error: any) {
-      console.error('[AuthService] ❌ Password reset failed', {
-        email,
-        error: error.response?.data?.message || error.message,
-      })
       throw error
     }
   },
@@ -268,35 +227,11 @@ export const authService = {
       if (!tokenStorage.hasTokens()) {
         throw new Error('No tokens found in localStorage')
       }
-      
-      console.log('[AuthService] 🔄 Verifying authentication with stored tokens...')
-      
-      const startTime = performance.now()
+
       const { data } = await api.get<User>('/auth/me/')
-      const duration = (performance.now() - startTime).toFixed(0)
-      
-      console.log(`[AuthService] ✅ User authenticated (${duration}ms)`, {
-        userId: data.id,
-        username: data.username,
-        email: data.email,
-      })
-      
+
       return data
     } catch (error: any) {
-      const errorStatus = error?.response?.status || 'unknown'
-      const errorMessage = error?.response?.data?.message || error.message
-      
-      if (errorStatus === 401) {
-        console.log('[AuthService] ℹ️  User not authenticated (401). Tokens may be expired.')
-      } else if (error.message === 'No tokens found in localStorage') {
-        console.log('[AuthService] ℹ️  No tokens in localStorage. User is not logged in.')
-      } else {
-        console.error('[AuthService] ❌ Auth check failed', {
-          status: errorStatus,
-          error: errorMessage,
-        })
-      }
-      
       throw error
     }
   },
@@ -309,12 +244,9 @@ export const authService = {
           ? { 'Content-Type': 'multipart/form-data' }
           : { 'Content-Type': 'application/json' },
       })
-      console.log('[AuthService] ✅ Profile updated', { userId: data.id })
       return data
     } catch (error: any) {
-      console.error('[AuthService] ❌ Profile update failed', {
-        error: error.response?.data?.message || error.message,
-      })
+      console.warn('[AuthService] Failed to update user profile:', error)
       throw error
     }
   },
@@ -324,16 +256,8 @@ export const authService = {
       const { data } = await api.get('/auth/check-username/', {
         params: { username },
       })
-      console.log('[AuthService] ✅ Username check complete', {
-        username,
-        available: data.available,
-      })
       return data
     } catch (error: any) {
-      console.error('[AuthService] ❌ Username check failed', {
-        username,
-        error: error.response?.data?.message || error.message,
-      })
       throw error
     }
   },

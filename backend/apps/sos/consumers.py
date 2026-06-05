@@ -100,6 +100,8 @@ class SOSConsumer(AsyncWebsocketConsumer):
                         },
                     }
                 )
+                # Dispatch event-driven notification
+                await self.dispatch_sos_response_notification(alert, response.message)
                 # Award points to responder
                 await self.award_responder_points()
 
@@ -114,6 +116,11 @@ class SOSConsumer(AsyncWebsocketConsumer):
         elif action == 'cancel_sos':
             alert_id = data.get('alert_id')
             await self.cancel_alert(alert_id)
+        
+        elif action == 'escalate_sos':
+            alert_id = data.get('alert_id')
+            reason = data.get('reason', 'User escalation')
+            await self.escalate_alert(alert_id, reason)
 
     async def sos_new_alert(self, event):
         await self.send(text_data=json.dumps({
@@ -184,8 +191,31 @@ class SOSConsumer(AsyncWebsocketConsumer):
         ).update(status='CANCELLED')
 
     @database_sync_to_async
+    def escalate_alert(self, alert_id, reason):
+        from .models import SOSAlert
+        try:
+            alert = SOSAlert.objects.get(id=alert_id, user=self.user)
+            alert.transition_to('ESCALATED', actor=self.user, reason=reason)
+            return True
+        except SOSAlert.DoesNotExist:
+            return False
+
+    @database_sync_to_async
     def award_responder_points(self):
         try:
             self.user.passport.award_points('SOS_RESPONSE')
         except Exception:
             pass
+
+    @database_sync_to_async
+    def dispatch_sos_response_notification(self, alert, message):
+        from apps.notifications.event_dispatcher import notify_event
+        notify_event(
+            'SOS_RESPONSE',
+            actor=self.user,
+            target=alert.user,
+            payload={
+                'alert_id': alert.id,
+                'message': message,
+            }
+        )

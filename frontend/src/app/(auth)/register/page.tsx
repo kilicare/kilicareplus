@@ -12,11 +12,9 @@ import { KiliButton } from '@/components/ui/KiliButton'
 import { parseApiError } from '@/lib/utils'
 
 type Role = 'TOURIST' | 'LOCAL_GUIDE'
-type Step = 1 | 2 | 3
+type Step = 1 | 2
 
 interface FormData {
-  first_name: string
-  last_name: string
   username: string
   email: string
   password: string
@@ -29,7 +27,7 @@ export default function RegisterPage() {
   const router = useRouter()
   const [step, setStep] = useState<Step>(1)
   const [form, setForm] = useState<FormData>({
-    first_name: '', last_name: '', username: '', email: '',
+    username: '', email: '',
     password: '', password2: '', phone: '', role: 'TOURIST',
   })
 
@@ -45,8 +43,6 @@ export default function RegisterPage() {
         email: form.email,
         password: form.password,
         password2: form.password2,
-        first_name: form.first_name,
-        last_name: form.last_name,
         role: form.role,
         phone: form.phone || undefined,
       }),
@@ -60,14 +56,10 @@ export default function RegisterPage() {
   })
 
   const step1ok = () => {
-    if (!form.first_name || !form.last_name) {
-      toast.error('Weka jina lako kamili')
+    if (!form.role) {
+      toast.error('Chagua jukumu lako')
       return false
     }
-    return true
-  }
-
-  const step2ok = () => {
     if (!form.email.includes('@')) {
       toast.error('Email si sahihi')
       return false
@@ -79,7 +71,7 @@ export default function RegisterPage() {
     return true
   }
 
-  const step3ok = () => {
+  const step2ok = () => {
     if (form.password.length < 8) {
       toast.error('Password lazima iwe herufi 8+')
       return false
@@ -116,7 +108,7 @@ export default function RegisterPage() {
 
       {/* Progress */}
       <div className="flex items-center gap-2 mb-8">
-        {([1, 2, 3] as Step[]).map((s) => (
+        {([1, 2] as Step[]).map((s) => (
           <div key={s} className="flex items-center gap-2">
             <motion.div
               className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-gradient-to-br from-[#F5A623] to-[#E8892A]"
@@ -126,7 +118,7 @@ export default function RegisterPage() {
                 scale: s <= step ? 1 : 0.8,
                 backgroundColor: s <= step ? '#F5A623' : 'rgba(42,42,58,0.8)',
                 color: s <= step ? '#000' : '#8B8BA7',
-                boxShadow: s <= step 
+                boxShadow: s <= step
                   ? '0px 4px 12px rgba(245,166,35,0.3)'
                   : '0px 0px 0px rgba(245,166,35,0)',
               }}
@@ -138,7 +130,7 @@ export default function RegisterPage() {
             >
               {s}
             </motion.div>
-            {s < 3 && (
+            {s < 2 && (
               <div
                 className="w-8 h-0.5 rounded-full transition-all"
                 style={{
@@ -217,38 +209,6 @@ export default function RegisterPage() {
                 ))}
               </div>
               <KiliInput
-                label="Jina la Kwanza"
-                value={form.first_name}
-                onChange={set('first_name')}
-                placeholder="Last"
-                icon={<User size={16} />}
-              />
-              <KiliInput
-                label="Jina la Mwisho"
-                value={form.last_name}
-                onChange={set('last_name')}
-                placeholder="Materu"
-                icon={<User size={16} />}
-              />
-              <KiliButton
-                fullWidth size="lg"
-                onClick={() => step1ok() && setStep(2)}
-                iconRight={<ChevronRight size={18} />}
-              >
-                Endelea
-              </KiliButton>
-            </motion.div>
-          )}
-
-          {step === 2 && (
-            <motion.div
-              key="s2"
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              className="space-y-4"
-            >
-              <KiliInput
                 label="Email"
                 type="email"
                 value={form.email}
@@ -276,28 +236,19 @@ export default function RegisterPage() {
                 icon={<Phone size={16} />}
                 inputMode="tel"
               />
-              <div className="flex gap-3">
-                <KiliButton
-                  variant="ghost" size="lg"
-                  onClick={() => setStep(1)}
-                  icon={<ChevronLeft size={18} />}
-                >
-                  Rudi
-                </KiliButton>
-                <KiliButton
-                  fullWidth size="lg"
-                  onClick={() => step2ok() && setStep(3)}
-                  iconRight={<ChevronRight size={18} />}
-                >
-                  Endelea
-                </KiliButton>
-              </div>
+              <KiliButton
+                fullWidth size="lg"
+                onClick={() => step1ok() && setStep(2)}
+                iconRight={<ChevronRight size={18} />}
+              >
+                Endelea
+              </KiliButton>
             </motion.div>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <motion.div
-              key="s3"
+              key="s2"
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -30 }}
@@ -329,7 +280,7 @@ export default function RegisterPage() {
               <div className="flex gap-3">
                 <KiliButton
                   variant="ghost" size="lg"
-                  onClick={() => setStep(2)}
+                  onClick={() => setStep(1)}
                   icon={<ChevronLeft size={18} />}
                 >
                   Rudi
@@ -337,7 +288,7 @@ export default function RegisterPage() {
                 <KiliButton
                   fullWidth size="lg"
                   loading={mut.isPending}
-                  onClick={() => step3ok() && mut.mutate()}
+                  onClick={() => step2ok() && mut.mutate()}
                 >
                   Unda Akaunti
                 </KiliButton>

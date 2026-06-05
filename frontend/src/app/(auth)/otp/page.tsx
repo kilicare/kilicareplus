@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, ChevronLeft } from 'lucide-react'
 import { authService } from '@/services/auth.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { KiliButton } from '@/components/ui/KiliButton'
@@ -318,6 +318,24 @@ function OTPContent() {
                       </motion.div>
                     )}
                   </div>
+                </motion.div>
+
+                {/* Back Button */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7, duration: 0.5 }}
+                  className="pt-4"
+                >
+                  <KiliButton
+                    variant="ghost"
+                    fullWidth
+                    onClick={() => router.push('/login')}
+                    className="text-text-muted hover:text-blue-500 font-semibold"
+                  >
+                    <ChevronLeft size={16} className="mr-2" />
+                    Rudi Login
+                  </KiliButton>
                 </motion.div>
 
                 {/* Security Info */}

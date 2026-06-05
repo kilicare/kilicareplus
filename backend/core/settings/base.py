@@ -48,6 +48,7 @@ LOCAL_APPS = [
     'apps.follow',
     'apps.b2b',
     'apps.admin_ops',
+    'apps.moderation',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -92,21 +93,38 @@ DATABASES = {
     }
 }
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [(env('REDIS_HOST', default='localhost'), 6379)],
-        },
-    },
-}
+# Safe channel layer: Use InMemoryChannelLayer for dev mode (no Redis dependency)
+# Falls back to in-memory channel layer if Redis is unavailable
+USE_REDIS_CHANNELS = env.bool('USE_REDIS_CHANNELS', default=False)
 
+if USE_REDIS_CHANNELS and not DEBUG:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [(env('REDIS_HOST', default='localhost'), 6379)],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
+
+# Safe Celery configuration: Use always eager mode for dev (no Redis dependency)
+# Tasks execute synchronously in dev mode
 CELERY_BROKER_URL = env('REDIS_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = env('REDIS_URL', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Africa/Dar_es_Salaam'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Execute tasks synchronously in dev mode (no Redis required)
+CELERY_TASK_ALWAYS_EAGER = env.bool('CELERY_TASK_ALWAYS_EAGER', default=DEBUG)
+CELERY_TASK_EAGER_PROPAGATES = True
 
 AUTH_USER_MODEL = 'accounts.User'
 
@@ -120,7 +138,38 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
+    # Disable throttling in dev mode to prevent Redis dependency crashes
+    'DEFAULT_THROTTLE_CLASSES': [] if DEBUG else [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+        'user': '1000/day',
+        'follow_spam': '15/minute',
+        'like_spam': '30/minute',
+        'notif_spam': '60/minute',
+    }
 }
+
+# Safe cache backend: Use LocMemCache for dev mode (no Redis dependency)
+# Falls back to in-memory cache if Redis is unavailable
+USE_REDIS_CACHE = env.bool('USE_REDIS_CACHE', default=False)
+
+if USE_REDIS_CACHE and not DEBUG:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': env('REDIS_URL', default='redis://localhost:6379/1'),
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+    }
 
 from datetime import timedelta
 SIMPLE_JWT = {

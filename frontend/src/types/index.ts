@@ -93,7 +93,7 @@ export interface LeaderboardEntry {
   user_id: number
   username: string
   first_name: string
-  avatar: string | null
+  avatar_url: string | null
   role: UserRole
   points: number
   level: PassportLevel

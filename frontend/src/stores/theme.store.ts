@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, type PersistStorage } from 'zustand/middleware'
 
 export type Theme = 'light' | 'dark'
 
@@ -11,7 +11,7 @@ interface ThemeStore {
 }
 
 // Safe storage handler with quota error handling
-const createSafeStorage = () => ({
+const createSafeStorage = (): PersistStorage<{ theme: Theme }> => ({
   getItem: (name: string) => {
     try {
       if (typeof window === 'undefined') return null
@@ -22,17 +22,17 @@ const createSafeStorage = () => ({
       return null
     }
   },
-  setItem: (name: string, value: string) => {
+  setItem: (name: string, value: any) => {
     try {
       if (typeof window === 'undefined') return
-      localStorage.setItem(name, value)
+      localStorage.setItem(name, JSON.stringify(value))
     } catch (e: any) {
       if (e.name === 'QuotaExceededError' || e.message?.includes('quota')) {
         console.warn('localStorage quota exceeded, clearing old data...')
         // Try to clear some space by removing old data
         try {
           localStorage.clear()
-          localStorage.setItem(name, value)
+          localStorage.setItem(name, JSON.stringify(value))
         } catch (e2) {
           console.warn('Failed to save to localStorage even after clearing:', e2)
         }

@@ -1,4 +1,3 @@
-from .models import UserPrediction # Au from apps.predictions.models import UserPrediction
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,9 +6,7 @@ import requests
 from django.conf import settings
 
 from .models import Match
-from .validators import get_all_teams, validate_teams_for_prediction
-from apps.ai_chat.betting_utils import find_team
-from apps.ai_chat.services import build_messages, chat_with_groq
+from .validators import get_all_teams
 from .services.team_resolver import get_resolver, ResolutionStatus
 
 PREDICTOR_URL = getattr(settings, 'PREDICTOR_URL', 'http://localhost:8001')
@@ -205,7 +202,7 @@ def team_suggestions_view(request):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# NOTE: USER PREDICTION HISTORY AND DELETION
+# NOTE: USER PREDICTION HISTORY AND ANALYTICS
 # ════════════════════════════════════════════════════════════════════════════
 #
 # User predictions are now tracked via:
@@ -213,241 +210,8 @@ def team_suggestions_view(request):
 # - History: /api/ai-chat/betting/history/ → BettingPredictionRecord
 # - Deletion: /api/ai-chat/betting/prediction/{id}/delete/ → soft delete
 #
-# The form-based prediction generation (POST /api/predictions/generate/) is
-# no longer available. All user predictions go through AI Chat betting endpoints.
-
-        return Response({'error': 'Prediction not found'}, status=404)
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
-
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_predictions_bulk_view(request):
-    """
-    DELETE /api/predictions/delete-all/
-    
-    Delete all predictions for user (with optional league filter)
-    
-    Query params:
-    - league: optional league filter
-    - confirm: must be "yes" for safety
-    """
-    confirm = request.query_params.get('confirm', '').lower()
-    if confirm != 'yes':
-        return Response({
-            'error': 'Must pass confirm=yes query param to delete predictions'
-        }, status=400)
-    
-    league = request.query_params.get('league')
-    
-    qs = UserPrediction.objects.filter(user=request.user)
-    if league:
-        qs = qs.filter(league=league)
-    
-    count = qs.count()
-    qs.delete()
-    
-    return Response({
-        'message': f'Deleted {count} predictions',
-        'count': count,
-    })
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def prediction_feedback_view(request, prediction_id):
-    """
-    POST /api/predictions/{id}/feedback/
-    
-    Record actual match result
-    
-    Body:
-    {
-        "result": "1"  # "1" = home win, "X" = draw, "2" = away win
-    }
-    """
-    result = request.data.get('result', '').strip()
-    
-    if result not in ('1', 'X', '2'):
-        return Response({
-            'error': 'result must be "1", "X", or "2"'
-        }, status=400)
-    
-    try:
-        pred = UserPrediction.objects.get(id=prediction_id, user=request.user)
-        pred.user_feedback = result
-        pred.user_feedback_date = timezone.now()
-        pred.save()
-        
-        return Response({
-            'success': True,
-            'message': 'Feedback recorded',
-            'prediction_id': prediction_id,
-        })
-    except UserPrediction.DoesNotExist:
-        return Response({
-            'error': 'Prediction not found'
-        }, status=404)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def prediction_analytics_view(request):
-    """
-    GET /api/predictions/analytics/
-    
-    Get user's prediction analytics
-    """
-    user = request.user
-    
-    # Total predictions
-    total = UserPrediction.objects.filter(user=user).count()
-    
-    # By league
-    by_league = {}
-    for league in ['EPL', 'LA_LIGA', 'BUNDESLIGA']:
-        league_count = UserPrediction.objects.filter(user=user, league=league).count()
-        by_league[league] = league_count
-    
-    # Feedback stats
-    with_feedback = UserPrediction.objects.filter(user=user, user_feedback__isnull=False).count()
-    without_feedback = total - with_feedback
-    
-    # Feedback breakdown
-    feedback_1 = UserPrediction.objects.filter(user=user, user_feedback='1').count()
-    feedback_x = UserPrediction.objects.filter(user=user, user_feedback='X').count()
-    feedback_2 = UserPrediction.objects.filter(user=user, user_feedback='2').count()
-    
-    return Response({
-        'total_predictions': total,
-        'with_feedback': with_feedback,
-        'without_feedback': without_feedback,
-        'by_league': by_league,
-        'feedback_breakdown': {
-            'home_wins': feedback_1,
-            'draws': feedback_x,
-            'away_wins': feedback_2,
-        },
-    })
-
-
-# ============================================================================
-# AI PREDICTION ANALYSIS (PREMIUM ONLY)
-# ============================================================================
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def ai_predict_analyze_view(request):
-    """
-    POST /api/predictions/ai-analyze/
-    
-    Get AI analysis of a prediction
-    
-    Premium only!
-    
-    Body:
-    {
-        "home_team": "Chelsea",
-        "away_team": "Manchester City",
-        "league": "EPL",
-        "question": "Who will win?"
-    }
-    """
-    if not _is_premium(request.user):
-        return Response({
-            'error': 'Premium subscription required'
-        }, status=403)
-    
-    home_team = request.data.get('home_team', '').strip()
-    away_team = request.data.get('away_team', '').strip()
-    league = request.data.get('league', 'EPL').strip()
-    question = request.data.get('question', 'Who will win?').strip()
-    
-    if not home_team or not away_team:
-        return Response({'error': 'home_team and away_team required'}, status=400)
-    
-    # ========================================================================
-    # PHASE 2: Validate team names before calling predictor
-    # ========================================================================
-    all_valid, validation_data, error_message = validate_teams_for_prediction(
-        home_team, away_team, league, threshold=85
-    )
-    
-    if not all_valid:
-        return Response({
-            'error': error_message,
-            'validation': validation_data,
-        }, status=400)
-    
-    # Use corrected team names if they were auto-corrected
-    home_team = validation_data['home_team']['canonical']
-    away_team = validation_data['away_team']['canonical']
-    
-    try:
-        # Get prediction from predictor with validated team names
-        pred_resp = requests.get(
-            f'{PREDICTOR_URL}/predictions/predict',
-            params={
-                'home_team': home_team,
-                'away_team': away_team,
-                'league': league,
-                'matchday': 20,
-            },
-            timeout=15
-        )
-        
-        if pred_resp.status_code != 200:
-            return Response({'error': 'Prediction failed'}, status=400)
-        
-        pred_data = pred_resp.json()
-        
-        # Include validation metadata in prediction data
-        if 'meta' not in pred_data:
-            pred_data['meta'] = {}
-        pred_data['meta']['validation'] = validation_data
-        
-        # Format data for AI
-        pred_text = f"""
-        Match: {home_team} vs {away_team} ({league})
-        
-        Prediction Data:
-        {pred_data}
-        
-        User Question: {question}
-        """
-        
-        # Call AI
-        messages = build_messages(
-            [{'role': 'user', 'content': pred_text}],
-            lang='sw'
-        )
-        
-        ai_response = chat_with_groq(messages)
-        response_json = ai_response.json()
-        ai_text = response_json['choices'][0]['message']['content']
-        
-        # Save to history
-        user_pred = UserPrediction.objects.create(
-            user=request.user,
-            home_team=home_team,
-            away_team=away_team,
-            league=league,
-            prediction_data=pred_data,
-        )
-        
-        return Response({
-            'prediction_id': user_pred.id,
-            'home_team': home_team,
-            'away_team': away_team,
-            'league': league,
-            'prediction_data': pred_data,
-            'ai_analysis': ai_text,
-            'created_at': user_pred.created_at.isoformat(),
-        })
-    
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
+# The form-based prediction endpoints have been deprecated.
+# All user predictions now go through AI Chat betting endpoints.
 
 # ============================================================================
 # UNIVERSAL TEAM RESOLVER ENDPOINTS (V2)

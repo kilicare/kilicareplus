@@ -34,7 +34,7 @@ class MomentSerializer(serializers.ModelSerializer):
     posted_by_username = serializers.CharField(
         source='posted_by.username', read_only=True
     )
-    posted_by_avatar = serializers.SerializerMethodField()
+    posted_by_avatar_url = serializers.SerializerMethodField()
     posted_by_role = serializers.CharField(
         source='posted_by.role', read_only=True
     )
@@ -53,7 +53,7 @@ class MomentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Moment
         fields = [
-            'id', 'posted_by_username', 'posted_by_avatar',
+            'id', 'posted_by_username', 'posted_by_avatar_url',
             'posted_by_role', 'posted_by_verified',
             'media', 'media_url', 'thumbnail_url', 'media_type',
             'audio', 'audio_url',
@@ -91,7 +91,7 @@ class MomentSerializer(serializers.ModelSerializer):
             return url
         return None
 
-    def get_posted_by_avatar(self, obj):
+    def get_posted_by_avatar_url(self, obj):
         try:
             av = obj.posted_by.profile.avatar
             if av:

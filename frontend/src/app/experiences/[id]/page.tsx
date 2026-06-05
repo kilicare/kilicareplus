@@ -198,7 +198,7 @@ export default function ExperienceDetailPage({
       <div className="min-h-dvh bg-bg-base">
         <SkeletonCard className="h-64 rounded-none" rounded="sm" />
         <div className="px-5 pt-4 space-y-4">
-          <SkeletonCard className="h-8 w-3/4" rounded="lg" />
+          <SkeletonCard className="h-8 w-3/4" rounded="md" />
           <SkeletonCard className="h-32" rounded="xl" />
         </div>
       </div>

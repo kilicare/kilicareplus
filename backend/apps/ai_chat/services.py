@@ -1,4 +1,5 @@
 import io
+import time
 import requests
 from requests.exceptions import RequestException
 from django.conf import settings
@@ -184,8 +185,12 @@ def _groq_headers(content_type: str = 'application/json') -> dict:
 
 
 def _post_to_groq(url: str, **kwargs):
+    """Post to Groq API with exponential backoff retry logic"""
     last_exception: Exception | None = None
-    for attempt in range(2):
+    max_retries = 3
+    base_delay = 1  # seconds
+    
+    for attempt in range(max_retries):
         try:
             response = requests.post(url, timeout=60, **kwargs)
             if response.ok:
@@ -195,6 +200,11 @@ def _post_to_groq(url: str, **kwargs):
             )
         except RequestException as exc:
             last_exception = exc
+        
+        # Exponential backoff before retry
+        if attempt < max_retries - 1:
+            delay = base_delay * (2 ** attempt)
+            time.sleep(delay)
 
     raise last_exception if last_exception is not None else RequestException('Groq request failed')
 

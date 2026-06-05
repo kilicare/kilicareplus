@@ -61,35 +61,43 @@ class UserSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
-        write_only=True, validators=[validate_password]
+        write_only=True, validators=[validate_password],
+        error_messages={'required': 'Please enter your password'}
     )
-    password2 = serializers.CharField(write_only=True)
+    password2 = serializers.CharField(
+        write_only=True,
+        error_messages={'required': 'Please confirm your password'}
+    )
 
     class Meta:
         model = User
         fields = [
             'username', 'email', 'password', 'password2',
-            'first_name', 'last_name', 'role', 'phone',
+            'role', 'phone',
         ]
+        extra_kwargs = {
+            'username': {'error_messages': {'required': 'Please enter a username'}},
+            'email': {'error_messages': {'required': 'Please enter your email'}},
+        }
 
     def validate_email(self, value):
         if User.objects.filter(email=value.lower()).exists():
             raise serializers.ValidationError(
-                'Email hii tayari inatumika.'
+                'This email is already registered. Please use a different email.'
             )
         return value.lower()
 
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError(
-                'Username hii tayari inatumika.'
+                'This username is already taken. Please choose a different username.'
             )
         return value
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError(
-                {'password': 'Passwords hazilingani.'}
+                {'password': 'Passwords do not match'}
             )
         return attrs
 

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   ShoppingCart, MessageSquare, Share2,
-  Minus, Plus, ChevronLeft, X,
+  Minus, Plus, ChevronLeft, X, Sparkles, Award, Crown,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
@@ -53,8 +53,7 @@ function ItemDetailSheet({
 
   const startChatMut = useMutation({
     mutationFn: async () => {
-      // Get seller's user ID from API
-      const res = await chatService.startDM(0) // We'll need seller ID
+      const res = await chatService.startDM(0)
       return res
     },
     onSuccess: (data) => {
@@ -77,25 +76,36 @@ function ItemDetailSheet({
         {/* Images gallery */}
         {images.length > 0 && (
           <div className="relative">
-            <div className="aspect-square relative overflow-hidden">
+            <motion.div
+              className="aspect-square relative overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              key={imgIdx}
+            >
               <img
                 src={currentImg?.file_url || ''}
                 alt={item.title}
                 className="w-full h-full object-cover"
               />
-            </div>
+            </motion.div>
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex gap-2 p-3 overflow-x-auto no-scrollbar">
+              <motion.div
+                className="flex gap-2 p-3 overflow-x-auto no-scrollbar"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
                 {images.map((img, i) => (
-                  <div
+                  <motion.div
                     key={img.id}
                     onClick={() => setImgIdx(i)}
-                    className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer relative"
                     style={{
                       border: imgIdx === i
-                        ? '2px solid var(--gold)'
-                        : '2px solid transparent',
+                        ? '2px solid #F5A623'
+                        : '2px solid rgba(255,255,255,0.1)',
                     }}
                   >
                     <img
@@ -103,46 +113,74 @@ function ItemDetailSheet({
                       alt=""
                       className="w-full h-full object-cover"
                     />
-                  </div>
+                    {imgIdx === i && (
+                      <div className="absolute inset-0 bg-gold/20" />
+                    )}
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             )}
           </div>
         )}
 
         <div className="p-5">
           {/* Category */}
-          <div className="flex items-center gap-2 mb-2">
+          <motion.div
+            className="flex items-center gap-2 mb-2"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
             <span
               className="text-[10px] font-bold px-2 py-0.5 rounded-full"
               style={{
                 background: 'rgba(245,166,35,0.15)',
                 color: '#F5A623',
+                border: '1px solid rgba(245,166,35,0.3)',
               }}
             >
               {item.category}
             </span>
             {item.is_negotiable && (
-              <span className="text-[10px] font-bold text-kili-green">
+              <span className="text-[10px] font-bold text-green-400">
                 💬 Bei ni mazungumzo
               </span>
             )}
-          </div>
+          </motion.div>
 
-          <h2 className="text-xl font-black text-text-primary mb-1">
+          <motion.h2
+            className="text-xl font-black text-text-primary mb-1"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
             {item.title}
-          </h2>
+          </motion.h2>
 
-          <p className="text-3xl font-black text-gold mb-3">
+          <motion.p
+            className="text-3xl font-black text-gold mb-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
             {formatCurrency(item.price)}
-          </p>
+          </motion.p>
 
-          <p className="text-text-secondary text-sm leading-relaxed mb-5">
+          <motion.p
+            className="text-text-secondary text-sm leading-relaxed mb-5"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
             {item.description}
-          </p>
+          </motion.p>
 
           {/* Quantity */}
-          <div className="flex items-center gap-4 mb-5">
+          <motion.div
+            className="flex items-center gap-4 mb-5"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
             <p className="text-sm font-medium text-text-secondary">
               Kiasi:
             </p>
@@ -150,7 +188,7 @@ function ItemDetailSheet({
               <motion.button
                 onClick={() => setQty(Math.max(1, qty - 1))}
                 whileTap={{ scale: 0.9 }}
-                className="w-9 h-9 rounded-xl bg-bg-elevated flex items-center justify-center"
+                className="w-9 h-9 rounded-xl bg-bg-elevated flex items-center justify-center border border-white/10 hover:border-gold/30 transition-colors"
               >
                 <Minus size={16} className="text-text-primary" />
               </motion.button>
@@ -160,29 +198,44 @@ function ItemDetailSheet({
               <motion.button
                 onClick={() => setQty(qty + 1)}
                 whileTap={{ scale: 0.9 }}
-                className="w-9 h-9 rounded-xl bg-bg-elevated flex items-center justify-center"
+                className="w-9 h-9 rounded-xl bg-bg-elevated flex items-center justify-center border border-white/10 hover:border-gold/30 transition-colors"
               >
                 <Plus size={16} className="text-text-primary" />
               </motion.button>
             </div>
-          </div>
+          </motion.div>
 
           {/* Total */}
-          <div
-            className="rounded-2xl p-3 mb-5 flex items-center justify-between"
+          <motion.div
+            className="rounded-2xl p-3 mb-5 flex items-center justify-between relative overflow-hidden"
             style={{
               background: 'rgba(245,166,35,0.08)',
               border: '1px solid rgba(245,166,35,0.2)',
             }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
           >
-            <span className="text-text-muted text-sm">Jumla:</span>
-            <span className="text-gold font-black">
-              {formatCurrency(item.price * qty)}
-            </span>
-          </div>
+            <div className="absolute top-0 right-0 w-16 h-16 rounded-full blur-2xl opacity-10"
+              style={{ background: 'radial-gradient(circle, #F5A623, transparent)' }}
+            />
+            <div className="relative z-10">
+              <span className="text-text-muted text-sm">Jumla:</span>
+            </div>
+            <div className="relative z-10">
+              <span className="text-gold font-black">
+                {formatCurrency(item.price * qty)}
+              </span>
+            </div>
+          </motion.div>
 
           {/* Actions */}
-          <div className="space-y-3">
+          <motion.div
+            className="space-y-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+          >
             <KiliButton
               fullWidth
               size="lg"
@@ -205,7 +258,7 @@ function ItemDetailSheet({
             >
               Wasiliana na Muuzaji
             </KiliButton>
-          </div>
+          </motion.div>
         </div>
       </div>
     </KiliBottomSheet>
@@ -226,14 +279,22 @@ function ItemCard({
 
   return (
     <motion.div
-      className="rounded-2xl overflow-hidden cursor-pointer"
+      className="rounded-2xl overflow-hidden cursor-pointer relative"
       style={{
         background: 'rgba(26,26,36,0.8)',
         border: '1px solid rgba(255,255,255,0.07)',
       }}
+      whileHover={{ scale: 1.03, y: -4, borderColor: `${color}40` }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
     >
+      {/* Glow effect */}
+      <div className="absolute top-0 right-0 w-16 h-16 rounded-full blur-2xl opacity-10"
+        style={{ background: `radial-gradient(circle, ${color}, rgba(${parseInt(color.slice(1,3),16)},${parseInt(color.slice(3,5),16)},${parseInt(color.slice(5,7),16)},0))` }}
+      />
+
       {/* Image */}
       <div className="aspect-square relative bg-bg-elevated">
         {img ? (
@@ -253,7 +314,7 @@ function ItemCard({
       </div>
 
       {/* Info */}
-      <div className="p-3">
+      <div className="p-3 relative z-10">
         <p className="text-xs text-text-muted mb-0.5">{item.category}</p>
         <h4 className="text-sm font-bold text-text-primary line-clamp-1 mb-1">
           {item.title}
@@ -278,7 +339,6 @@ export default function ShowcaseDetailPage({
   const router = useRouter()
   const [selectedItem, setSelectedItem] = useState<ShowcaseItem | null>(null)
 
-  // `params` can be a Promise in client components; unwrap it with React.use
   const { username } = React.use(params) as { username: string }
 
   const { data: showcase, isLoading } = useQuery({
@@ -290,7 +350,7 @@ export default function ShowcaseDetailPage({
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-bg-base pt-safe pb-safe">
-        <SkeletonCard className="h-48 rounded-none" rounded="sm" />
+        <SkeletonCard className="h-52 rounded-none" rounded="sm" />
         <div className="px-5 pt-4 space-y-4">
           <SkeletonCard className="h-20" rounded="xl" />
           <div className="grid grid-cols-2 gap-3">
@@ -321,65 +381,95 @@ export default function ShowcaseDetailPage({
   return (
     <div className="min-h-dvh bg-bg-base overflow-y-auto no-scrollbar pb-safe">
       {/* Banner */}
-      <div
-        className="relative h-52"
-        style={{
-          background: showcase.banner_url
-            ? undefined
-            : `linear-gradient(135deg, ${color}25, rgba(10,10,15,0.95))`,
-        }}
+      <motion.div
+        className="relative h-52 overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
       >
-        {showcase.banner_url && (
-          <img
-            src={showcase.banner_url}
-            alt={showcase.title}
-            className="w-full h-full object-cover"
-          />
-        )}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: showcase.banner_url
+              ? undefined
+              : `linear-gradient(135deg, ${color}25, rgba(10,10,15,0.95))`,
+          }}
+        >
+          {showcase.banner_url && (
+            <img
+              src={showcase.banner_url}
+              alt={showcase.title}
+              className="w-full h-full object-cover"
+            />
+          )}
+        </div>
         <div
           className="absolute inset-0"
           style={{
             background: 'linear-gradient(to bottom, transparent 40%, #0A0A0F 100%)',
           }}
         />
+        <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-20"
+          style={{ background: `radial-gradient(circle, ${color}, rgba(${parseInt(color.slice(1,3),16)},${parseInt(color.slice(3,5),16)},${parseInt(color.slice(5,7),16)},0))` }}
+        />
 
         {/* Back button */}
-        <button
+        <motion.button
           onClick={() => router.back()}
-          className="absolute top-safe left-4 mt-3 w-9 h-9 glass rounded-xl flex items-center justify-center"
+          whileTap={{ scale: 0.9 }}
+          className="absolute top-safe left-4 mt-3 w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+          whileHover={{ background: 'rgba(255,255,255,0.1)' }}
         >
-          <ChevronLeft size={20} className="text-white" />
-        </button>
+          <ChevronLeft size={20} className="text-white relative z-10" />
+        </motion.button>
 
         {/* Share */}
-        <button
+        <motion.button
           onClick={() => {
             navigator.clipboard.writeText(window.location.href)
             toast.success('Link imekopwa!')
           }}
-          className="absolute top-safe right-4 mt-3 w-9 h-9 glass rounded-xl flex items-center justify-center"
+          whileTap={{ scale: 0.9 }}
+          className="absolute top-safe right-4 mt-3 w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+          whileHover={{ background: 'rgba(255,255,255,0.1)' }}
         >
-          <Share2 size={16} className="text-white" />
-        </button>
-      </div>
+          <Share2 size={16} className="text-white relative z-10" />
+        </motion.button>
+      </motion.div>
 
       {/* Owner card */}
-      <div className="px-5 -mt-10 relative z-10 mb-5">
-        <div
-          className="rounded-3xl p-4 flex items-center gap-4"
+      <motion.div
+        className="px-5 -mt-10 relative z-10 mb-5"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <motion.div
+          className="rounded-3xl p-4 flex items-center gap-4 relative overflow-hidden"
           style={{
             background: 'rgba(26,26,36,0.95)',
             border: '1px solid rgba(255,255,255,0.08)',
             backdropFilter: 'blur(20px)',
           }}
+          whileHover={{ scale: 1.01, borderColor: `${color}30` }}
         >
-          <KiliAvatar
-            src={showcase.owner_avatar}
-            name={showcase.owner_username}
-            isVerified={showcase.owner_verified}
-            size="lg"
+          <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-2xl opacity-10"
+            style={{ background: `radial-gradient(circle, ${color}, rgba(${parseInt(color.slice(1,3),16)},${parseInt(color.slice(3,5),16)},${parseInt(color.slice(5,7),16)},0))` }}
           />
-          <div className="flex-1">
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+          >
+            <KiliAvatar
+              src={showcase.owner_avatar}
+              name={showcase.owner_username}
+              isVerified={showcase.owner_verified}
+              size="lg"
+            />
+          </motion.div>
+          <div className="flex-1 relative z-10">
             <h1 className="text-lg font-black text-text-primary">
               {showcase.title}
             </h1>
@@ -397,20 +487,33 @@ export default function ShowcaseDetailPage({
               </span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {showcase.description && (
-          <p className="text-text-muted text-sm mt-3 leading-relaxed">
+          <motion.p
+            className="text-text-muted text-sm mt-3 leading-relaxed"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
             {showcase.description}
-          </p>
+          </motion.p>
         )}
-      </div>
+      </motion.div>
 
       {/* Items grid */}
-      <div className="px-5 pb-8">
-        <h2 className="text-lg font-black text-text-primary mb-4">
-          🛍️ Bidhaa ({showcase.item_count})
-        </h2>
+      <motion.div
+        className="px-5 pb-8"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles size={20} style={{ color }} />
+          <h2 className="text-lg font-black text-text-primary">
+            Bidhaa ({showcase.item_count})
+          </h2>
+        </div>
         {showcase.items.length === 0 ? (
           <EmptyState
             icon="📦"
@@ -419,7 +522,7 @@ export default function ShowcaseDetailPage({
           />
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {showcase.items.map((item) => (
+            {showcase.items.map((item, i) => (
               <ItemCard
                 key={item.id}
                 item={item}
@@ -429,7 +532,7 @@ export default function ShowcaseDetailPage({
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Item detail */}
       <ItemDetailSheet

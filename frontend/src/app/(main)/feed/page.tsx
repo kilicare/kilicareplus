@@ -294,16 +294,16 @@ function CreateMomentSheet({
               </p>
             </div>
             {audio && (
-              <button
+              <div
                 onClick={(e) => {
                   e.stopPropagation()
                   setAudio(null)
                   setAudioPreview(null)
                 }}
-                className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 text-sm"
+                className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 text-sm cursor-pointer hover:bg-red-500/30 transition-colors"
               >
                 ✕
-              </button>
+              </div>
             )}
             <input
               ref={audioRef}
@@ -514,7 +514,7 @@ function MomentCard({
         {/* User info */}
         <div className="flex items-center gap-3 min-w-0">
           <KiliAvatar
-            src={moment.posted_by_avatar}
+            src={moment.posted_by_avatar_url}
             name={moment.posted_by_username}
             role={moment.posted_by_role}
             isVerified={moment.posted_by_verified}
@@ -695,13 +695,20 @@ function MomentCard({
   )
 }
 
-// ── Main Feed Page ──────────────────────────────────
-export default function FeedPage() {
-  const [activeComment, setActiveComment] = useState<number | null>(null)
-  const [showCreate, setShowCreate] = useState(false)
-  const { user } = useAuthStore()
-  const feedAudio = useFeedAudio()
-
+// ── Role-Based Feed Views ─────────────────────────────
+function TouristFeedView({
+  activeComment,
+  setActiveComment,
+  showCreate,
+  setShowCreate,
+  feedAudio,
+}: {
+  activeComment: number | null
+  setActiveComment: (id: number | null) => void
+  showCreate: boolean
+  setShowCreate: (show: boolean) => void
+  feedAudio: ReturnType<typeof useFeedAudio>
+}) {
   const {
     data,
     isLoading,
@@ -757,7 +764,6 @@ export default function FeedPage() {
 
   return (
     <div className="relative bg-black">
-      {/* Feed container */}
       <div
         className="snap-y-mandatory overflow-y-scroll"
         style={{ height: '100dvh' }}
@@ -789,7 +795,6 @@ export default function FeedPage() {
         )}
       </div>
 
-      {/* Create FAB */}
       <motion.button
         onClick={() => setShowCreate(true)}
         whileTap={{ scale: 0.88 }}
@@ -802,7 +807,6 @@ export default function FeedPage() {
         <Plus size={24} className="text-black" strokeWidth={2.5} />
       </motion.button>
 
-      {/* Sheets */}
       <CommentSheet
         momentId={activeComment}
         isOpen={!!activeComment}
@@ -813,5 +817,25 @@ export default function FeedPage() {
         onClose={() => setShowCreate(false)}
       />
     </div>
+  )
+}
+
+// ── Main Feed Page ──────────────────────────────────
+export default function FeedPage() {
+  const [activeComment, setActiveComment] = useState<number | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const { user } = useAuthStore()
+  const feedAudio = useFeedAudio()
+
+  // ALL ROLES SEE THE SAME FEED (TOURIST VIEW)
+  // Role-based features are accessible via sidebar and more grid
+  return (
+    <TouristFeedView
+      activeComment={activeComment}
+      setActiveComment={setActiveComment}
+      showCreate={showCreate}
+      setShowCreate={setShowCreate}
+      feedAudio={feedAudio}
+    />
   )
 }

@@ -1,21 +1,30 @@
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from django.db.models import Q
+from django.core.cache import cache
 
 from .models import Moment, MomentLike, MomentComment, MomentSave
 from .serializers import MomentSerializer, MomentCommentSerializer
+from core.throttles import LikeSpamThrottle, NotificationSpamThrottle
+from core.cache_utils import invalidate_feed_cache
+from apps.notifications.event_dispatcher import notify_event
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def feed_view(request):
-    """Paginated feed — 20 moments per page"""
+    """Paginated feed — 20 moments per page (cached)"""
     page = int(request.query_params.get('page', 1))
     page_size = 20
     offset = (page - 1) * page_size
+
+    cache_key = f"feed_page_{page}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return Response(cached_data)
 
     moments = Moment.objects.filter(
         visibility='PUBLIC'
@@ -27,23 +36,34 @@ def feed_view(request):
     serializer = MomentSerializer(
         moments, many=True, context={'request': request}
     )
-    return Response({
+    
+    response_data = {
         'results': serializer.data,
         'count': total,
         'page': page,
         'has_next': (offset + page_size) < total,
-    })
+    }
+    
+    cache.set(cache_key, response_data, 300) # TTL: 5 minutes
+    return Response(response_data)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def trending_view(request):
+    """Get trending moments (cached)"""
+    cache_key = "feed_trending"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return Response(cached_data)
+
     moments = Moment.objects.filter(
         visibility='PUBLIC', trending_score__gt=0
     ).order_by('-trending_score')[:10]
-    return Response(
-        MomentSerializer(moments, many=True, context={'request': request}).data
-    )
+    
+    data = MomentSerializer(moments, many=True, context={'request': request}).data
+    cache.set(cache_key, data, 300) # TTL: 5 minutes
+    return Response(data)
 
 
 @api_view(['POST'])
@@ -66,6 +86,9 @@ def create_moment_view(request):
 
     # Update trending score
     _update_trending(moment)
+    
+    # Invalidate feed cache
+    invalidate_feed_cache()
 
     return Response(
         MomentSerializer(moment, context={'request': request}).data,
@@ -95,6 +118,7 @@ def moment_detail_view(request, pk):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([LikeSpamThrottle])
 def like_view(request, pk):
     try:
         moment = Moment.objects.get(pk=pk)
@@ -115,7 +139,22 @@ def like_view(request, pk):
         except Exception:
             pass
 
+        # Trigger event notification
+        notify_event(
+            'LIKE',
+            actor=request.user,
+            target=moment.posted_by,
+            payload={
+                'moment_id': moment.id,
+                'moment_caption': moment.caption or ''
+            }
+        )
+
     _update_trending(moment)
+    
+    # Invalidate cache
+    invalidate_feed_cache()
+    
     return Response({
         'liked': liked,
         'like_count': moment.likes.count(),
@@ -124,6 +163,7 @@ def like_view(request, pk):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@throttle_classes([NotificationSpamThrottle])
 def comment_view(request, pk):
     try:
         moment = Moment.objects.get(pk=pk)
@@ -148,7 +188,22 @@ def comment_view(request, pk):
     except Exception:
         pass
 
+    # Trigger event notification
+    notify_event(
+        'COMMENT',
+        actor=request.user,
+        target=moment.posted_by,
+        payload={
+            'moment_id': moment.id,
+            'comment_text': text
+        }
+    )
+
     _update_trending(moment)
+    
+    # Invalidate cache
+    invalidate_feed_cache()
+    
     return Response(
         MomentCommentSerializer(comment, context={'request': request}).data,
         status=status.HTTP_201_CREATED,
@@ -228,6 +283,10 @@ def delete_moment_view(request, pk):
     except Moment.DoesNotExist:
         return Response({'message': 'Haipatikani.'}, status=404)
     moment.delete()
+    
+    # Invalidate cache
+    invalidate_feed_cache()
+    
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 

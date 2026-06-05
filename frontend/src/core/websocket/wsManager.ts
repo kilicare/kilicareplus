@@ -33,24 +33,85 @@ function buildWsUrl(path: string) {
 
 type MessageHandler = (data: Record<string, unknown>) => void
 
+interface ConnectionState {
+  path: string
+  lastConnected: number
+  lastMessageId?: string
+}
+
 class WebSocketManager {
   private ws: WebSocket | null = null
   private url: string = ''
+  private path: string = ''
   private handlers: MessageHandler[] = []
   private reconnectDelay = 1000
   private maxDelay = 30000
   private shouldReconnect = true
   private pingInterval: ReturnType<typeof setInterval> | null = null
+  private lastMessageId: string | null = null
+  private STORAGE_KEY = 'ws_connection_state'
 
   connect(path: string) {
     const token = localStorage.getItem('kili_access_token')
+    this.path = path
     this.url = buildWsUrl(path)
 
     if (token) {
       this.url += this.url.includes('?') ? `&token=${encodeURIComponent(token)}` : `?token=${encodeURIComponent(token)}`
     }
 
+    // Save connection state for recovery
+    this._saveConnectionState()
+
     this._connect()
+  }
+
+  private _saveConnectionState() {
+    const state: ConnectionState = {
+      path: this.path,
+      lastConnected: Date.now(),
+      lastMessageId: this.lastMessageId || undefined,
+    }
+    try {
+      sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(state))
+    } catch (e) {
+      console.warn('[WS] Failed to save connection state:', e)
+    }
+  }
+
+  private _loadConnectionState(): ConnectionState | null {
+    try {
+      const saved = sessionStorage.getItem(this.STORAGE_KEY)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch (e) {
+      console.warn('[WS] Failed to load connection state:', e)
+    }
+    return null
+  }
+
+  private _clearConnectionState() {
+    try {
+      sessionStorage.removeItem(this.STORAGE_KEY)
+    } catch (e) {
+      console.warn('[WS] Failed to clear connection state:', e)
+    }
+  }
+
+  recoverConnection() {
+    const state = this._loadConnectionState()
+    if (state && state.path) {
+      console.log('[WS] Recovering connection for:', state.path)
+      this.connect(state.path)
+      // Request missed events if we have a last message ID
+      if (state.lastMessageId) {
+        this.send({
+          action: 'sync',
+          since: state.lastMessageId,
+        })
+      }
+    }
   }
 
   private _connect() {
@@ -116,6 +177,7 @@ class WebSocketManager {
   disconnect() {
     this.shouldReconnect = false
     this._stopPing()
+    this._clearConnectionState()
     this.ws?.close()
     this.ws = null
   }

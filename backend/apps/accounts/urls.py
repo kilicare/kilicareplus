@@ -23,6 +23,7 @@ urlpatterns = [
     
     # User Profile
     path('me/', views.me_view),
+    path('users/<str:username>/profile/', views.public_profile_view),
     path('check-username/', views.check_username_view),
     path('fcm-token/', views.update_fcm_token_view),
 ]

@@ -20,6 +20,8 @@ import {
   ChevronRight,
   Bot,
   Map,
+  Activity,
+  AlertTriangle,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -46,6 +48,14 @@ const CREATOR = [
   { href: '/showcase', Icon: Store, label: 'Showcase' },
   { href: '/analytics', Icon: TrendingUp, label: 'Analytics' },
   { href: '/predictions', Icon: TrendingUp, label: 'Predictions' },
+]
+
+const ADMIN = [
+  { href: '/admin/dashboard', Icon: Activity, label: 'Admin Dashboard' },
+  { href: '/admin/users', Icon: User, label: 'User Management' },
+  { href: '/admin/moderation', Icon: Shield, label: 'Moderation' },
+  { href: '/admin/sos-monitor', Icon: AlertTriangle, label: 'SOS Monitor' },
+  { href: '/admin/b2b', Icon: Store, label: 'B2B Portal' },
 ]
 
 export function Sidebar({
@@ -183,6 +193,20 @@ export function Sidebar({
             )}
 
             {CREATOR.map((item) => (
+              <NavItem key={item.href} {...item} />
+            ))}
+          </>
+        )}
+
+        {isAdmin && (
+          <>
+            {!collapsed && (
+              <p className="text-[10px] px-3 pt-4 pb-2 text-gray-500 uppercase">
+                Admin
+              </p>
+            )}
+
+            {ADMIN.map((item) => (
               <NavItem key={item.href} {...item} />
             ))}
           </>

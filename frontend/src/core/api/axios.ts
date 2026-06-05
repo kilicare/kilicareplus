@@ -90,6 +90,52 @@ api.interceptors.response.use(
     orig._retry = orig._retry ?? 0
     orig._refreshAttempts = orig._refreshAttempts ?? 0
     
+    // Handle network errors (no response)
+    if (!err.response) {
+      console.error('[API Interceptor] 🔴 Network Error', {
+        url: err.config?.url,
+        method: err.config?.method,
+        message: err.message,
+      })
+      
+      // Reject with safe error message
+      return Promise.reject({
+        ...err,
+        isNetworkError: true,
+        message: 'Network error. Please check your connection.',
+      })
+    }
+    
+    // Handle 500 errors
+    if (err.response.status === 500) {
+      console.error('[API Interceptor] 🔴 Server Error (500)', {
+        url: err.config?.url,
+        method: err.config?.method,
+      })
+      
+      // Reject with safe error message
+      return Promise.reject({
+        ...err,
+        isServerError: true,
+        message: 'Server error. Please try again later.',
+      })
+    }
+    
+    // Handle timeout errors
+    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      console.error('[API Interceptor] 🔴 Timeout Error', {
+        url: err.config?.url,
+        method: err.config?.method,
+      })
+      
+      // Reject with safe error message
+      return Promise.reject({
+        ...err,
+        isTimeout: true,
+        message: 'Request timeout. Please try again.',
+      })
+    }
+    
     // Handle 401 Unauthorized - attempt token refresh
     if (err.response?.status === 401) {
       const errorData = (err.response?.data as any) || {}

@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/affiliates/', include('apps.affiliates.urls')),
     path('api/b2b/', include('apps.b2b.urls')),
     path('api/admin-ops/', include('apps.admin_ops.urls')),
+    path('api/moderation/', include('apps.moderation.urls')),
 ]
 
 if settings.DEBUG:

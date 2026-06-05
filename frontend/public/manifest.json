@@ -24,6 +24,12 @@
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
 
@@ -36,19 +42,43 @@
 
   "shortcuts": [
     {
-      "name": "SOS",
+      "name": "SOS Dharura",
       "short_name": "SOS",
-      "url": "/sos"
+      "description": "Tuma SOS ya dharura",
+      "url": "/sos",
+      "icons": [{ "src": "/icons/shortcut-sos.png", "sizes": "96x96" }]
     },
     {
       "name": "AI Guide",
       "short_name": "AI",
-      "url": "/ai"
+      "description": "Zungumza na AI ya Tanzania",
+      "url": "/ai",
+      "icons": [{ "src": "/icons/shortcut-ai.png", "sizes": "96x96" }]
     },
     {
       "name": "Feed",
       "short_name": "Feed",
-      "url": "/feed"
+      "description": "Angalia moments za Tanzania",
+      "url": "/feed",
+      "icons": [{ "src": "/icons/shortcut-feed.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Predictions",
+      "short_name": "Bet",
+      "description": "KilicareBet predictions",
+      "url": "/predictions",
+      "icons": [{ "src": "/icons/shortcut-bet.png", "sizes": "96x96" }]
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/feed.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "KilicareGO+ Feed"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
 }

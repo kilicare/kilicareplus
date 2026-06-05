@@ -71,3 +71,52 @@ class Match(models.Model):
     
     def __str__(self):
         return f"{self.home_team} vs {self.away_team} ({self.league})"
+
+
+class UserPrediction(models.Model):
+    """
+    User-specific predictions created through AI Chat or predictions endpoints.
+    Tracks user predictions, feedback, and analysis history.
+    """
+    
+    LEAGUE_CHOICES = [
+        ('EPL', 'English Premier League'),
+        ('LA_LIGA', 'La Liga'),
+        ('BUNDESLIGA', 'Bundesliga'),
+    ]
+    
+    FEEDBACK_CHOICES = [
+        ('1', 'Home Win'),
+        ('X', 'Draw'),
+        ('2', 'Away Win'),
+    ]
+    
+    # User
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='predictions')
+    
+    # Match info
+    league = models.CharField(max_length=50, choices=LEAGUE_CHOICES, db_index=True)
+    home_team = models.CharField(max_length=100)
+    away_team = models.CharField(max_length=100)
+    
+    # Prediction data from predictor
+    prediction_data = models.JSONField(default=dict, blank=True)
+    
+    # User feedback (actual match result)
+    user_feedback = models.CharField(max_length=10, blank=True, choices=FEEDBACK_CHOICES)
+    user_feedback_date = models.DateTimeField(null=True, blank=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False)  # Soft delete
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['league', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user} - {self.home_team} vs {self.away_team}"
