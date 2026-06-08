@@ -82,17 +82,23 @@ export const authService = {
   },
 
   async login(email: string, password: string): Promise<AuthResponse> {
+    // CRITICAL: Clear stale auth state BEFORE authentication attempt
+    // This prevents legacy token leakage and ensures clean login
+    tokenStorage.clearTokens()
+
     try {
       const { data } = await api.post<AuthResponse>('/auth/login/', {
         email,
         password,
       })
 
-      // Store tokens in localStorage
+      // Store fresh tokens only after successful login
       tokenStorage.setTokens(data.access, data.refresh)
 
       return data
     } catch (error: any) {
+      // On login failure, ensure tokens remain cleared
+      tokenStorage.clearTokens()
       throw error
     }
   },

@@ -1,8 +1,19 @@
 import io
 import time
 import requests
-from requests.exceptions import RequestException
+import socket
+from requests.exceptions import RequestException, ConnectionError, Timeout
+from urllib3.exceptions import NameResolutionError, MaxRetryError
 from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Reusable session for connection pooling
+_groq_session = requests.Session()
+_groq_session.headers.update({
+    'Authorization': f'Bearer {settings.GROQ_API_KEY}',
+})
 
 SYSTEM_PROMPT_SW = """
 Wewe ni KilicareGO AI — msaidizi bora wa utalii Tanzania.
@@ -148,7 +159,7 @@ Ikiwa haujuelewa: Uliza kuhusu soko la betting, si utalii!
 """
 
 
-def build_messages(history: list, lang: str = 'sw', context: str = 'tourism') -> list:
+def build_messages(history: list, lang: str = 'sw', context: str = 'tourism', moment_context: dict | None = None) -> list:
     """
     Build message list for Groq API.
     
@@ -156,11 +167,26 @@ def build_messages(history: list, lang: str = 'sw', context: str = 'tourism') ->
         history: List of {'role': 'user'/'assistant', 'content': '...'}
         lang: 'sw' or 'en'
         context: 'tourism' or 'betting'
+        moment_context: Optional dict with moment details (caption, location, media_type, posted_by)
     """
     if context == 'betting':
         system = BETTING_SYSTEM_PROMPT_SW if lang == 'sw' else BETTING_SYSTEM_PROMPT_EN
     else:
         system = SYSTEM_PROMPT_SW if lang == 'sw' else SYSTEM_PROMPT_EN
+    
+    # Add moment context to system prompt if provided
+    if moment_context:
+        moment_info = f"""
+        
+CONTEXT: User is asking about a specific moment/post from KilicareGO+:
+- Caption: {moment_context.get('caption', 'N/A')}
+- Location: {moment_context.get('location', 'Tanzania')}
+- Media Type: {moment_context.get('media_type', 'image/video')}
+- Posted By: @{moment_context.get('posted_by', 'user')}
+
+Focus your responses on this specific moment. Answer questions about the location, provide travel tips for this area, or explain what's shown in the post. Be helpful and specific to this context.
+"""
+        system += moment_info
     
     msgs = [{'role': 'system', 'content': system}]
     for msg in history:
@@ -176,37 +202,91 @@ GROQ_AUDIO_TRANSCRIPTIONS_URL = 'https://api.groq.com/v1/audio/transcriptions'
 
 
 def _groq_headers(content_type: str = 'application/json') -> dict:
-    headers = {
-        'Authorization': f'Bearer {settings.GROQ_API_KEY}',
-    }
+    headers = {}
     if content_type:
         headers['Content-Type'] = content_type
     return headers
 
 
+class AIServiceError(Exception):
+    """Base exception for AI service errors with safe user-facing messages"""
+    def __init__(self, user_message: str, log_details: str | None = None):
+        self.user_message = user_message
+        self.log_details = log_details or user_message
+        super().__init__(user_message)
+
+
 def _post_to_groq(url: str, **kwargs):
-    """Post to Groq API with exponential backoff retry logic"""
+    """Post to Groq API with exponential backoff retry logic using reusable session"""
     last_exception: Exception | None = None
     max_retries = 3
     base_delay = 1  # seconds
     
     for attempt in range(max_retries):
         try:
-            response = requests.post(url, timeout=60, **kwargs)
+            response = _groq_session.post(url, timeout=60, **kwargs)
             if response.ok:
                 return response
             last_exception = RequestException(
                 f'Groq API error {response.status_code}: {response.text}'
             )
+        except (ConnectionError, Timeout) as exc:
+            last_exception = exc
+            logger.warning(f"[AI Service] Connection/timeout error on attempt {attempt + 1}/{max_retries}")
+        except NameResolutionError as exc:
+            logger.error(f"[AI Service] DNS resolution failed: {exc}")
+            raise AIServiceError(
+                "Unable to connect to AI service. Please check your internet connection.",
+                f"DNS resolution failed for Groq API: {exc}"
+            )
+        except socket.gaierror as exc:
+            logger.error(f"[AI Service] Socket DNS error: {exc}")
+            raise AIServiceError(
+                "Unable to connect to AI service. Please check your internet connection.",
+                f"Socket DNS error: {exc}"
+            )
+        except socket.timeout as exc:
+            logger.warning(f"[AI Service] Socket timeout on attempt {attempt + 1}/{max_retries}")
+            last_exception = exc
+        except socket.error as exc:
+            logger.error(f"[AI Service] Socket error: {exc}")
+            raise AIServiceError(
+                "Network error. Please check your internet connection.",
+                f"Socket error: {exc}"
+            )
+        except MaxRetryError as exc:
+            logger.error(f"[AI Service] Max retries exceeded: {exc}")
+            raise AIServiceError(
+                "AI service is temporarily unavailable. Please try again later.",
+                f"Max retries exceeded: {exc}"
+            )
         except RequestException as exc:
             last_exception = exc
+            logger.warning(f"[AI Service] Request exception on attempt {attempt + 1}/{max_retries}")
+        except Exception as exc:
+            logger.error(f"[AI Service] Unexpected error: {exc}")
+            raise AIServiceError(
+                "AI service is temporarily unavailable. Please try again later.",
+                f"Unexpected error: {exc}"
+            )
         
         # Exponential backoff before retry
         if attempt < max_retries - 1:
             delay = base_delay * (2 ** attempt)
             time.sleep(delay)
 
-    raise last_exception if last_exception is not None else RequestException('Groq request failed')
+    # All retries exhausted
+    if last_exception is not None:
+        logger.error(f"[AI Service] All {max_retries} retries exhausted")
+        raise AIServiceError(
+            "AI service is temporarily unavailable. Please try again later.",
+            f"All retries exhausted. Last error: {last_exception}"
+        )
+    
+    raise AIServiceError(
+        "AI service is temporarily unavailable. Please try again later.",
+        "Groq request failed with unknown error"
+    )
 
 
 def chat_with_groq(messages: list, stream: bool = False):

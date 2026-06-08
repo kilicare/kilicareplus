@@ -11,17 +11,23 @@ def get_redis_client():
 
 
 def invalidate_feed_cache():
-    """Invalidate all feed page cache and trending moment cache keys."""
+    """Invalidate feed cache using targeted deletion instead of global clear."""
     try:
         r = get_redis_client()
-        # Scan and delete all feed page cache keys
-        for key in r.scan_iter("*feed_page_*"):
+        # Targeted invalidation: only feed-related keys
+        for key in r.scan_iter("*feed_user_*"):
             r.delete(key)
-        # Scan and delete trending cache
         for key in r.scan_iter("*feed_trending*"):
             r.delete(key)
+        # Also clear seen posts to refresh session diversity
+        for key in r.scan_iter("*seen_posts_*"):
+            r.delete(key)
     except Exception:
-        pass
+        # Fallback to global clear if Redis fails
+        try:
+            cache.clear()
+        except Exception:
+            pass
 
 
 def invalidate_profile_cache(username_or_id):

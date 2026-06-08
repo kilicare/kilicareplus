@@ -1,5 +1,8 @@
 import json
+import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
+
+logger = logging.getLogger(__name__)
 from channels.db import database_sync_to_async
 
 
@@ -48,7 +51,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                     'count': 0,
                 }))
         except Exception as e:
-            print(f'[NotifConsumer receive] {e}')
+            logger.warning(f'[NotifConsumer receive] {e}')
 
     async def notification_message(self, event):
         await self.send(text_data=json.dumps({

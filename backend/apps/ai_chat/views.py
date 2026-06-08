@@ -1,4 +1,5 @@
 import json
+import logging
 from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.decorators import (
@@ -9,7 +10,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import AIThread, AIMessage, UserAIPreference
-from .services import build_messages, chat_with_groq, transcribe_audio
+from .services import build_messages, chat_with_groq, transcribe_audio, AIServiceError
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['POST'])
@@ -21,11 +24,7 @@ def chat_stream_view(request):
     thread_id = request.data.get('thread_id')
     lang = request.data.get('lang', 'sw')
     context = request.data.get('context', 'tourism')  # 'tourism' or 'betting'
-
-    print("\n" + "=" * 60)
-    print(f"CONTEXT: {context}")
-    print(f"MESSAGE RAW: {repr(message)}")
-    print("=" * 60 + "\n")
+    moment_id = request.data.get('moment_id')  # Optional: tie chat to specific moment
 
     if not message:
         return Response(
@@ -44,8 +43,8 @@ def chat_stream_view(request):
             plan__has_ai_unlimited=True,
         ).first()
         is_premium = sub is not None
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"[AI Chat] Failed to check premium status for user {request.user.id}: {e}")
 
     if not pref.can_send_message(is_premium):
         return Response(
@@ -54,16 +53,36 @@ def chat_stream_view(request):
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
+    # Fetch moment context if moment_id is provided
+    moment_context = None
+    if moment_id:
+        try:
+            from apps.moments.models import Moment
+            moment = Moment.objects.get(id=moment_id)
+            moment_context = {
+                'caption': moment.caption or '',
+                'location': moment.location or 'Tanzania',
+                'media_type': moment.media_type,
+                'posted_by': moment.posted_by.username,
+            }
+        except Moment.DoesNotExist:
+            logger.warning(f"[AI Chat] Moment {moment_id} not found for user {request.user.id}")
+            moment_context = None
+
     # Get or create thread
     if thread_id:
         try:
             thread = AIThread.objects.get(
                 id=thread_id, user=request.user
             )
+            # Update moment_id if provided and different
+            if moment_id and thread.moment_id != moment_id:
+                thread.moment_id = moment_id
+                thread.save(update_fields=['moment_id'])
         except AIThread.DoesNotExist:
-            thread = AIThread.objects.create(user=request.user)
+            thread = AIThread.objects.create(user=request.user, moment_id=moment_id)
     else:
-        thread = AIThread.objects.create(user=request.user)
+        thread = AIThread.objects.create(user=request.user, moment_id=moment_id)
 
     # Save user message
     AIMessage.objects.create(
@@ -119,7 +138,7 @@ def chat_stream_view(request):
     def generate():
         full_response = ''
         try:
-            msgs = build_messages(history, lang=lang, context=context)
+            msgs = build_messages(history, lang=lang, context=context, moment_context=moment_context)
             stream = chat_with_groq(msgs, stream=True)
             stream.raise_for_status()
             for line in stream.iter_lines(decode_unicode=True):
@@ -139,8 +158,12 @@ def chat_stream_view(request):
                 content=full_response,
             )
             yield f"data: {json.dumps({'done': True, 'thread_id': thread.id})}\n\n"
+        except AIServiceError as e:
+            logger.error(f"[AI Chat] AIServiceError in stream: {e.log_details}")
+            yield f"data: {json.dumps({'error': e.user_message})}\n\n"
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            logger.error(f"[AI Chat] Unexpected error in stream: {e}")
+            yield f"data: {json.dumps({'error': 'AI service is temporarily unavailable. Please try again later.'})}\n\n"
 
     response = StreamingHttpResponse(
         generate(), content_type='text/event-stream'
@@ -185,9 +208,16 @@ def chat_regular_view(request):
             .get('message', {})
             .get('content', '')
         )
-    except Exception as e:
+    except AIServiceError as e:
+        logger.error(f"[AI Chat] AIServiceError in regular chat: {e.log_details}")
         return Response(
-            {'message': f'AI error: {str(e)}'},
+            {'message': e.user_message},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    except Exception as e:
+        logger.error(f"[AI Chat] Unexpected error in regular chat: {e}")
+        return Response(
+            {'message': 'AI service is temporarily unavailable. Please try again later.'},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
@@ -214,9 +244,16 @@ def voice_to_text_view(request):
     try:
         text = transcribe_audio((audio.name, audio.read(), audio.content_type))
         return Response({'text': text})
-    except Exception as e:
+    except AIServiceError as e:
+        logger.error(f"[AI Chat] AIServiceError in transcription: {e.log_details}")
         return Response(
-            {'message': f'Transcription imeshindwa: {str(e)}'},
+            {'message': e.user_message},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    except Exception as e:
+        logger.error(f"[AI Chat] Unexpected error in transcription: {e}")
+        return Response(
+            {'message': 'Voice transcription is temporarily unavailable. Please try again later.'},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
@@ -370,7 +407,7 @@ def betting_predict_view(request):
             prediction_data=prediction,
         )
     except Exception as e:
-        print(f"[WARNING] Failed to record prediction in analytics: {e}")
+        logger.warning(f"[AI Chat] Failed to record prediction in analytics: {e}")
         # Don't fail the request if analytics recording fails
     
     return Response({
@@ -444,8 +481,9 @@ def delete_betting_prediction_view(request, prediction_id):
             status=status.HTTP_404_NOT_FOUND,
         )
     except Exception as e:
+        logger.error(f"[AI Chat] Error deleting betting prediction: {e}")
         return Response(
-            {'error': str(e)},
+            {'error': 'Failed to delete prediction. Please try again later.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

@@ -3,39 +3,104 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
-from django.db.models import Q
+from django.db.models import Q, Count, Case, When
 from django.core.cache import cache
+from django.utils import timezone
+from datetime import timedelta
+import random
+import environ
 
-from .models import Moment, MomentLike, MomentComment, MomentSave
-from .serializers import MomentSerializer, MomentCommentSerializer
+from .models import Moment, MomentLike, MomentSave
+from .serializers import MomentSerializer
 from core.throttles import LikeSpamThrottle, NotificationSpamThrottle
 from core.cache_utils import invalidate_feed_cache
 from apps.notifications.event_dispatcher import notify_event
+
+env = environ.Env()
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def feed_view(request):
-    """Paginated feed — 20 moments per page (cached)"""
+    """Paginated feed with diversity — 20 moments per page (cached, user-aware)"""
     page = int(request.query_params.get('page', 1))
     page_size = 20
     offset = (page - 1) * page_size
-
-    cache_key = f"feed_page_{page}"
+    session_id = request.query_params.get('session_id', '')
+    
+    user_id = request.user.id
+    cache_key = f"feed_user_{user_id}_page_{page}"
+    
     cached_data = cache.get(cache_key)
     if cached_data is not None:
         return Response(cached_data)
 
-    moments = Moment.objects.filter(
-        visibility='PUBLIC'
-    ).select_related(
-        'posted_by', 'posted_by__profile', 'posted_by__passport'
-    ).order_by('-trending_score', '-created_at')[offset:offset + page_size]
+    seen_posts_key = f"seen_posts_{user_id}_{session_id}"
+    seen_posts = cache.get(seen_posts_key, [])
+
+    base_queryset = Moment.objects.filter(visibility='PUBLIC').select_related('posted_by', 'posted_by__profile')
+    
+    if seen_posts:
+        base_queryset = base_queryset.exclude(id__in=seen_posts)
+
+    trending_count = int(page_size * 0.7)
+    fresh_count = int(page_size * 0.2)
+    discovery_count = page_size - trending_count - fresh_count
+
+    trending_moments = list(base_queryset.order_by('-trending_score', '-created_at')[:trending_count * 2])
+    
+    one_day_ago = timezone.now() - timedelta(days=1)
+    fresh_moments = list(base_queryset.filter(created_at__gte=one_day_ago).order_by('-created_at')[:fresh_count * 2])
+    
+    all_ids = set(m.id for m in trending_moments + fresh_moments)
+    discovery_queryset = base_queryset.exclude(id__in=all_ids)
+    discovery_moments = list(discovery_queryset.order_by('?')[:discovery_count * 2]) if discovery_queryset.exists() else []
+
+    combined = []
+    creator_history = []
+    location_history = []
+
+    for moment in trending_moments:
+        if len(combined) >= trending_count:
+            break
+        if moment.posted_by_id not in creator_history[-3:] if creator_history else True:
+            if moment.location not in location_history[-2:] if location_history else True:
+                combined.append(moment)
+                creator_history.append(moment.posted_by_id)
+                if moment.location:
+                    location_history.append(moment.location)
+
+    for moment in fresh_moments:
+        if len(combined) >= trending_count + fresh_count:
+            break
+        if moment.id not in [m.id for m in combined]:
+            if moment.posted_by_id not in creator_history[-3:] if creator_history else True:
+                if moment.location not in location_history[-2:] if location_history else True:
+                    combined.append(moment)
+                    creator_history.append(moment.posted_by_id)
+                    if moment.location:
+                        location_history.append(moment.location)
+
+    for moment in discovery_moments:
+        if len(combined) >= page_size:
+            break
+        if moment.id not in [m.id for m in combined]:
+            combined.append(moment)
+
+    if len(combined) < page_size:
+        remaining = page_size - len(combined)
+        fallback_ids = [m.id for m in combined]
+        additional = base_queryset.exclude(id__in=fallback_ids).order_by('-trending_score', '-created_at')[:remaining]
+        combined.extend(list(additional))
+
+    moments = combined[:page_size]
+
+    new_seen = [m.id for m in moments]
+    updated_seen = list(set(seen_posts + new_seen))[-500:]
+    cache.set(seen_posts_key, updated_seen, 3600)
 
     total = Moment.objects.filter(visibility='PUBLIC').count()
-    serializer = MomentSerializer(
-        moments, many=True, context={'request': request}
-    )
+    serializer = MomentSerializer(moments, many=True, context={'request': request})
     
     response_data = {
         'results': serializer.data,
@@ -44,7 +109,7 @@ def feed_view(request):
         'has_next': (offset + page_size) < total,
     }
     
-    cache.set(cache_key, response_data, 300) # TTL: 5 minutes
+    cache.set(cache_key, response_data, 300)
     return Response(response_data)
 
 
@@ -161,71 +226,6 @@ def like_view(request, pk):
     })
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-@throttle_classes([NotificationSpamThrottle])
-def comment_view(request, pk):
-    try:
-        moment = Moment.objects.get(pk=pk)
-    except Moment.DoesNotExist:
-        return Response({'message': 'Haipatikani.'}, status=404)
-
-    text = request.data.get('text', '').strip()
-    if not text:
-        return Response(
-            {'message': 'Maoni hayawezi kuwa tupu.'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    comment = MomentComment.objects.create(
-        moment=moment, user=request.user, text=text
-    )
-
-    # Points
-    try:
-        request.user.passport.award_points('POST_COMMENT')
-        moment.posted_by.passport.award_points('GET_COMMENT')
-    except Exception:
-        pass
-
-    # Trigger event notification
-    notify_event(
-        'COMMENT',
-        actor=request.user,
-        target=moment.posted_by,
-        payload={
-            'moment_id': moment.id,
-            'comment_text': text
-        }
-    )
-
-    _update_trending(moment)
-    
-    # Invalidate cache
-    invalidate_feed_cache()
-    
-    return Response(
-        MomentCommentSerializer(comment, context={'request': request}).data,
-        status=status.HTTP_201_CREATED,
-    )
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def comments_view(request, pk):
-    try:
-        moment = Moment.objects.get(pk=pk)
-    except Moment.DoesNotExist:
-        return Response({'message': 'Haipatikani.'}, status=404)
-
-    comments = moment.comments.select_related(
-        'user', 'user__profile'
-    ).order_by('created_at')
-    return Response(
-        MomentCommentSerializer(
-            comments, many=True, context={'request': request}
-        ).data
-    )
 
 
 @api_view(['POST'])
@@ -294,7 +294,6 @@ def _update_trending(moment):
     """Simple trending score calculation"""
     score = (
         moment.likes.count() * 3 +
-        moment.comments.count() * 2 +
         moment.views * 0.1 +
         moment.shares * 4
     )

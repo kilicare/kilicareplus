@@ -1,0 +1,12 @@
+
+<svg width="72" height="72" viewBox="0 0 72 72" 
+  xmlns="http://www.w3.org/2000/svg">
+  <circle cx="36" cy="36" r="36" fill="#0A0A0F"/>
+  <circle cx="36" cy="36" r="33.12" fill="#F5A623"/>
+  <text x="36" y="46.8" 
+    font-family="Arial Black,sans-serif" 
+    font-size="36" 
+    font-weight="900" 
+    fill="#0A0A0F" 
+    text-anchor="middle">K</text>
+</svg>

@@ -2,14 +2,15 @@ from django.utils import timezone
 import qrcode
 import io
 import base64
+import logging
 from django.conf import settings
 from .models import PassportProfile, PointsTransaction, Badge, UserBadge
+
+logger = logging.getLogger(__name__)
 
 POINT_ACTIONS = {
     'POST_MOMENT':           5,
     'GET_LIKE':              1,
-    'POST_COMMENT':          1,
-    'GET_COMMENT':           1,
     'CREATE_TIP':            10,
     'TIP_UPVOTED':           2,
     'TIP_VERIFIED':          15,
@@ -166,14 +167,17 @@ def award_points_to_user(user, action_type: str, extra_pts: int = 0):
     """Award points, update level, check badge unlocks with validation"""
     # Validate action_type
     if action_type not in POINT_ACTIONS and action_type != 'ADMIN_AWARD':
+        logger.warning(f"[Passport] Invalid action_type: {action_type} for user {user.id}")
         return None
     
     pts = POINT_ACTIONS.get(action_type, 0) + extra_pts
     if pts == 0 and action_type != 'ADMIN_AWARD':
+        logger.warning(f"[Passport] Zero points for action: {action_type} for user {user.id}")
         return None
 
     # Prevent negative points from exploits
     if pts < 0 and action_type != 'ADMIN_AWARD':
+        logger.warning(f"[Passport] Negative points attempt: {pts} for action {action_type} by user {user.id}")
         return None
 
     # Rate limiting: prevent spam actions (max 10 same actions per minute)
@@ -187,6 +191,7 @@ def award_points_to_user(user, action_type: str, extra_pts: int = 0):
     ).count()
     
     if recent_count >= 10 and action_type != 'ADMIN_AWARD':
+        logger.warning(f"[Passport] Rate limited: {action_type} for user {user.id} (count: {recent_count})")
         return None  # Rate limited
 
     # Use atomic transaction for consistency
@@ -198,6 +203,7 @@ def award_points_to_user(user, action_type: str, extra_pts: int = 0):
 
         # Prevent negative balance
         if passport.points + pts < 0:
+            logger.warning(f"[Passport] Negative balance prevented: user {user.id} has {passport.points}, tried to add {pts}")
             return None
 
         # Prevent duplicate transactions within 1 second
@@ -209,6 +215,7 @@ def award_points_to_user(user, action_type: str, extra_pts: int = 0):
         ).exists()
         
         if very_recent and action_type != 'ADMIN_AWARD':
+            logger.warning(f"[Passport] Duplicate transaction prevented: {action_type} for user {user.id}")
             return None  # Duplicate prevention
 
         passport.points += pts
@@ -223,8 +230,11 @@ def award_points_to_user(user, action_type: str, extra_pts: int = 0):
             description=f'{action_type.replace("_", " ").title()} (+{pts} pts)',
         )
 
+        logger.info(f"[Passport] Points awarded: user {user.id}, action {action_type}, change {pts}, new balance {passport.points}")
+
         # Level up notification via unified event dispatcher
         if passport.level != old_level:
+            logger.info(f"[Passport] Level up: user {user.id} from {old_level} to {passport.level}")
             try:
                 from apps.notifications.event_dispatcher import notify_event
                 notify_event(
@@ -236,8 +246,8 @@ def award_points_to_user(user, action_type: str, extra_pts: int = 0):
                         'points': passport.points,
                     }
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"[Passport] Failed to send level up notification for user {user.id}: {e}")
 
         # Check and award badges
         _check_badge_unlocks(user, passport)
@@ -264,33 +274,35 @@ def _check_badge_unlocks(user, passport):
             should_unlock = True
 
         if should_unlock:
-            UserBadge.objects.get_or_create(user=user, badge=badge)
+            user_badge, created = UserBadge.objects.get_or_create(user=user, badge=badge)
+            if created:
+                logger.info(f"[Passport] Badge unlocked: user {user.id}, badge {badge.name} ({badge.icon})")
 
-            # Award badge points
-            passport.points += POINT_ACTIONS.get('BADGE_UNLOCK', 10)
-            passport.save(update_fields=['points'])
+                # Award badge points
+                passport.points += POINT_ACTIONS.get('BADGE_UNLOCK', 10)
+                passport.save(update_fields=['points'])
 
-            # Add transaction
-            PointsTransaction.objects.create(
-                user=user,
-                action_type='BADGE_UNLOCK',
-                points_change=10,
-                balance_after=passport.points,
-                description=f'Badge imefunguliwa: {badge.name} {badge.icon}',
-            )
-
-            # Badge unlock notification via unified event dispatcher
-            try:
-                from apps.notifications.event_dispatcher import notify_event
-                notify_event(
-                    'BADGE_UNLOCK',
-                    actor=user,
-                    target=user,
-                    payload={
-                        'badge_id': badge.id,
-                        'badge_name': badge.name,
-                        'badge_icon': badge.icon,
-                    }
+                # Add transaction
+                PointsTransaction.objects.create(
+                    user=user,
+                    action_type='BADGE_UNLOCK',
+                    points_change=10,
+                    balance_after=passport.points,
+                    description=f'Badge imefunguliwa: {badge.name} {badge.icon}',
                 )
-            except Exception:
-                pass
+
+                # Badge unlock notification via unified event dispatcher
+                try:
+                    from apps.notifications.event_dispatcher import notify_event
+                    notify_event(
+                        'BADGE_UNLOCK',
+                        actor=user,
+                        target=user,
+                        payload={
+                            'badge_id': badge.id,
+                            'badge_name': badge.name,
+                            'badge_icon': badge.icon,
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"[Passport] Failed to send badge unlock notification for user {user.id}, badge {badge.name}: {e}")

@@ -3,6 +3,44 @@ import api from '@/core/api/axios'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+// Error mapping - converts backend errors to user-friendly messages
+const mapErrorMessage = (backendError: string): string => {
+  const error = backendError.toLowerCase()
+  
+  // Connection/network errors
+  if (error.includes('unable to connect') || error.includes('internet connection')) {
+    return 'Connection error. Please check your internet connection and try again.'
+  }
+  
+  // Service unavailable errors
+  if (error.includes('temporarily unavailable') || error.includes('try again later')) {
+    return 'AI service is temporarily unavailable. Please try again later.'
+  }
+  
+  // Timeout errors
+  if (error.includes('timeout')) {
+    return 'Request timeout. Please check your connection and try again.'
+  }
+  
+  // Network errors
+  if (error.includes('network error')) {
+    return 'Network error. Please check your internet connection.'
+  }
+  
+  // Transcription errors
+  if (error.includes('transcription')) {
+    return 'Voice transcription failed. Please try again.'
+  }
+  
+  // Default fallback for any backend error
+  if (backendError.length > 0) {
+    return backendError
+  }
+  
+  // Ultimate fallback
+  return 'An error occurred. Please try again.'
+}
+
 const getAccessToken = () => {
   if (typeof window === 'undefined') return null
   return localStorage.getItem('kili_access_token')
@@ -78,7 +116,8 @@ export const aiService = {
     lang: string,
     onChunk: (text: string) => void,
     onDone: (threadId: number) => void,
-    onError: (err: string) => void
+    onError: (err: string) => void,
+    momentId?: number
   ) {
     const accessToken = getAccessToken()
     if (!accessToken) {
@@ -89,13 +128,16 @@ export const aiService = {
 
 
     const runStream = async (token: string) => {
+      const body: any = { message, thread_id: threadId, lang }
+      if (momentId) body.moment_id = momentId
+      
       return fetch(`${API_URL}/api/ai/chat/stream/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message, thread_id: threadId, lang }),
+        body: JSON.stringify(body),
       })
     }
 
@@ -118,29 +160,55 @@ export const aiService = {
     }
 
     if (!response.ok || !response.body) {
-      onError('AI haitapatikana sasa. Jaribu tena.')
+      // Handle HTTP error responses
+      if (response.status === 503) {
+        onError('AI service is temporarily unavailable. Please try again later.')
+      } else if (response.status >= 500) {
+        onError('AI service is temporarily unavailable. Please try again later.')
+      } else if (response.status === 401) {
+        onError('Authentication failed. Please login again.')
+      } else {
+        onError('Connection error. Please check your internet connection and try again.')
+      }
       return
     }
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-      const chunk = decoder.decode(value)
-      const lines = chunk.split('\n').filter((l) => l.startsWith('data: '))
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n').filter((l) => l.startsWith('data: '))
 
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line.slice(6))
-          if (data.text) onChunk(data.text)
-          if (data.done) onDone(data.thread_id)
-          if (data.error) onError(data.error)
-        } catch {
-          // skip malformed
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (data.text) onChunk(data.text)
+            if (data.done) onDone(data.thread_id)
+            if (data.error) {
+              // Map backend error to user-friendly message
+              const userMessage = mapErrorMessage(data.error)
+              onError(userMessage)
+              return
+            }
+          } catch {
+            // skip malformed JSON
+          }
         }
+      }
+    } catch (streamError: any) {
+      // Handle streaming read errors (network disconnect, etc.)
+      onError('Connection lost. Please try again.')
+    } finally {
+      // Ensure reader is closed
+      try {
+        reader.cancel()
+      } catch {
+        // Ignore cancel errors
       }
     }
   },
@@ -176,10 +244,16 @@ export const aiService = {
   async transcribeVoice(audioBlob: Blob): Promise<string> {
     const form = new FormData()
     form.append('audio', audioBlob, 'recording.webm')
-    const { data } = await api.post<{ text: string }>(
-      '/api/ai/voice-to-text/', form,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
-    )
-    return data.text
+    try {
+      const { data } = await api.post<{ text: string }>(
+        '/api/ai/voice-to-text/', form,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return data.text
+    } catch (error: any) {
+      // Handle API errors with user-friendly messages
+      const errorMessage = error?.response?.data?.message || error?.message || ''
+      throw new Error(mapErrorMessage(errorMessage))
+    }
   },
 }

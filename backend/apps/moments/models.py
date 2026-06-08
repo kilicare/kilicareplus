@@ -50,9 +50,6 @@ class Moment(models.Model):
     def like_count(self):
         return self.likes.count()
 
-    def comment_count(self):
-        return self.comments.count()
-
 
 class MomentLike(models.Model):
     moment = models.ForeignKey(
@@ -65,23 +62,6 @@ class MomentLike(models.Model):
 
     class Meta:
         unique_together = ('moment', 'user')
-
-
-class MomentComment(models.Model):
-    moment = models.ForeignKey(
-        Moment, on_delete=models.CASCADE, related_name='comments'
-    )
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE
-    )
-    text = models.TextField(max_length=500)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['created_at']
-
-    def __str__(self):
-        return f'{self.user.username}: {self.text[:30]}'
 
 
 class MomentSave(models.Model):

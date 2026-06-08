@@ -22,6 +22,7 @@ import {
   Map,
   Activity,
   AlertTriangle,
+  Layout,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -55,6 +56,7 @@ const ADMIN = [
   { href: '/admin/users', Icon: User, label: 'User Management' },
   { href: '/admin/moderation', Icon: Shield, label: 'Moderation' },
   { href: '/admin/sos-monitor', Icon: AlertTriangle, label: 'SOS Monitor' },
+  { href: '/admin/landing-page', Icon: Layout, label: 'Landing Page' },
   { href: '/admin/b2b', Icon: Store, label: 'B2B Portal' },
 ]
 
@@ -92,6 +94,7 @@ export function Sidebar({
     return (
       <Link href={href} title={label}>
         <motion.div
+          initial={false}
           whileTap={{ scale: 0.97 }}
           className={cn(
             'flex items-center gap-3 py-2.5 rounded-xl transition-all relative',

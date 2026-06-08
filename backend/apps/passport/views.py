@@ -3,12 +3,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Sum
+import logging
 
 from .models import PassportProfile, Badge, UserBadge, PointsTransaction
 from .serializers import (
     PassportSerializer, BadgeSerializer,
     TransactionSerializer, LeaderboardEntrySerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -148,22 +151,22 @@ def stats_view(request):
     try:
         from apps.moments.models import Moment
         moments_count = Moment.objects.filter(posted_by=user).count()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"[Passport] Failed to count moments for user {user.id}: {e}")
 
     try:
         from apps.map_tips.models import Tip
         tips_count = Tip.objects.filter(created_by=user).count()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"[Passport] Failed to count tips for user {user.id}: {e}")
 
     try:
         from apps.bookings.models import Booking
         bookings_done = Booking.objects.filter(
             tourist=user, status='COMPLETED'
         ).count()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"[Passport] Failed to count bookings for user {user.id}: {e}")
 
     total_pts = PointsTransaction.objects.filter(
         user=user, points_change__gt=0

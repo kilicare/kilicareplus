@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+Disallow: /admin/
+Disallow: /creator/
+Disallow: /billing/
+Disallow: /api/
+Disallow: /feed
+Disallow: /chat
+Disallow: /ai
+Disallow: /sos
+Disallow: /profile
+Disallow: /passport
+Disallow: /notifications
+
+Sitemap: https://kilicarego.com/sitemap.xml

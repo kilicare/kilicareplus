@@ -5,7 +5,6 @@ from django.conf import settings
 class Notification(models.Model):
     TYPES = [
         ('LIKE',                  'Like'),
-        ('COMMENT',               'Comment'),
         ('FOLLOW',                'Follow'),
         ('SOS_RESPONSE',          'SOS Response'),
         ('BOOKING_REQUEST',       'Booking Request'),

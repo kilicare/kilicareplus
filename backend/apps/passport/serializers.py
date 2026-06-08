@@ -1,5 +1,8 @@
 from rest_framework import serializers
+import logging
 from .models import PassportProfile, Badge, UserBadge, PointsTransaction
+
+logger = logging.getLogger(__name__)
 
 
 class PassportSerializer(serializers.ModelSerializer):
@@ -77,7 +80,8 @@ class BadgeSerializer(serializers.ModelSerializer):
         try:
             pp = req.user.passport
             return min(100, round(pp.points / obj.criteria_points * 100, 0))
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[Passport] Failed to calculate user progress: {e}")
             return 0
 
     def get_unlocked_at(self, obj):
@@ -118,8 +122,8 @@ class LeaderboardEntrySerializer(serializers.ModelSerializer):
         try:
             if obj.user.profile.avatar:
                 return obj.user.profile.avatar.url
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[Passport] Failed to get avatar URL: {e}")
         return None
 
     def get_is_me(self, obj):

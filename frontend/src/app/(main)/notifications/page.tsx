@@ -18,7 +18,6 @@ import { timeAgo } from '@/lib/utils'
 
 const TYPE_CFG: Record<string, { emoji: string; color: string; path: string }> = {
   LIKE:                  { emoji:'❤️', color:'#FF2D2D',  path:'/feed' },
-  COMMENT:               { emoji:'💬', color:'#3B82F6',  path:'/feed' },
   FOLLOW:                { emoji:'👤', color:'#10B981',  path:'/profile' },
   SOS_RESPONSE:          { emoji:'🆘', color:'#FF2D2D',  path:'/sos' },
   BOOKING_REQUEST:       { emoji:'📅', color:'#F5A623',  path:'/creator/bookings' },

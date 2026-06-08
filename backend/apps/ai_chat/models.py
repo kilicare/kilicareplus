@@ -9,6 +9,7 @@ class AIThread(models.Model):
         related_name='ai_threads',
     )
     title = models.CharField(max_length=200, default='Mazungumzo Mapya')
+    moment_id = models.IntegerField(null=True, blank=True, help_text="If set, this chat is tied to a specific moment")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

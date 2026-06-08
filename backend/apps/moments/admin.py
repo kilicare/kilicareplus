@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Moment, MomentLike, MomentComment, MomentSave
+from .models import Moment, MomentLike, MomentSave
 
 
 @admin.register(Moment)
@@ -41,6 +41,3 @@ class MomentAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'trending_score', 'views', 'shares']
 
 
-@admin.register(MomentComment)
-class CommentAdmin(admin.ModelAdmin):
-    list_display = ['user', 'moment', 'text', 'created_at']

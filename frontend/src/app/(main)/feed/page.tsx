@@ -1,13 +1,15 @@
 'use client'
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  Heart, MessageCircle, Bookmark, Share2, Plus,
-  Volume2, VolumeX, MapPin, Flame, Music,
+  Heart, Bot, Bookmark, Share2, Plus,
+  Volume2, VolumeX, MapPin, Flame, Music, Trash2,
 } from 'lucide-react'
-import { momentsService, type Moment, type Comment } from '@/services/moments.service'
+import { momentsService, type Moment } from '@/services/moments.service'
+import { aiService } from '@/services/ai.service'
 import { KiliAvatar } from '@/components/ui/KiliAvatar'
 import { KiliBadge } from '@/components/ui/KiliBadge'
 import { TrustScoreRing } from '@/components/ui/TrustScoreRing'
@@ -20,6 +22,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useAudio } from '@/hooks/useAudio'
 import { useFeedAudio } from '@/hooks/useFeedAudio'
 import { useInViewport } from '@/hooks/useInViewport'
+import { useFeedSession } from '@/hooks/useFeedSession'
 import Image from 'next/image'
 
 // ── Heart burst animation ───────────────────────────
@@ -37,84 +40,157 @@ function HeartBurst({ x, y }: { x: number; y: number }) {
   )
 }
 
-// ── Comment Sheet ───────────────────────────────────
-function CommentSheet({
-  momentId,
+// ── AI Chat Sheet ───────────────────────────────────
+interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+}
+
+function AIChatSheet({
+  moment,
   isOpen,
   onClose,
 }: {
-  momentId: number | null
+  moment: Moment | null
   isOpen: boolean
   onClose: () => void
 }) {
-  const [text, setText] = useState('')
-  const { user } = useAuthStore()
-  const qc = useQueryClient()
+  const [input, setInput] = useState('')
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const { data: comments = { pages: [] } } = useInfiniteQuery({
-    queryKey: ['comments', momentId],
-    queryFn: () => momentsService.getComments(momentId!),
-    initialPageParam: 1,
-    getNextPageParam: () => null,
-    enabled: isOpen && !!momentId,
-  })
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
-  const commentMut = useMutation({
-    mutationFn: () => momentsService.comment(momentId!, text.trim()),
-    onSuccess: () => {
-      setText('')
-      qc.invalidateQueries({ queryKey: ['comments', momentId] })
-      qc.invalidateQueries({ queryKey: ['feed'] })
-    },
-    onError: () => toast.error('Imeshindwa kutuma maoni'),
-  })
+  // Initialize with context message when moment changes
+  useEffect(() => {
+    if (isOpen && moment) {
+      setMessages([
+        {
+          id: 'context',
+          role: 'assistant',
+          content: `🤖 Karibu! Mimi ni AI Travel Assistant yako. Ninaelewa kuhusu post hili: "${moment.caption || 'Post bila caption'}" kutoka ${moment.location || 'Tanzania'}. Unaweza kuuliza maswali yoyote kuhusu eneo hili, usafiri, au mahitaji yako!`,
+          timestamp: new Date(),
+        },
+      ])
+      setThreadId(null) // Reset thread ID for new moment
+    }
+  }, [isOpen, moment])
 
-  const allComments = (comments.pages ?? []).flat()
+  const [threadId, setThreadId] = useState<number | null>(null)
+
+  const handleSendMessage = async () => {
+    if (!input.trim() || isLoading) return
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input.trim(),
+      timestamp: new Date(),
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    const userText = input.trim()
+    setInput('')
+    setIsLoading(true)
+
+    let aiResponseText = ''
+
+    try {
+      await aiService.streamChat(
+        userText,
+        threadId,
+        'sw',
+        (chunk) => {
+          aiResponseText += chunk
+          setMessages((prev) => {
+            const lastMsg = prev[prev.length - 1]
+            if (lastMsg?.role === 'assistant') {
+              return [
+                ...prev.slice(0, -1),
+                { ...lastMsg, content: aiResponseText },
+              ]
+            }
+            return [
+              ...prev,
+              {
+                id: Date.now().toString(),
+                role: 'assistant',
+                content: aiResponseText,
+                timestamp: new Date(),
+              },
+            ]
+          })
+        },
+        (newThreadId) => {
+          setThreadId(newThreadId)
+          setIsLoading(false)
+        },
+        (error) => {
+          toast.error(error)
+          setIsLoading(false)
+        },
+        moment?.id
+      )
+    } catch (error) {
+      toast.error('Imeshindwa kupata majibu ya AI')
+      setIsLoading(false)
+    }
+  }
 
   return (
     <KiliBottomSheet
       isOpen={isOpen}
       onClose={onClose}
-      title="💬 Maoni"
+      title="🤖 Ask AI"
       height="75"
     >
       <div className="flex flex-col h-full">
-        {/* Comments list */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-          {allComments.length === 0 ? (
-            <EmptyState
-              icon="💬"
-              title="Hakuna maoni bado"
-              subtitle="Kuwa wa kwanza kutoa maoni!"
-            />
-          ) : (
-            allComments.map((c: Comment) => (
-              <motion.div
-                key={c.id}
-                className="flex items-start gap-3"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
+        {/* Chat messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+          {messages.map((msg) => (
+            <motion.div
+              key={msg.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[80%] p-3 rounded-2xl ${
+                  msg.role === 'user'
+                    ? 'bg-gold text-black'
+                    : 'bg-bg-elevated text-text-primary'
+                }`}
               >
-                <KiliAvatar
-                  src={c.avatar_url}
-                  name={c.username}
-                  size="sm"
-                />
-                <div
-                  className="flex-1 p-3 rounded-2xl"
-                  style={{ background: 'rgba(26,26,36,0.8)' }}
-                >
-                  <p className="text-xs font-bold text-gold mb-1">
-                    @{c.username}
-                  </p>
-                  <p className="text-sm text-text-primary">{c.text}</p>
-                  <p className="text-[10px] text-text-muted mt-1">
-                    {timeAgo(c.created_at)}
-                  </p>
-                </div>
-              </motion.div>
-            ))
+                <p className="text-sm leading-relaxed">{msg.content}</p>
+                <p className="text-[10px] opacity-70 mt-1">
+                  {msg.timestamp.toLocaleTimeString('sw-TZ', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-start"
+            >
+              <div className="bg-bg-elevated p-3 rounded-2xl flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-gold animate-bounce" />
+                <div className="w-2 h-2 rounded-full bg-gold animate-bounce" style={{ animationDelay: '0.1s' }} />
+                <div className="w-2 h-2 rounded-full bg-gold animate-bounce" style={{ animationDelay: '0.2s' }} />
+              </div>
+            </motion.div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
@@ -122,28 +198,24 @@ function CommentSheet({
           className="flex-shrink-0 flex items-center gap-3 p-4 border-t"
           style={{ borderColor: 'var(--border)' }}
         >
-          <KiliAvatar
-            src={user?.profile?.avatar_url}
-            name={`${user?.first_name} ${user?.last_name}`}
-            size="sm"
-          />
           <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Andika maoni..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Uliza AI kuhusu post hili..."
             className="flex-1 bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-2.5 text-sm text-text-primary outline-none focus:border-gold"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && text.trim()) {
-                commentMut.mutate()
+              if (e.key === 'Enter' && input.trim()) {
+                handleSendMessage()
               }
             }}
+            disabled={isLoading}
           />
           <KiliButton
             size="sm"
-            disabled={!text.trim() || commentMut.isPending}
-            onClick={() => commentMut.mutate()}
+            disabled={!input.trim() || isLoading}
+            onClick={handleSendMessage}
           >
-            Tuma
+            {isLoading ? '...' : 'Tuma'}
           </KiliButton>
         </div>
       </div>
@@ -207,8 +279,8 @@ function CreateMomentSheet({
   const handleAudio = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (f.size > 20 * 1024 * 1024) {
-      toast.error('Faili la sauti lazima iwe chini ya 20MB')
+    if (f.size > 10 * 1024 * 1024) {
+      toast.error('Faili la sauti lazima iwe chini ya 10MB')
       return
     }
     if (!f.type.startsWith('audio')) {
@@ -264,7 +336,7 @@ function CreateMomentSheet({
                 alt="preview"
                 fill
                 className="object-cover"
-                unoptimized
+                quality={85}
               />
             )}
             <button
@@ -351,15 +423,16 @@ function CreateMomentSheet({
 }
 
 // ── Moment Card ─────────────────────────────────────
-function MomentCard({
+const MomentCard = memo(function MomentCard({
   moment,
-  onComment,
+  onAskAI,
   feedAudio,
 }: {
   moment: Moment
-  onComment: (id: number) => void
+  onAskAI: (moment: Moment) => void
   feedAudio: ReturnType<typeof useFeedAudio>
 }) {
+  const { user } = useAuthStore()
   const qc = useQueryClient()
   const [muted, setMuted] = useState(true)
   const [hearts, setHearts] = useState<Array<{ id: number; x: number; y: number }>>([])
@@ -367,9 +440,15 @@ function MomentCard({
   const [localLikes, setLocalLikes] = useState(moment.like_count)
   const [localSaved, setLocalSaved] = useState(moment.is_saved)
   const [audioPlaying, setAudioPlaying] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const lastTap = useRef(0)
   const videoRef = useRef<HTMLVideoElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
+
+  const shareUrl = useMemo(
+    () => `${window.location.origin}/moments/${moment.id}`,
+    [moment.id]
+  )
 
   // Detect when moment is in viewport
   const { elementRef, isVisible } = useInViewport({
@@ -436,16 +515,40 @@ function MomentCard({
       setLocalLiked(newLiked)
       setLocalLikes((c) => (newLiked ? c + 1 : c - 1))
     },
+    onError: () => {
+      setLocalLiked(moment.is_liked)
+      setLocalLikes(moment.like_count)
+      toast.error('Imeshindwa kupenda')
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed'] }),
   })
 
   const saveMut = useMutation({
     mutationFn: () => momentsService.save(moment.id),
     onMutate: () => setLocalSaved((s) => !s),
+    onError: () => {
+      setLocalSaved(moment.is_saved)
+      toast.error('Imeshindwa kuhifadhi')
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: ['feed'] }),
   })
 
-  const shareUrl = `${window.location.origin}/moments/${moment.id}`
+  const deleteMut = useMutation({
+    mutationFn: () => momentsService.delete(moment.id),
+    onSuccess: () => {
+      toast.success('Moment imefutwa!')
+      qc.invalidateQueries({ queryKey: ['feed'] })
+      setShowDeleteConfirm(false)
+    },
+    onError: () => {
+      toast.error('Imeshindwa kufuta')
+      setShowDeleteConfirm(false)
+    },
+  })
+
+  // Robust ownership check - case-insensitive username comparison with fallback
+  const isOwner = user && moment.posted_by_username && 
+    user.username.toLowerCase() === moment.posted_by_username.toLowerCase()
 
   return (
     <div
@@ -473,7 +576,7 @@ function MomentCard({
         {moment.media_type === 'video' ? (
           <video
             ref={videoRef}
-            src={moment.media_url || mediaUrl(moment.media)}
+            src={moment.media_url || '/placeholder-video.mp4'}
             className="w-full h-full object-cover"
             loop
             muted={muted}
@@ -482,12 +585,17 @@ function MomentCard({
           />
         ) : (
           <Image
-            src={moment.media_url || mediaUrl(moment.media) || '/placeholder.jpg'}
+            src={moment.media_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%231a1a2e"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-size="24"%3ENo Image%3C/text%3E%3C/svg%3E'}
             alt={moment.caption || 'Moment'}
             fill
             className="object-cover"
-            unoptimized
-            priority
+            sizes="100vw"
+            loading="lazy"
+            quality={85}
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%231a1a2e"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-size="24"%3EFailed to Load%3C/text%3E%3C/svg%3E'
+            }}
           />
         )}
       </div>
@@ -496,6 +604,64 @@ function MomentCard({
       {hearts.map((h) => (
         <HeartBurst key={h.id} x={h.x} y={h.y} />
       ))}
+
+      {/* Delete confirmation modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-bg-elevated rounded-3xl p-6 mx-4 max-w-sm w-full border border-border-subtle"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                  <Trash2 size={32} className="text-red-400" />
+                </div>
+                <h3 className="text-xl font-bold text-text-primary mb-2">
+                  Delete Post?
+                </h3>
+                <p className="text-text-muted text-sm mb-6">
+                  Are you sure you want to delete this post? This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={deleteMut.isPending}
+                    className="flex-1 py-3 px-4 rounded-2xl bg-bg-base border border-border-subtle text-text-primary font-medium transition-colors hover:bg-bg-elevated disabled:opacity-50"
+                  >
+                    Cancel
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => deleteMut.mutate()}
+                    disabled={deleteMut.isPending}
+                    className="flex-1 py-3 px-4 rounded-2xl bg-red-500 text-white font-medium transition-colors hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {deleteMut.isPending ? (
+                      <>
+                        <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete'
+                    )}
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Top gradient */}
       <div
@@ -509,21 +675,15 @@ function MomentCard({
         style={{ background: 'var(--gradient-card)' }}
       />
 
-      {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 pt-safe flex items-center justify-between px-4 pt-4">
-        {/* User info */}
+      {/* Top bar - Header content and media controls */}
+      <div className="absolute top-0 left-0 right-0 pt-safe flex items-center justify-between px-4 pt-4 md:px-6 lg:px-8">
+        {/* Header content - Posted by, badge, location */}
         <div className="flex items-center gap-3 min-w-0">
-          <KiliAvatar
-            src={moment.posted_by_avatar_url}
-            name={moment.posted_by_username}
-            role={moment.posted_by_role}
-            isVerified={moment.posted_by_verified}
-            size="md"
-          />
           <div className="min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <p className="text-sm font-bold text-white truncate">
-                @{moment.posted_by_username}
+            {/* Posted by info */}
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-white/70 truncate max-w-[150px] md:max-w-[200px]">
+                Posted by @{moment.posted_by_username}
               </p>
               <KiliBadge
                 variant={moment.posted_by_role as 'TOURIST' | 'LOCAL_GUIDE'}
@@ -531,11 +691,11 @@ function MomentCard({
                 showEmoji={false}
               />
             </div>
-            <TrustScoreRing
-              score={moment.trust_score}
-              size="xs"
-              showNumber={false}
-            />
+            {/* Location */}
+            <div className="flex items-center gap-1.5 text-white/80 text-xs mt-1">
+              <MapPin size={12} className="text-gold flex-shrink-0" />
+              <span className="truncate max-w-[150px] md:max-w-[200px]">{moment.location || 'Tanzania'}</span>
+            </div>
           </div>
         </div>
 
@@ -583,9 +743,9 @@ function MomentCard({
         </div>
       </div>
 
-      {/* Right actions */}
-      <div className="absolute right-4 bottom-32 flex flex-col items-center gap-5">
-        {/* Like */}
+      {/* LEFT SIDE - Content Actions */}
+      <div className="absolute left-4 bottom-32 flex flex-col items-center gap-5 md:left-6 lg:left-8">
+        {/* Appreciate */}
         <motion.button
           onClick={() => {
             vibrate(10)
@@ -605,24 +765,20 @@ function MomentCard({
               strokeWidth={localLiked ? 0 : 2}
             />
           </motion.div>
-          <span className="text-white text-xs font-bold">
-            {formatCount(localLikes)}
-          </span>
+          <span className="text-white text-xs font-bold">Appreciate</span>
         </motion.button>
 
-        {/* Comment */}
+        {/* Ask AI */}
         <motion.button
-          onClick={() => onComment(moment.id)}
+          onClick={() => onAskAI(moment)}
           whileTap={{ scale: 0.8 }}
           className="flex flex-col items-center gap-1"
         >
-          <MessageCircle size={30} className="text-white" />
-          <span className="text-white text-xs font-bold">
-            {formatCount(moment.comment_count)}
-          </span>
+          <Bot size={30} className="text-white" />
+          <span className="text-white text-xs font-bold">Ask AI</span>
         </motion.button>
 
-        {/* Save */}
+        {/* Add to Journey */}
         <motion.button
           onClick={() => saveMut.mutate()}
           whileTap={{ scale: 0.8 }}
@@ -633,7 +789,7 @@ function MomentCard({
             fill={localSaved ? '#F5A623' : 'none'}
             className={localSaved ? 'text-gold' : 'text-white'}
           />
-          <span className="text-white text-xs font-bold">Save</span>
+          <span className="text-white text-xs font-bold">Add</span>
         </motion.button>
 
         {/* Share */}
@@ -650,13 +806,34 @@ function MomentCard({
           <Share2 size={28} className="text-white" />
           <span className="text-white text-xs font-bold">Share</span>
         </motion.button>
+
+        {/* Delete - only for own moments */}
+        {isOwner && (
+          <motion.button
+            onClick={() => setShowDeleteConfirm(true)}
+            whileTap={{ scale: 0.8 }}
+            className="flex flex-col items-center gap-1"
+          >
+            <Trash2 size={28} className="text-white" />
+            <span className="text-white text-xs font-bold">Delete</span>
+          </motion.button>
+        )}
       </div>
 
-      {/* Bottom content */}
-      <div className="absolute bottom-0 left-0 right-0 pb-nav px-4 pb-24">
+      {/* RIGHT SIDE - Content Details */}
+      <div className="absolute right-4 bottom-32 flex flex-col items-end gap-3 max-w-xs md:right-6 lg:right-8 md:max-w-sm lg:max-w-md">
+        {/* Caption */}
+        {moment.caption && (
+          <p className="text-white text-sm leading-relaxed">
+            {moment.caption.length > 120
+              ? `${moment.caption.slice(0, 120)}...`
+              : moment.caption}
+          </p>
+        )}
+
         {/* Trending badge */}
         {moment.trending_score > 50 && (
-          <div className="flex items-center gap-1.5 mb-3">
+          <div className="flex items-center gap-1.5">
             <div
               className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold"
               style={{
@@ -666,66 +843,88 @@ function MomentCard({
               }}
             >
               <Flame size={12} />
-              Inayoongoza
+              Frequently Experienced
             </div>
           </div>
         )}
 
-        {/* Caption */}
-        {moment.caption && (
-          <p className="text-white text-sm leading-relaxed mb-2 max-w-xs">
-            {moment.caption.length > 120
-              ? `${moment.caption.slice(0, 120)}...`
-              : moment.caption}
-          </p>
-        )}
-
-        {/* Location */}
-        {moment.location && (
-          <div className="flex items-center gap-1.5 text-white/80 text-xs mb-2">
-            <MapPin size={12} />
-            {moment.location}
+        {/* Guide signal */}
+        {moment.posted_by_role === 'LOCAL_GUIDE' && (
+          <div className="flex items-center gap-1.5 text-gold text-xs">
+            <span>👤 Local Guide available</span>
           </div>
         )}
 
-        {/* Time */}
-        <p className="text-white/60 text-xs">{timeAgo(moment.created_at)}</p>
+        {/* Time and AI hint */}
+        <div className="flex items-center gap-2">
+          <p className="text-white/60 text-xs">{timeAgo(moment.created_at)}</p>
+          <span className="text-white/50 text-xs">•</span>
+          <p className="text-gold text-xs">🤖 AI Travel Insight available</p>
+        </div>
       </div>
     </div>
   )
-}
+})
 
 // ── Role-Based Feed Views ─────────────────────────────
 function TouristFeedView({
-  activeComment,
-  setActiveComment,
+  activeMoment,
+  setActiveMoment,
   showCreate,
   setShowCreate,
   feedAudio,
+  sessionId,
 }: {
-  activeComment: number | null
-  setActiveComment: (id: number | null) => void
+  activeMoment: Moment | null
+  setActiveMoment: (moment: Moment | null) => void
   showCreate: boolean
   setShowCreate: (show: boolean) => void
   feedAudio: ReturnType<typeof useFeedAudio>
+  sessionId: string
 }) {
+  const { isLoading: authLoading, isAuthenticated } = useAuthStore()
+  
   const {
     data,
     isLoading,
+    error,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
     queryKey: ['feed'],
-    queryFn: ({ pageParam = 1 }) => momentsService.getFeed(pageParam as number),
+    queryFn: ({ pageParam = 1 }) => momentsService.getFeed(pageParam as number, sessionId),
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.has_next ? last.page + 1 : undefined,
-    staleTime: 1000 * 60 * 2,
+    staleTime: 1000 * 15, // 15 seconds for more dynamic feed
+    // CRITICAL: Don't fetch until auth is loaded
+    enabled: !authLoading && isAuthenticated,
   })
 
-  const moments = data?.pages.flatMap((p) => p.results) ?? []
+  const moments = useMemo(
+    () => data?.pages.flatMap((p) => p.results) ?? [],
+    [data]
+  )
 
+  // Show loading while auth is being verified
+  if (authLoading) {
+    return (
+      <div className="min-h-dvh bg-black flex flex-col">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="flex-shrink-0"
+            style={{ height: '100dvh' }}
+          >
+            <SkeletonCard className="w-full h-full" rounded="sm" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Show loading while feed is fetching
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-black flex flex-col">
@@ -738,6 +937,23 @@ function TouristFeedView({
             <SkeletonCard className="w-full h-full" rounded="sm" />
           </div>
         ))}
+      </div>
+    )
+  }
+
+  // Show error state if feed request failed
+  if (error) {
+    return (
+      <div className="min-h-dvh bg-bg-base flex items-center justify-center pb-safe">
+        <div className="text-center">
+          <EmptyState
+            icon="📡"
+            title="Imeshindwa kupakia feed"
+            subtitle="Tafadhali jaribu tena au angalia muunganisho wako"
+            actionLabel="Jaribu Tena"
+            onAction={() => window.location.reload()}
+          />
+        </div>
       </div>
     )
   }
@@ -763,28 +979,35 @@ function TouristFeedView({
   }
 
   return (
-    <div className="relative bg-black">
+  <div className="relative bg-black">
+    {/* Responsive container - centers feed on larger screens */}
+    <div className="w-full max-w-2xl mx-auto lg:max-w-3xl xl:max-w-4xl">
+      
       <div
         className="snap-y-mandatory overflow-y-scroll"
         style={{ height: '100dvh' }}
         onScroll={(e) => {
           const el = e.currentTarget
+
           const nearBottom =
             el.scrollHeight - el.scrollTop - el.clientHeight < 200
+
           if (nearBottom && hasNextPage && !isFetchingNextPage) {
             fetchNextPage()
           }
         }}
       >
+        {/* Moments List */}
         {moments.map((moment) => (
           <MomentCard
             key={moment.id}
             moment={moment}
-            onComment={(id) => setActiveComment(id)}
+            onAskAI={() => setActiveMoment(moment)}
             feedAudio={feedAudio}
           />
         ))}
 
+        {/* Infinite loading state */}
         {isFetchingNextPage && (
           <div
             className="flex-shrink-0 flex items-center justify-center"
@@ -794,48 +1017,52 @@ function TouristFeedView({
           </div>
         )}
       </div>
-
-      <motion.button
-        onClick={() => setShowCreate(true)}
-        whileTap={{ scale: 0.88 }}
-        className="fixed bottom-24 right-4 z-30 w-14 h-14 rounded-2xl flex items-center justify-center shadow-gold"
-        style={{ background: 'var(--gradient-gold)' }}
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      >
-        <Plus size={24} className="text-black" strokeWidth={2.5} />
-      </motion.button>
-
-      <CommentSheet
-        momentId={activeComment}
-        isOpen={!!activeComment}
-        onClose={() => setActiveComment(null)}
-      />
-      <CreateMomentSheet
-        isOpen={showCreate}
-        onClose={() => setShowCreate(false)}
-      />
     </div>
-  )
+
+    {/* Floating Create Button */}
+    <motion.button
+      onClick={() => setShowCreate(true)}
+      whileTap={{ scale: 0.88 }}
+      className="fixed bottom-24 right-4 z-30 w-14 h-14 rounded-2xl flex items-center justify-center shadow-gold"
+      style={{ background: 'var(--gradient-gold)' }}
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+    >
+      <Plus size={24} className="text-black" strokeWidth={2.5} />
+    </motion.button>
+
+    {/* AI Chat Sheet (replaces comments system) */}
+    <AIChatSheet
+      moment={activeMoment}
+      isOpen={!!activeMoment}
+      onClose={() => setActiveMoment(null)}
+    />
+
+    {/* Create Moment Sheet */}
+    <CreateMomentSheet
+      isOpen={showCreate}
+      onClose={() => setShowCreate(false)}
+    />
+  </div>
+)
 }
 
-// ── Main Feed Page ──────────────────────────────────
+// ── Main Feed Page Component ─────────────────────────────
 export default function FeedPage() {
-  const [activeComment, setActiveComment] = useState<number | null>(null)
+  const [activeMoment, setActiveMoment] = useState<Moment | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const { user } = useAuthStore()
   const feedAudio = useFeedAudio()
+  const { sessionId } = useFeedSession()
 
-  // ALL ROLES SEE THE SAME FEED (TOURIST VIEW)
-  // Role-based features are accessible via sidebar and more grid
   return (
     <TouristFeedView
-      activeComment={activeComment}
-      setActiveComment={setActiveComment}
+      activeMoment={activeMoment}
+      setActiveMoment={setActiveMoment}
       showCreate={showCreate}
       setShowCreate={setShowCreate}
       feedAudio={feedAudio}
+      sessionId={sessionId}
     />
   )
 }

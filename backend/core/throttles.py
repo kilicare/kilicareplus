@@ -11,3 +11,7 @@ class LikeSpamThrottle(UserRateThrottle):
 
 class NotificationSpamThrottle(UserRateThrottle):
     scope = 'notif_spam'
+
+
+class MomentCreationThrottle(UserRateThrottle):
+    scope = 'moment_creation'

@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { User } from '@/types'
+import { QueryClient } from '@tanstack/react-query'
+
+// Global query client instance for cache invalidation
+let queryClient: QueryClient | null = null
+
+export const setQueryClient = (client: QueryClient) => {
+  queryClient = client
+}
 
 interface AuthStore {
   user: User | null
@@ -85,6 +93,19 @@ export const useAuthStore = create<AuthStore>()(
       logout: () => {
         // CRITICAL: Set isLoading to false to prevent loading loop after logout
         set({ user: null, isAuthenticated: false, isLoading: false })
+
+        // Clear tokens from localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('kili_access_token')
+          localStorage.removeItem('kili_refresh_token')
+          // Clear cookie for middleware
+          document.cookie = 'kili_access=; path=/; max-age=0'
+        }
+
+        // CRITICAL: Invalidate React Query cache on logout to prevent stale data
+        if (queryClient) {
+          queryClient.clear()
+        }
       },
       
       clearAuth: () => {
@@ -92,9 +113,16 @@ export const useAuthStore = create<AuthStore>()(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('kili_access_token')
           localStorage.removeItem('kili_refresh_token')
+          // Clear cookie for middleware
+          document.cookie = 'kili_access=; path=/; max-age=0'
         }
         // CRITICAL: Set isLoading to false to prevent loading loop after clear
         set({ user: null, isAuthenticated: false, isLoading: false })
+
+        // CRITICAL: Invalidate React Query cache on auth clear to prevent stale data
+        if (queryClient) {
+          queryClient.clear()
+        }
       },
       
       setAuthState: (user, authenticated) => {
@@ -108,6 +136,8 @@ export const useAuthStore = create<AuthStore>()(
           try {
             localStorage.setItem('kili_access_token', accessToken)
             localStorage.setItem('kili_refresh_token', refreshToken)
+            // Set cookie for middleware (24 hours)
+            document.cookie = `kili_access=${accessToken}; path=/; max-age=86400; SameSite=Lax`
           } catch (e) {
             console.warn('Failed to store auth tokens:', e)
           }

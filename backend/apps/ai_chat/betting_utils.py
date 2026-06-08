@@ -12,7 +12,10 @@ use the same team registry and matching logic.
 
 from typing import Optional, Tuple, Dict, List, Any
 import requests
+import logging
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 # Import universal team resolver
 from ..predictions.services.team_resolver import get_resolver, ResolutionStatus
@@ -327,7 +330,7 @@ def call_predictor(home_team: str, away_team: str, league: str) -> Optional[Dict
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        print(f"Predictor error: {e}")
+        logger.error(f"Predictor error: {e}")
         return None
 
 

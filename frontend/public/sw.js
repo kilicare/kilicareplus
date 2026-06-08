@@ -175,15 +175,23 @@ async function cacheFirstStrategy(request) {
       console.log('[SW] Cache hit:', request.url)
       return cached
     }
-    
+
     console.log('[SW] Cache miss, fetching:', request.url)
     const response = await fetch(request)
-    
-    if (!response || response.status !== 200) {
+
+    // 206 (Partial Content) is valid for range requests (media streaming)
+    // 0 is opaque response from CORS
+    const isValidStatus = response && (
+      response.status === 200 ||
+      response.status === 206 ||
+      response.status === 0
+    )
+
+    if (!isValidStatus) {
       console.warn('[SW] Response not OK:', request.url, response?.status)
       return response
     }
-    
+
     // Clone IMMEDIATELY after fetch, before any other operations
     // Only attempt to cache if response body is available
     try {
@@ -196,7 +204,7 @@ async function cacheFirstStrategy(request) {
     } catch (error) {
       console.warn('[SW] Failed to cache static asset (body may be consumed):', request.url, error.message)
     }
-    
+
     return response
   } catch (error) {
     console.warn('[SW] Cache first strategy failed:', request.url, error)
@@ -209,14 +217,22 @@ async function staleWhileRevalidate(request) {
     console.log('[SW] Stale while revalidate:', request.url)
     const cache = await caches.open(DYNAMIC_CACHE)
     const cachedResponse = await cache.match(request)
-    
+
     if (cachedResponse) {
       console.log('[SW] Serving stale cached response:', request.url)
     }
 
     const networkPromise = fetch(request)
       .then(async (networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200) {
+        // 206 (Partial Content) is valid for range requests (media streaming)
+        // 0 is opaque response from CORS
+        const isValidStatus = networkResponse && (
+          networkResponse.status === 200 ||
+          networkResponse.status === 206 ||
+          networkResponse.status === 0
+        )
+
+        if (!isValidStatus) {
           console.warn('[SW] Network response not OK:', request.url, networkResponse?.status)
           return networkResponse
         }

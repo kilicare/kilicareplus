@@ -9,6 +9,7 @@ import { useUIStore } from '@/stores/ui.store'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import { MoreGridProvider } from '@/components/navigation/MoreGridProvider'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
+import { setQueryClient } from '@/stores/auth.store'
 
 function OfflineWatcher() {
   const [isOffline, setIsOffline] = useState(false)
@@ -60,16 +61,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   )
 
+  // CRITICAL: Register QueryClient with auth store for cache invalidation
+  useEffect(() => {
+    setQueryClient(qc)
+  }, [qc])
+
   return (
     <QueryClientProvider client={qc}>
       <ErrorBoundary>
-        <OfflineWatcher />
-        <ServiceWorkerRegistrar />
-        <OfflineIndicator />
-        <PWAInstallBanner />
-        <MoreGridProvider>
-          {children}
-        </MoreGridProvider>
+        <AuthProvider>
+          <OfflineWatcher />
+          <ServiceWorkerRegistrar />
+          <OfflineIndicator />
+          <PWAInstallBanner />
+          <MoreGridProvider>
+            {children}
+          </MoreGridProvider>
+        </AuthProvider>
         <Toaster
           position="top-center"
           richColors

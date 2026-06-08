@@ -134,3 +134,101 @@ class BettingPredictionRecord(models.Model):
         self.deleted_at = timezone.now()
         self.delete_reason = reason
         self.save(update_fields=['deleted_at', 'delete_reason', 'updated_at'])
+
+
+class LandingPageConfig(models.Model):
+    """
+    Configuration for landing page images and content.
+    Managed by admin dashboard only.
+    """
+
+    # CTA Section
+    cta_background_image = models.URLField(
+        blank=True,
+        help_text="Background image for CTA section"
+    )
+
+    # Experience Cards
+    serengeti_image = models.URLField(
+        blank=True,
+        help_text="Image for Serengeti Safari experience card"
+    )
+    kilimanjaro_image = models.URLField(
+        blank=True,
+        help_text="Image for Kilimanjaro Trek experience card"
+    )
+    zanzibar_image = models.URLField(
+        blank=True,
+        help_text="Image for Zanzibar Beach experience card"
+    )
+    ngorongoro_image = models.URLField(
+        blank=True,
+        help_text="Image for Ngorongoro Crater experience card"
+    )
+
+    # Metadata
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='landing_page_updates'
+    )
+
+    class Meta:
+        verbose_name = "Landing Page Configuration"
+        verbose_name_plural = "Landing Page Configurations"
+
+    def __str__(self):
+        return f"Landing Page Config (updated {self.updated_at})"
+
+
+class Testimonial(models.Model):
+    """
+    User testimonials/reviews for the landing page.
+    Managed by admin dashboard - admin can feature real user reviews.
+    """
+
+    # User info
+    name = models.CharField(max_length=100, help_text="Full name of the reviewer")
+    role = models.CharField(max_length=100, help_text="Role/Title (e.g., Travel Blogger, Local Guide)")
+    avatar_letter = models.CharField(max_length=1, help_text="First letter for avatar")
+
+    # Review content
+    text = models.TextField(help_text="Review text/testimonial")
+    rating = models.IntegerField(default=5, help_text="Rating out of 5")
+    location = models.CharField(max_length=100, help_text="Location where experience happened")
+
+    # Styling
+    color = models.CharField(
+        max_length=7,
+        default='#F5A623',
+        help_text="Color for the testimonial card (hex code)"
+    )
+
+    # Optional link to user profile or external URL
+    profile_url = models.URLField(blank=True, help_text="Optional link to user profile or external site")
+
+    # Admin controls
+    is_featured = models.BooleanField(default=True, help_text="Show on landing page")
+    display_order = models.IntegerField(default=0, help_text="Order of display (lower = first)")
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='testimonial_updates'
+    )
+
+    class Meta:
+        ordering = ['display_order', '-created_at']
+        verbose_name = "Testimonial"
+        verbose_name_plural = "Testimonials"
+
+    def __str__(self):
+        return f"{self.name} - {self.role}"

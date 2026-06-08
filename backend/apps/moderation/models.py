@@ -13,7 +13,6 @@ class Report(models.Model):
         ('TIP', 'Tip'),
         ('EXPERIENCE', 'Experience'),
         ('USER', 'User'),
-        ('COMMENT', 'Comment'),
         ('MESSAGE', 'Message'),
     ]
     

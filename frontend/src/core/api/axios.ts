@@ -35,13 +35,39 @@ const api = axios.create({
   // No withCredentials - tokens sent via Authorization header
 })
 
-// Request interceptor: Attach access token to Authorization header
+// Public endpoints that MUST NOT receive Authorization headers
+const PUBLIC_ENDPOINTS = [
+  '/auth/login/',
+  '/auth/register/',
+  '/auth/refresh/',
+  '/auth/otp/send/',
+  '/auth/otp/verify/',
+]
+
+// Check if request URL is a public endpoint
+const isPublicEndpoint = (url?: string): boolean => {
+  if (!url) return false
+  return PUBLIC_ENDPOINTS.some(endpoint => url.includes(endpoint))
+}
+
+// Request interceptor: Attach access token to Authorization header ONLY for protected endpoints
 api.interceptors.request.use(
   (config) => {
     const accessToken = getAccessToken()
-    if (accessToken) {
+    const isPublic = isPublicEndpoint(config.url)
+    
+    // Only attach token if:
+    // 1. Token exists AND
+    // 2. Endpoint is NOT public
+    if (accessToken && !isPublic) {
       config.headers.Authorization = `Bearer ${accessToken}`
     }
+    
+    // Explicitly remove Authorization header for public endpoints
+    if (isPublic) {
+      delete config.headers.Authorization
+    }
+    
     return config
   },
   (error) => Promise.reject(error)

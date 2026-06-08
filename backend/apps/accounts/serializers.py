@@ -147,6 +147,10 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         if profile_data:
+            # Create profile if it doesn't exist
+            if not hasattr(instance, 'profile'):
+                from .models import UserProfile
+                UserProfile.objects.create(user=instance)
             for attr, value in profile_data.items():
                 setattr(instance.profile, attr, value)
             instance.profile.save()

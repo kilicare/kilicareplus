@@ -27,6 +27,14 @@ module.exports = {
         "kili-blue": "#3B82F6",
         "kili-purple": "#8B5CF6",
         "kili-orange": "#F97316",
+        
+        // Premium accent colors for landing page
+        "accent-emerald": "#10B981",
+        "accent-emerald-light": "#A7F3D0",
+        "accent-coral": "#F97316",
+        "accent-sky": "#0EA5E9",
+        "accent-purple": "#A855F7",
+        "accent-rose": "#F43F5E",
       },
 
       fontFamily: {
@@ -43,6 +51,12 @@ module.exports = {
         "slide-up": "slide-up 0.4s cubic-bezier(0.34,1.56,0.64,1)",
         "scale-in": "scale-in 0.2s cubic-bezier(0.34,1.56,0.64,1)",
         "bounce-dot": "bounce-dot 1.2s ease-in-out infinite",
+        // Premium landing page animations
+        "glow-emerald": "glow-emerald 2.5s ease-in-out infinite",
+        "glow-coral": "glow-coral 2s ease-in-out infinite",
+        "float-up": "float-up 4s ease-in-out infinite",
+        "pulse-subtle": "pulse-subtle 3s ease-in-out infinite",
+        "orbit": "orbit 8s linear infinite",
       },
 
       keyframes: {
@@ -121,6 +135,57 @@ module.exports = {
             transform: "translateY(-8px)",
           },
         },
+
+        // Premium landing page keyframes
+        "glow-emerald": {
+          "0%,100%": {
+            boxShadow: "0 0 20px rgba(16, 185, 129, 0.3)",
+          },
+          "50%": {
+            boxShadow: "0 0 40px rgba(16, 185, 129, 0.6)",
+          },
+        },
+
+        "glow-coral": {
+          "0%,100%": {
+            boxShadow: "0 0 20px rgba(249, 115, 22, 0.3)",
+          },
+          "50%": {
+            boxShadow: "0 0 40px rgba(249, 115, 22, 0.5)",
+          },
+        },
+
+        "float-up": {
+          "0%": {
+            transform: "translateY(0)",
+            opacity: "0",
+          },
+          "50%": {
+            opacity: "1",
+          },
+          "100%": {
+            transform: "translateY(-100px)",
+            opacity: "0",
+          },
+        },
+
+        "pulse-subtle": {
+          "0%,100%": {
+            opacity: "1",
+          },
+          "50%": {
+            opacity: "0.8",
+          },
+        },
+
+        "orbit": {
+          "0%": {
+            transform: "rotate(0deg) translateX(50px) rotate(0deg)",
+          },
+          "100%": {
+            transform: "rotate(360deg) translateX(50px) rotate(-360deg)",
+          },
+        },
       },
 
       boxShadow: {
@@ -143,6 +208,12 @@ module.exports = {
 
         "gradient-hero":
           "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 40%)",
+        
+        // Premium gradients for landing page
+        "gradient-gold-emerald": "linear-gradient(135deg, rgba(245,166,35,0.4) 0%, rgba(16,185,129,0.3) 100%)",
+        "gradient-gold-purple": "linear-gradient(135deg, rgba(245,166,35,0.3) 0%, rgba(168,85,247,0.2) 100%)",
+        "gradient-emerald-cyan": "linear-gradient(to right, rgba(16,185,129,0.3), rgba(34,197,94,0.2))",
+        "gradient-coral-orange": "linear-gradient(135deg, rgba(249,115,22,0.3) 0%, rgba(244,63,94,0.2) 100%)",
       },
 
       height: {

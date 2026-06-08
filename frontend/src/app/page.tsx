@@ -1,47 +1,34 @@
-'use client'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuthStore } from '@/stores/auth.store'
-import { resolvePostLoginRoute } from '@/lib/routing'
+import type { Metadata } from 'next'
+import { LandingNav }          from '@/components/landing/LandingNav'
+import { HeroSection }         from '@/components/landing/HeroSection'
+import { StatsSection }        from '@/components/landing/StatsSection'
+import { FeaturesSection }     from '@/components/landing/FeaturesSection'
+import { HowItWorksSection }   from '@/components/landing/HowItWorksSection'
+import { TestimonialsSection }  from '@/components/landing/TestimonialsSection'
+import { KilicareBetPreview }  from '@/components/landing/KilicareBetPreview'
+import { PricingSection }      from '@/components/landing/PricingSection'
+import { DownloadSection }     from '@/components/landing/DownloadSection'
+import { FooterSection }       from '@/components/landing/FooterSection'
 
-export default function RootPage() {
-  const router = useRouter()
-  const { isAuthenticated, user, isLoading } = useAuthStore()
+export const metadata: Metadata = {
+  title: "KilicareGO+ — Tanzania's First Tourism Super-App",
+  description:
+    'Connect with 350+ verified local guides across Tanzania. Explore Serengeti, Kilimanjaro, Zanzibar with AI-powered experiences, real-time SOS safety, and community moments.',
+}
 
-  useEffect(() => {
-    // Safe redirect with error handling
-    const safeRedirect = () => {
-      try {
-        if (!isAuthenticated) {
-          router.push('/login')
-        } else {
-          // SINGLE FEED ARCHITECTURE: All users go to /feed
-          // Role-based UI branching happens inside /feed page
-          const route = resolvePostLoginRoute(user)
-          router.push(route)
-        }
-      } catch (error) {
-        console.error('[RootPage] Redirect error:', error)
-        // Ultimate fallback: always go to login on error
-        router.push('/login')
-      }
-    }
-
-    if (isLoading) return
-
-    safeRedirect()
-  }, [isAuthenticated, user, isLoading, router])
-
-  // Show loading state while checking auth
+export default function LandingPage() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-3xl flex items-center justify-center text-4xl font-black text-black mx-auto mb-4 animate-pulse"
-             style={{ background: 'var(--gradient-gold)' }}>
-          <img src="/icon-192.png" alt="Kilicare+" className="w-full h-full rounded-3xl object-cover" />
-        </div>
-        <p className="text-text-muted">Inapakia...</p>
-      </div>
-    </div>
+    <main className="min-h-screen overflow-x-hidden" style={{ background: '#050508' }}>
+      <LandingNav />
+      <HeroSection />
+      <StatsSection />
+      <FeaturesSection />
+      <HowItWorksSection />
+      <TestimonialsSection />
+      <KilicareBetPreview />
+      <PricingSection />
+      <DownloadSection />
+      <FooterSection />
+    </main>
   )
 }

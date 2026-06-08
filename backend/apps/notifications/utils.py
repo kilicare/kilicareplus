@@ -1,4 +1,7 @@
 from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def create_notification(
@@ -51,11 +54,9 @@ def create_notification(
             },
         )
     except Exception as e:
-        print(f'[WS Notification] {e}')
+        logger.warning(f'[WS Notification] {e}')
 
     # FCM push
-    import logging
-    logger = logging.getLogger(__name__)
     try:
         if hasattr(recipient, 'fcm_token') and recipient.fcm_token:
             _send_fcm(recipient.fcm_token, title, body, data or {})

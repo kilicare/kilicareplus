@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 # ── Event Type Registry ───────────────────────────────────────────────────────
 class EventType:
     LIKE                  = 'LIKE'
-    COMMENT               = 'COMMENT'
     FOLLOW                = 'FOLLOW'
     SOS_RESPONSE          = 'SOS_RESPONSE'
     BOOKING_REQUEST       = 'BOOKING_REQUEST'
@@ -30,7 +29,6 @@ def map_event_type(event_type: str) -> str:
     """Map generic events to target notification types."""
     mapping = {
         'LIKE_EVENT': EventType.LIKE,
-        'COMMENT_EVENT': EventType.COMMENT,
         'FOLLOW_EVENT': EventType.FOLLOW,
         'SOS_EVENT': EventType.SOS_RESPONSE,
         'BOOKING_EVENT': EventType.BOOKING_REQUEST,
@@ -51,10 +49,6 @@ def _build_config(
         EventType.LIKE: (
             f'❤️ {name} amependa moment yako!',
             payload.get('moment_caption', 'Moment yako imependwa')[:80],
-        ),
-        EventType.COMMENT: (
-            f'💬 {name} ametoa maoni!',
-            payload.get('comment_text', 'Angalia maoni mapya')[:80],
         ),
         EventType.FOLLOW: (
             f'👤 {name} anakufuata!',
