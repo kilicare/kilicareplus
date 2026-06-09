@@ -1,6 +1,14 @@
 'use client'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
+
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  }
+  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+}
 
 const FEATURES = [
   {
@@ -70,12 +78,52 @@ const FEATURES = [
 ]
 
 export function FeaturesSection() {
+  const [featuresBackground, setFeaturesBackground] = useState<string>('')
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.features_background_image) {
+            setFeaturesBackground(data.features_background_image)
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch landing page config, using default background')
+      }
+    }
+
+    fetchConfig()
+  }, [])
+
   return (
     <section
       id="features"
       className="py-20 lg:py-28 px-4 relative"
-      style={{ background: 'linear-gradient(180deg,#050508 0%,#0A0A12 100%)' }}
+      style={{
+        background: featuresBackground 
+          ? `url(${featuresBackground}) center/cover no-repeat` 
+          : 'linear-gradient(180deg,#050508 0%,#0A0A12 100%)'
+      }}
     >
+      {/* Top gradient fade to blend with previous section */}
+      <div
+        className="absolute top-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, #050508, transparent)'
+        }}
+      />
+      {/* Dark overlay when using image background */}
+      {featuresBackground && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(5,5,8,0.6)'
+          }}
+        />
+      )}
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -105,8 +153,8 @@ export function FeaturesSection() {
             </span>
           </h2>
           <p
-            className="text-lg max-w-2xl mx-auto"
-            style={{ color: 'rgba(255,255,255,0.55)' }}
+            className="text-xl max-w-2xl mx-auto font-semibold"
+            style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             Super-app moja inayounganisha watalii, guides, biashara, na usalama
             katika Tanzania yote — kutoka Zanzibar hadi Kilimanjaro.
@@ -151,7 +199,7 @@ export function FeaturesSection() {
                   {feat.icon}
                 </div>
                 <span
-                  className="text-[10px] font-black px-2 py-1 rounded-lg uppercase
+                  className="text-xs font-black px-2 py-1 rounded-lg uppercase
                     tracking-wider"
                   style={{ background: `${feat.color}18`, color: feat.color }}
                 >
@@ -159,12 +207,12 @@ export function FeaturesSection() {
                 </span>
               </div>
 
-              <h3 className="text-base font-black text-white mb-2">
+              <h3 className="text-lg font-black text-white mb-2">
                 {feat.title}
               </h3>
               <p
-                className="text-sm leading-relaxed mb-4"
-                style={{ color: 'rgba(255,255,255,0.55)' }}
+                className="text-base leading-relaxed mb-4 font-semibold"
+                style={{ color: 'rgba(255,255,255,0.85)' }}
               >
                 {feat.desc}
               </p>
@@ -182,6 +230,13 @@ export function FeaturesSection() {
           ))}
         </div>
       </div>
+      {/* Bottom gradient fade to blend with next section */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, #050508, transparent)'
+        }}
+      />
     </section>
   )
 }

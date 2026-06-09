@@ -139,8 +139,8 @@ export function FooterSection() {
             ].map((b) => (
               <div
                 key={b.label}
-                className="flex items-center gap-1.5 text-[11px]"
-                style={{ color: 'rgba(255,255,255,0.3)' }}
+                className="flex items-center gap-1.5 text-xs"
+                style={{ color: 'rgba(255,255,255,0.5)' }}
               >
                 <span>{b.emoji}</span>
                 {b.label}

@@ -1,7 +1,7 @@
 'use client'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import Link from 'next/link'
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { ArrowRight, Star, Shield, Zap } from 'lucide-react'
 
 const PILLS = [
@@ -19,6 +19,13 @@ const TRUST_BADGES = [
   { icon: <Zap    size={14} />, label: 'AI-Powered' },
 ]
 
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  }
+  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+}
+
 export function HeroSection() {
   const ref = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
@@ -27,14 +34,46 @@ export function HeroSection() {
   })
   const y       = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
   const opacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
+  const [heroBackground, setHeroBackground] = useState<string>('')
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.cta_background_image) {
+            setHeroBackground(data.cta_background_image)
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch landing page config, using default background')
+      }
+    }
+
+    fetchConfig()
+  }, [])
 
   return (
     <section
       ref={ref}
       className="relative min-h-screen flex flex-col items-center justify-center
         overflow-hidden pt-20 pb-12 px-4"
-      style={{ background: 'linear-gradient(160deg,#050508 0%,#0A0A12 50%,#050508 100%)' }}
+      style={{
+        background: heroBackground 
+          ? `url(${heroBackground}) center/cover no-repeat` 
+          : 'linear-gradient(160deg,#050508 0%,#0A0A12 50%,#050508 100%)'
+      }}
     >
+      {/* Dark overlay when using image background */}
+      {heroBackground && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(160deg,rgba(5,5,8,0.6) 0%,rgba(10,10,18,0.5) 50%,rgba(5,5,8,0.6) 100%)'
+          }}
+        />
+      )}
       {/* Animated background grid */}
       <div
         className="absolute inset-0 opacity-20 pointer-events-none"
@@ -113,9 +152,9 @@ export function HeroSection() {
 
         {/* Subheadline */}
         <motion.p
-          className="text-lg sm:text-xl lg:text-2xl max-w-3xl mx-auto mb-8
-            leading-relaxed"
-          style={{ color: 'rgba(255,255,255,0.65)' }}
+          className="text-xl sm:text-2xl lg:text-3xl max-w-3xl mx-auto mb-8
+            leading-relaxed font-semibold"
+          style={{ color: 'rgba(255,255,255,0.9)' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
@@ -216,150 +255,6 @@ export function HeroSection() {
         </motion.div>
       </motion.div>
 
-      {/* Phone mockup */}
-      <motion.div
-        className="relative z-10 mt-16 max-w-sm mx-auto"
-        initial={{ opacity: 0, y: 60, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.9, delay: 0.6, type: 'spring', stiffness: 100 }}
-      >
-        <div
-          className="rounded-[3rem] overflow-hidden border-2 relative"
-          style={{
-            borderColor: 'rgba(245,166,35,0.3)',
-            boxShadow: `
-              0 0 0 1px rgba(245,166,35,0.1),
-              0 40px 80px rgba(0,0,0,0.8),
-              0 0 60px rgba(245,166,35,0.15)
-            `,
-            background: '#0A0A12',
-          }}
-        >
-          {/* Phone screen simulation */}
-          <div className="aspect-[9/19] relative overflow-hidden">
-            {/* Status bar */}
-            <div
-              className="flex items-center justify-between px-6 pt-3 pb-2 text-[11px]
-                font-bold text-white/80"
-              style={{ background: 'rgba(10,10,20,0.95)' }}
-            >
-              <span>9:41</span>
-              <div className="flex items-center gap-1">
-                <span>●●●</span>
-                <span>WiFi</span>
-                <span>100%</span>
-              </div>
-            </div>
-
-            {/* App content simulation */}
-            <div
-              className="flex-1 relative"
-              style={{ background: 'linear-gradient(160deg,#050508,#0A0A15)' }}
-            >
-              {/* Simulated feed cards */}
-              <div className="p-3 space-y-2">
-                {/* Card 1 — Serengeti moment */}
-                <div
-                  className="rounded-2xl overflow-hidden relative"
-                  style={{ height: 200, background: 'rgba(245,166,35,0.08)' }}
-                >
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background: 'linear-gradient(135deg,rgba(245,166,35,0.2),rgba(10,10,20,0.8))',
-                    }}
-                  />
-                  <div className="absolute inset-0 flex flex-col justify-end p-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center
-                          text-xs font-black text-black"
-                        style={{ background: '#F5A623' }}
-                      >
-                        J
-                      </div>
-                      <span className="text-white text-xs font-bold">@john_safari</span>
-                    </div>
-                    <p className="text-white/80 text-[11px]">🦁 Serengeti — incredible!</p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-white/60 text-[10px]">❤️ 234</span>
-                      <span className="text-white/60 text-[10px]">💬 18</span>
-                    </div>
-                  </div>
-                  <div className="absolute top-3 right-3 text-2xl">🦁</div>
-                </div>
-
-                {/* Quick stats row */}
-                <div className="flex gap-2">
-                  {[
-                    { emoji: '🆘', label: 'SOS Safe', color: '#FF2D2D' },
-                    { emoji: '🤖', label: 'AI Guide', color: '#F5A623' },
-                    { emoji: '⭐', label: '4.8 Rating', color: '#10B981' },
-                  ].map((s) => (
-                    <div
-                      key={s.label}
-                      className="flex-1 rounded-xl p-2 text-center"
-                      style={{ background: `${s.color}12`, border: `1px solid ${s.color}25` }}
-                    >
-                      <div className="text-sm">{s.emoji}</div>
-                      <p className="text-[9px] font-bold" style={{ color: s.color }}>
-                        {s.label}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Prediction card mini */}
-                <div
-                  className="rounded-xl p-3"
-                  style={{ background: 'rgba(245,166,35,0.06)', border: '1px solid rgba(245,166,35,0.15)' }}
-                >
-                  <p className="text-[10px] text-white/50 mb-1">🎯 KilicareBet</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white text-xs font-bold">Simba SC</span>
-                    <span className="text-gold text-[10px] font-black">71% WIN</span>
-                    <span className="text-white text-xs font-bold">Yanga SC</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom nav simulation */}
-            <div
-              className="flex items-center justify-around px-4 py-3 border-t"
-              style={{
-                background: 'rgba(10,10,20,0.95)',
-                borderColor: 'rgba(255,255,255,0.06)',
-              }}
-            >
-              {['📸','🗺️','🆘','💬','🛂'].map((icon, i) => (
-                <div
-                  key={i}
-                  className={`text-base ${i === 2 ? 'scale-125' : ''}`}
-                  style={{
-                    background: i === 2 ? 'rgba(255,45,45,0.2)' : 'transparent',
-                    borderRadius: i === 2 ? '50%' : 0,
-                    padding: i === 2 ? '4px' : 0,
-                  }}
-                >
-                  {icon}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Phone glow */}
-        <div
-          className="absolute inset-0 -z-10 opacity-30"
-          style={{
-            background: 'radial-gradient(ellipse at center, rgba(245,166,35,0.4) 0%, transparent 70%)',
-            filter: 'blur(30px)',
-            transform: 'translateY(20px) scale(0.9)',
-          }}
-        />
-      </motion.div>
-
       {/* Scroll indicator */}
       <motion.div
         className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col
@@ -380,6 +275,13 @@ export function HeroSection() {
           />
         </div>
       </motion.div>
+      {/* Bottom gradient fade to blend with next section */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, #050508, transparent)'
+        }}
+      />
     </section>
   )
 }

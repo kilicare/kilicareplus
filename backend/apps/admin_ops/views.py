@@ -562,8 +562,13 @@ def landing_page_config_view(request):
         
         return Response({
             'cta_background_image': config.cta_background_image,
+            'stats_background_image': config.stats_background_image,
+            'features_background_image': config.features_background_image,
+            'testimonials_background_image': config.testimonials_background_image,
+            'kilicarebet_background_image': config.kilicarebet_background_image,
+            'pricing_background_image': config.pricing_background_image,
+            'download_background_image': config.download_background_image,
             'serengeti_image': config.serengeti_image,
-            'kilimanjaro_image': config.kilimanjaro_image,
             'zanzibar_image': config.zanzibar_image,
             'ngorongoro_image': config.ngorongoro_image,
             'updated_at': config.updated_at.isoformat(),
@@ -583,8 +588,13 @@ def update_landing_page_config_view(request):
         
         # Update fields
         config.cta_background_image = request.data.get('cta_background_image', config.cta_background_image)
+        config.stats_background_image = request.data.get('stats_background_image', config.stats_background_image)
+        config.features_background_image = request.data.get('features_background_image', config.features_background_image)
+        config.testimonials_background_image = request.data.get('testimonials_background_image', config.testimonials_background_image)
+        config.kilicarebet_background_image = request.data.get('kilicarebet_background_image', config.kilicarebet_background_image)
+        config.pricing_background_image = request.data.get('pricing_background_image', config.pricing_background_image)
+        config.download_background_image = request.data.get('download_background_image', config.download_background_image)
         config.serengeti_image = request.data.get('serengeti_image', config.serengeti_image)
-        config.kilimanjaro_image = request.data.get('kilimanjaro_image', config.kilimanjaro_image)
         config.zanzibar_image = request.data.get('zanzibar_image', config.zanzibar_image)
         config.ngorongoro_image = request.data.get('ngorongoro_image', config.ngorongoro_image)
         config.updated_by = request.user
@@ -595,8 +605,13 @@ def update_landing_page_config_view(request):
             'message': 'Landing page configuration updated successfully',
             'config': {
                 'cta_background_image': config.cta_background_image,
+                'stats_background_image': config.stats_background_image,
+                'features_background_image': config.features_background_image,
+                'testimonials_background_image': config.testimonials_background_image,
+                'kilicarebet_background_image': config.kilicarebet_background_image,
+                'pricing_background_image': config.pricing_background_image,
+                'download_background_image': config.download_background_image,
                 'serengeti_image': config.serengeti_image,
-                'kilimanjaro_image': config.kilimanjaro_image,
                 'zanzibar_image': config.zanzibar_image,
                 'ngorongoro_image': config.ngorongoro_image,
                 'updated_at': config.updated_at.isoformat(),
@@ -656,7 +671,7 @@ def public_testimonials_view(request):
                 'id': t.id,
                 'name': t.name,
                 'role': t.role,
-                'avatar': t.avatar_letter,
+                'avatar': t.avatar if t.avatar else t.avatar_letter,
                 'color': t.color,
                 'rating': t.rating,
                 'text': t.text,
@@ -748,6 +763,7 @@ def admin_testimonials_view(request):
                 'id': t.id,
                 'name': t.name,
                 'role': t.role,
+                'avatar': t.avatar,
                 'avatar_letter': t.avatar_letter,
                 'color': t.color,
                 'rating': t.rating,
@@ -768,6 +784,7 @@ def admin_testimonials_view(request):
             testimonial = Testimonial.objects.create(
                 name=data.get('name'),
                 role=data.get('role'),
+                avatar=data.get('avatar', ''),
                 avatar_letter=data.get('avatar_letter', data.get('name', '')[0]),
                 text=data.get('text'),
                 rating=data.get('rating', 5),
@@ -782,6 +799,7 @@ def admin_testimonials_view(request):
                 'id': testimonial.id,
                 'name': testimonial.name,
                 'role': testimonial.role,
+                'avatar': testimonial.avatar,
                 'avatar_letter': testimonial.avatar_letter,
                 'color': testimonial.color,
                 'rating': testimonial.rating,
@@ -809,6 +827,7 @@ def admin_testimonial_detail_view(request, testimonial_id):
             'id': testimonial.id,
             'name': testimonial.name,
             'role': testimonial.role,
+            'avatar': testimonial.avatar,
             'avatar_letter': testimonial.avatar_letter,
             'color': testimonial.color,
             'rating': testimonial.rating,
@@ -826,6 +845,7 @@ def admin_testimonial_detail_view(request, testimonial_id):
             data = request.data
             testimonial.name = data.get('name', testimonial.name)
             testimonial.role = data.get('role', testimonial.role)
+            testimonial.avatar = data.get('avatar', testimonial.avatar)
             testimonial.avatar_letter = data.get('avatar_letter', testimonial.avatar_letter)
             testimonial.text = data.get('text', testimonial.text)
             testimonial.rating = data.get('rating', testimonial.rating)
@@ -841,6 +861,7 @@ def admin_testimonial_detail_view(request, testimonial_id):
                 'id': testimonial.id,
                 'name': testimonial.name,
                 'role': testimonial.role,
+                'avatar': testimonial.avatar,
                 'avatar_letter': testimonial.avatar_letter,
                 'color': testimonial.color,
                 'rating': testimonial.rating,

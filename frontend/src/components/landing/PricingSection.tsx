@@ -2,6 +2,14 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Check } from 'lucide-react'
+import { useState, useEffect } from 'react'
+
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  }
+  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+}
 
 const PLANS = [
   {
@@ -64,12 +72,52 @@ const PLANS = [
 ]
 
 export function PricingSection() {
+  const [pricingBackground, setPricingBackground] = useState<string>('')
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.pricing_background_image) {
+            setPricingBackground(data.pricing_background_image)
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch landing page config, using default background')
+      }
+    }
+
+    fetchConfig()
+  }, [])
+
   return (
     <section
       id="pricing"
       className="py-20 lg:py-28 px-4 relative overflow-hidden"
-      style={{ background: 'linear-gradient(180deg,#050508 0%,#0A0A12 100%)' }}
+      style={{
+        background: pricingBackground 
+          ? `url(${pricingBackground}) center/cover no-repeat` 
+          : 'linear-gradient(180deg,#050508 0%,#0A0A12 100%)'
+      }}
     >
+      {/* Top gradient fade to blend with previous section */}
+      <div
+        className="absolute top-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, #050508, transparent)'
+        }}
+      />
+      {/* Dark overlay when using image background */}
+      {pricingBackground && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(5,5,8,0.6)'
+          }}
+        />
+      )}
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
@@ -88,8 +136,8 @@ export function PricingSection() {
             Bei Wazi, Thamani Halisi
           </h2>
           <p
-            className="text-lg max-w-xl mx-auto"
-            style={{ color: 'rgba(255,255,255,0.55)' }}
+            className="text-xl max-w-xl mx-auto font-semibold"
+            style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             Anza bure. Panda kiwango unapohitaji zaidi.
             Malipo ya M-Pesa — rahisi na ya haraka.
@@ -150,8 +198,8 @@ export function PricingSection() {
                         TZS {plan.price}
                       </span>
                       <span
-                        className="text-sm"
-                        style={{ color: 'rgba(255,255,255,0.4)' }}
+                        className="text-sm font-medium"
+                        style={{ color: 'rgba(255,255,255,0.7)' }}
                       >
                         {plan.period}
                       </span>
@@ -171,8 +219,8 @@ export function PricingSection() {
                       <Check size={10} style={{ color: plan.color }} />
                     </div>
                     <span
-                      className="text-sm leading-snug"
-                      style={{ color: 'rgba(255,255,255,0.65)' }}
+                      className="text-base leading-snug font-semibold"
+                      style={{ color: 'rgba(255,255,255,0.9)' }}
                     >
                       {f}
                     </span>
@@ -219,6 +267,13 @@ export function PricingSection() {
           </a>
         </motion.p>
       </div>
+      {/* Bottom gradient fade to blend with next section */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, #050508, transparent)'
+        }}
+      />
     </section>
   )
 }

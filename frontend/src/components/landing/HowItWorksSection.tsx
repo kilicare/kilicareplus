@@ -39,13 +39,20 @@ export function HowItWorksSection() {
       className="py-20 lg:py-28 px-4 relative overflow-hidden"
       style={{ background: '#050508' }}
     >
+      {/* Top gradient fade to blend with previous section */}
+      <div
+        className="absolute top-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, #050508, transparent)'
+        }}
+      />
       {/* Background decoration */}
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
           w-[800px] h-[400px] opacity-5 pointer-events-none"
         style={{
           background: 'radial-gradient(ellipse,rgba(245,166,35,0.6) 0%,transparent 70%)',
-          filter: 'blur(80px)',
+          filter: 'blur(20px)',
         }}
       />
 
@@ -67,8 +74,8 @@ export function HowItWorksSection() {
             Jinsi Inavyofanya Kazi
           </h2>
           <p
-            className="text-lg max-w-xl mx-auto"
-            style={{ color: 'rgba(255,255,255,0.55)' }}
+            className="text-lg max-w-xl mx-auto font-semibold"
+            style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             Rahisi kama 1-2-3-4. Dakika chache tu na uko tayari kugundua Tanzania.
           </p>
@@ -121,8 +128,8 @@ export function HowItWorksSection() {
                   {step.title}
                 </h3>
                 <p
-                  className="text-sm leading-relaxed"
-                  style={{ color: 'rgba(255,255,255,0.55)' }}
+                  className="text-sm leading-relaxed font-semibold"
+                  style={{ color: 'rgba(255,255,255,0.85)' }}
                 >
                   {step.desc}
                 </p>
@@ -153,6 +160,13 @@ export function HowItWorksSection() {
           </a>
         </motion.div>
       </div>
+      {/* Bottom gradient fade to blend with next section */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, #050508, transparent)'
+        }}
+      />
     </section>
   )
 }

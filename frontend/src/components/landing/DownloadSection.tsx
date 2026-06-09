@@ -2,14 +2,62 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Smartphone, Globe, Download } from 'lucide-react'
+import { useState, useEffect } from 'react'
+
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  }
+  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+}
 
 export function DownloadSection() {
+  const [downloadBackground, setDownloadBackground] = useState<string>('')
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.download_background_image) {
+            setDownloadBackground(data.download_background_image)
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch landing page config, using default background')
+      }
+    }
+
+    fetchConfig()
+  }, [])
+
   return (
     <section
       id="download"
       className="py-20 lg:py-28 px-4 relative overflow-hidden"
-      style={{ background: '#050508' }}
+      style={{
+        background: downloadBackground 
+          ? `url(${downloadBackground}) center/cover no-repeat` 
+          : '#050508'
+      }}
     >
+      {/* Top gradient fade to blend with previous section */}
+      <div
+        className="absolute top-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, #050508, transparent)'
+        }}
+      />
+      {/* Dark overlay when using image background */}
+      {downloadBackground && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(5,5,8,0.6)'
+          }}
+        />
+      )}
       {/* Glow */}
       <div
         className="absolute inset-0 opacity-15 pointer-events-none"
@@ -54,8 +102,8 @@ export function DownloadSection() {
           </h2>
 
           <p
-            className="text-lg mb-12 max-w-2xl mx-auto"
-            style={{ color: 'rgba(255,255,255,0.6)' }}
+            className="text-xl mb-12 max-w-2xl mx-auto font-semibold"
+            style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             KilicareGO+ ni Progressive Web App — sakinisha moja kwa moja kwenye
             simu yako bila kupitia App Store. Haraka, offline-ready, na lightweight.
@@ -97,7 +145,7 @@ export function DownloadSection() {
               >
                 <div className="mb-3" style={{ color: opt.color }}>{opt.icon}</div>
                 <p className="font-black text-white mb-1">{opt.label}</p>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>
                   {opt.desc}
                 </p>
               </motion.div>
@@ -127,6 +175,13 @@ export function DownloadSection() {
           </p>
         </motion.div>
       </div>
+      {/* Bottom gradient fade to blend with next section */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, #050508, transparent)'
+        }}
+      />
     </section>
   )
 }

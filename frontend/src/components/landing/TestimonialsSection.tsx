@@ -2,6 +2,13 @@
 import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  }
+  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+}
+
 interface Testimonial {
   id: number
   name: string
@@ -80,6 +87,7 @@ const FALLBACK_TESTIMONIALS: Testimonial[] = [
 export function TestimonialsSection() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>(FALLBACK_TESTIMONIALS)
   const [loading, setLoading] = useState(true)
+  const [testimonialsBackground, setTestimonialsBackground] = useState<string>('')
 
   useEffect(() => {
     const fetchTestimonials = async () => {
@@ -98,14 +106,49 @@ export function TestimonialsSection() {
       }
     }
 
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.testimonials_background_image) {
+            setTestimonialsBackground(data.testimonials_background_image)
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch landing page config, using default background')
+      }
+    }
+
     fetchTestimonials()
+    fetchConfig()
   }, [])
 
   return (
     <section
       className="py-20 lg:py-28 px-4 relative overflow-hidden"
-      style={{ background: 'linear-gradient(180deg,#0A0A12 0%,#050508 100%)' }}
+      style={{
+        background: testimonialsBackground 
+          ? `url(${testimonialsBackground}) center/cover no-repeat` 
+          : 'linear-gradient(180deg,#0A0A12 0%,#050508 100%)'
+      }}
     >
+      {/* Top gradient fade to blend with previous section */}
+      <div
+        className="absolute top-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, #050508, transparent)'
+        }}
+      />
+      {/* Dark overlay when using image background */}
+      {testimonialsBackground && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(5,5,8,0.6)'
+          }}
+        />
+      )}
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -179,31 +222,39 @@ export function TestimonialsSection() {
 
               {/* Text */}
               <p
-                className="text-sm leading-relaxed mb-5 relative z-10"
-                style={{ color: 'rgba(255,255,255,0.75)' }}
+                className="text-base leading-relaxed mb-5 relative z-10 font-semibold"
+                style={{ color: 'rgba(255,255,255,0.95)' }}
               >
                 "{t.text}"
               </p>
 
               {/* Author */}
               <div className="flex items-center gap-3">
-                <div
-                  className="w-11 h-11 rounded-2xl flex items-center justify-center
-                    text-base font-black text-black flex-shrink-0"
-                  style={{ background: `linear-gradient(135deg,${t.color},${t.color}cc)` }}
-                >
-                  {t.avatar}
-                </div>
+                {t.avatar && (t.avatar.startsWith('http') || t.avatar.startsWith('/')) ? (
+                  <img
+                    src={t.avatar}
+                    alt={t.name}
+                    className="w-11 h-11 rounded-2xl object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center
+                      text-base font-black text-black flex-shrink-0"
+                    style={{ background: `linear-gradient(135deg,${t.color},${t.color}cc)` }}
+                  >
+                    {t.avatar}
+                  </div>
+                )}
                 <div>
-                  <p className="text-sm font-black text-white">{t.name}</p>
+                  <p className="text-base font-black text-white">{t.name}</p>
                   <p
-                    className="text-xs"
-                    style={{ color: 'rgba(255,255,255,0.45)' }}
+                    className="text-sm font-semibold"
+                    style={{ color: 'rgba(255,255,255,0.85)' }}
                   >
                     {t.role}
                   </p>
                   <p
-                    className="text-[10px] font-bold mt-0.5"
+                    className="text-xs font-bold mt-0.5"
                     style={{ color: t.color }}
                   >
                     📍 {t.location}
@@ -214,6 +265,13 @@ export function TestimonialsSection() {
           ))}
         </div>
       </div>
+      {/* Bottom gradient fade to blend with next section */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, #050508, transparent)'
+        }}
+      />
     </section>
   )
 }

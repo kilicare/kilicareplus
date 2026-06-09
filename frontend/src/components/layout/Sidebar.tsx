@@ -23,6 +23,7 @@ import {
   Activity,
   AlertTriangle,
   Layout,
+  Star,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -57,6 +58,7 @@ const ADMIN = [
   { href: '/admin/moderation', Icon: Shield, label: 'Moderation' },
   { href: '/admin/sos-monitor', Icon: AlertTriangle, label: 'SOS Monitor' },
   { href: '/admin/landing-page', Icon: Layout, label: 'Landing Page' },
+  { href: '/admin/testimonials', Icon: Star, label: 'Testimonials' },
   { href: '/admin/b2b', Icon: Store, label: 'B2B Portal' },
 ]
 

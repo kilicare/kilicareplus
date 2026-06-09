@@ -337,6 +337,7 @@ function CreateMomentSheet({
                 fill
                 className="object-cover"
                 quality={85}
+                unoptimized
               />
             )}
             <button
@@ -592,6 +593,7 @@ const MomentCard = memo(function MomentCard({
             sizes="100vw"
             loading="lazy"
             quality={85}
+            unoptimized
             onError={(e) => {
               const target = e.target as HTMLImageElement
               target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%231a1a2e"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-size="24"%3EFailed to Load%3C/text%3E%3C/svg%3E'

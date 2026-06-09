@@ -148,14 +148,46 @@ class LandingPageConfig(models.Model):
         help_text="Background image for CTA section"
     )
 
+    # Stats Section
+    stats_background_image = models.URLField(
+        blank=True,
+        help_text="Background image for Stats section"
+    )
+
+    # Features Section
+    features_background_image = models.URLField(
+        blank=True,
+        help_text="Background image for Features section"
+    )
+
+    # Testimonials Section
+    testimonials_background_image = models.URLField(
+        blank=True,
+        help_text="Background image for Testimonials section"
+    )
+
+    # KilicareBet Preview Section
+    kilicarebet_background_image = models.URLField(
+        blank=True,
+        help_text="Background image for KilicareBet Preview section"
+    )
+
+    # Pricing Section
+    pricing_background_image = models.URLField(
+        blank=True,
+        help_text="Background image for Pricing section"
+    )
+
+    # Download Section
+    download_background_image = models.URLField(
+        blank=True,
+        help_text="Background image for Download section"
+    )
+
     # Experience Cards
     serengeti_image = models.URLField(
         blank=True,
         help_text="Image for Serengeti Safari experience card"
-    )
-    kilimanjaro_image = models.URLField(
-        blank=True,
-        help_text="Image for Kilimanjaro Trek experience card"
     )
     zanzibar_image = models.URLField(
         blank=True,
@@ -193,7 +225,8 @@ class Testimonial(models.Model):
     # User info
     name = models.CharField(max_length=100, help_text="Full name of the reviewer")
     role = models.CharField(max_length=100, help_text="Role/Title (e.g., Travel Blogger, Local Guide)")
-    avatar_letter = models.CharField(max_length=1, help_text="First letter for avatar")
+    avatar = models.URLField(blank=True, help_text="Avatar image URL (Cloudinary)")
+    avatar_letter = models.CharField(max_length=1, blank=True, help_text="First letter for avatar (fallback)")
 
     # Review content
     text = models.TextField(help_text="Review text/testimonial")

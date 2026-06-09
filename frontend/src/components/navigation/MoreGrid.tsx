@@ -35,6 +35,7 @@ const FEATURE_COLORS: { [key: string]: { gradient: string; glow: string; text: s
   'admin-moderation': { gradient: 'from-purple-600/20 to-violet-500/10', glow: 'rgba(147, 51, 234, 0.3)', text: 'text-purple-400' },
   'admin-sos': { gradient: 'from-rose-600/20 to-pink-500/10', glow: 'rgba(225, 29, 72, 0.3)', text: 'text-rose-400' },
   'admin-landing': { gradient: 'from-amber-600/20 to-yellow-500/10', glow: 'rgba(217, 119, 6, 0.3)', text: 'text-amber-400' },
+  'admin-testimonials': { gradient: 'from-pink-600/20 to-rose-500/10', glow: 'rgba(236, 72, 153, 0.3)', text: 'text-pink-400' },
   'admin-b2b': { gradient: 'from-teal-600/20 to-cyan-500/10', glow: 'rgba(13, 148, 136, 0.3)', text: 'text-teal-400' },
 }
 
@@ -136,6 +137,13 @@ const ADMIN_FEATURES: MoreFeature[] = [
     description: 'Manage landing page',
     Icon: Star,
     href: '/admin/landing-page',
+  },
+  {
+    id: 'admin-testimonials',
+    label: 'Testimonials',
+    description: 'Manage testimonials',
+    Icon: Star,
+    href: '/admin/testimonials',
   },
   {
     id: 'admin-b2b',

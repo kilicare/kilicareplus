@@ -2,6 +2,13 @@
 import { motion, useInView } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
 
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  }
+  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+}
+
 interface Stat {
   value: number
   suffix: string
@@ -52,11 +59,51 @@ function AnimatedNumber({ value, suffix }: { value: number; suffix: string }) {
 }
 
 export function StatsSection() {
+  const [statsBackground, setStatsBackground] = useState<string>('')
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.stats_background_image) {
+            setStatsBackground(data.stats_background_image)
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch landing page config, using default background')
+      }
+    }
+
+    fetchConfig()
+  }, [])
+
   return (
     <section
       className="py-20 lg:py-28 px-4 relative overflow-hidden"
-      style={{ background: '#050508' }}
+      style={{
+        background: statsBackground 
+          ? `url(${statsBackground}) center/cover no-repeat` 
+          : '#050508'
+      }}
     >
+      {/* Top gradient fade to blend with previous section */}
+      <div
+        className="absolute top-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, #050508, transparent)'
+        }}
+      />
+      {/* Dark overlay when using image background */}
+      {statsBackground && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(5,5,8,0.6)'
+          }}
+        />
+      )}
       {/* Top border gradient */}
       <div
         className="absolute top-0 left-0 right-0 h-px"
@@ -83,8 +130,8 @@ export function StatsSection() {
             Tunaongoza Afrika Mashariki
           </h2>
           <p
-            className="text-base mt-3 max-w-xl mx-auto"
-            style={{ color: 'rgba(255,255,255,0.55)' }}
+            className="text-lg mt-3 max-w-xl mx-auto font-semibold"
+            style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             KilicareGO+ inakua kwa kasi — data halisi kutoka kwenye platform yetu
           </p>
@@ -117,16 +164,23 @@ export function StatsSection() {
               >
                 <AnimatedNumber value={stat.value} suffix={stat.suffix} />
               </p>
-              <p className="text-xs font-bold text-white/80 leading-tight mb-0.5">
+              <p className="text-xs font-bold text-white/95 leading-tight mb-0.5">
                 {stat.label}
               </p>
-              <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>
                 {stat.sublabel}
               </p>
             </motion.div>
           ))}
         </div>
       </div>
+      {/* Bottom gradient fade to blend with next section */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, #050508, transparent)'
+        }}
+      />
     </section>
   )
 }

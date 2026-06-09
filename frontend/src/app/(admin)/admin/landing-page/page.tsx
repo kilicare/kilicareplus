@@ -29,8 +29,13 @@ export default function LandingPageAdmin() {
   const [saving, setSaving] = useState(false)
   const [config, setConfig] = useState({
     cta_background_image: '',
+    stats_background_image: '',
+    features_background_image: '',
+    testimonials_background_image: '',
+    kilicarebet_background_image: '',
+    pricing_background_image: '',
+    download_background_image: '',
     serengeti_image: '',
-    kilimanjaro_image: '',
     zanzibar_image: '',
     ngorongoro_image: '',
   })
@@ -114,23 +119,23 @@ export default function LandingPageAdmin() {
         </div>
 
         <div className="space-y-6">
-          {/* CTA Background */}
+          {/* Hero Background */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-bg-surface border border-border-subtle rounded-2xl p-6"
           >
             <h2 className="text-xl font-bold text-text-primary mb-4">
-              CTA Background Image
+              Hero Background Image
             </h2>
             <ImageUploader
               currentImage={config.cta_background_image}
               onImageUpload={(url) => handleImageUpload('cta_background_image', url)}
-              label="Upload CTA Background"
+              label="Upload Hero Background"
             />
           </motion.div>
 
-          {/* Experience Cards */}
+          {/* Stats Background */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -138,18 +143,115 @@ export default function LandingPageAdmin() {
             className="bg-bg-surface border border-border-subtle rounded-2xl p-6"
           >
             <h2 className="text-xl font-bold text-text-primary mb-4">
+              Stats Background Image
+            </h2>
+            <ImageUploader
+              currentImage={config.stats_background_image}
+              onImageUpload={(url) => handleImageUpload('stats_background_image', url)}
+              label="Upload Stats Background"
+            />
+          </motion.div>
+
+          {/* Features Background */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-bg-surface border border-border-subtle rounded-2xl p-6"
+          >
+            <h2 className="text-xl font-bold text-text-primary mb-4">
+              Features Background Image
+            </h2>
+            <ImageUploader
+              currentImage={config.features_background_image}
+              onImageUpload={(url) => handleImageUpload('features_background_image', url)}
+              label="Upload Features Background"
+            />
+          </motion.div>
+
+          {/* Testimonials Background */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-bg-surface border border-border-subtle rounded-2xl p-6"
+          >
+            <h2 className="text-xl font-bold text-text-primary mb-4">
+              Testimonials Background Image
+            </h2>
+            <ImageUploader
+              currentImage={config.testimonials_background_image}
+              onImageUpload={(url) => handleImageUpload('testimonials_background_image', url)}
+              label="Upload Testimonials Background"
+            />
+          </motion.div>
+
+          {/* KilicareBet Background */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="bg-bg-surface border border-border-subtle rounded-2xl p-6"
+          >
+            <h2 className="text-xl font-bold text-text-primary mb-4">
+              KilicareBet Preview Background Image
+            </h2>
+            <ImageUploader
+              currentImage={config.kilicarebet_background_image}
+              onImageUpload={(url) => handleImageUpload('kilicarebet_background_image', url)}
+              label="Upload KilicareBet Background"
+            />
+          </motion.div>
+
+          {/* Pricing Background */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-bg-surface border border-border-subtle rounded-2xl p-6"
+          >
+            <h2 className="text-xl font-bold text-text-primary mb-4">
+              Pricing Background Image
+            </h2>
+            <ImageUploader
+              currentImage={config.pricing_background_image}
+              onImageUpload={(url) => handleImageUpload('pricing_background_image', url)}
+              label="Upload Pricing Background"
+            />
+          </motion.div>
+
+          {/* Download Background */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="bg-bg-surface border border-border-subtle rounded-2xl p-6"
+          >
+            <h2 className="text-xl font-bold text-text-primary mb-4">
+              Download Background Image
+            </h2>
+            <ImageUploader
+              currentImage={config.download_background_image}
+              onImageUpload={(url) => handleImageUpload('download_background_image', url)}
+              label="Upload Download Background"
+            />
+          </motion.div>
+
+          {/* Experience Cards */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-bg-surface border border-border-subtle rounded-2xl p-6"
+          >
+            <h2 className="text-xl font-bold text-text-primary mb-4">
               Experience Card Images
             </h2>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-3 gap-6">
               <ImageUploader
                 currentImage={config.serengeti_image}
                 onImageUpload={(url) => handleImageUpload('serengeti_image', url)}
                 label="Serengeti Safari"
-              />
-              <ImageUploader
-                currentImage={config.kilimanjaro_image}
-                onImageUpload={(url) => handleImageUpload('kilimanjaro_image', url)}
-                label="Kilimanjaro Trek"
               />
               <ImageUploader
                 currentImage={config.zanzibar_image}

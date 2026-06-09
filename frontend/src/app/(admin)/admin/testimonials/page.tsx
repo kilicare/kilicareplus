@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Edit, Trash2, Save, Loader2, ArrowLeft, ExternalLink, Star } from 'lucide-react'
+import { Plus, Edit, Trash2, Save, Loader2, ArrowLeft, ExternalLink, Star, Upload, X } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -18,6 +18,7 @@ interface Testimonial {
   id: number
   name: string
   role: string
+  avatar: string
   avatar_letter: string
   color: string
   rating: number
@@ -33,6 +34,7 @@ interface Testimonial {
 interface FormData {
   name: string
   role: string
+  avatar: string
   avatar_letter: string
   color: string
   rating: number
@@ -53,6 +55,7 @@ export default function TestimonialsAdmin() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     role: '',
+    avatar: '',
     avatar_letter: '',
     color: '#F5A623',
     rating: 5,
@@ -129,6 +132,7 @@ export default function TestimonialsAdmin() {
     setFormData({
       name: testimonial.name,
       role: testimonial.role,
+      avatar: testimonial.avatar || '',
       avatar_letter: testimonial.avatar_letter,
       color: testimonial.color,
       rating: testimonial.rating,
@@ -168,6 +172,7 @@ export default function TestimonialsAdmin() {
     setFormData({
       name: '',
       role: '',
+      avatar: '',
       avatar_letter: '',
       color: '#F5A623',
       rating: 5,
@@ -291,6 +296,14 @@ export default function TestimonialsAdmin() {
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-white/60 mb-2">Avatar Image</label>
+                <AvatarUploader
+                  currentAvatar={formData.avatar}
+                  onAvatarUpload={(url: string) => setFormData({ ...formData, avatar: url })}
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-white/60 mb-2">Location *</label>
                 <input
                   type="text"
@@ -385,12 +398,20 @@ export default function TestimonialsAdmin() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-black text-black"
-                      style={{ background: testimonial.color }}
-                    >
-                      {testimonial.avatar_letter}
-                    </div>
+                    {testimonial.avatar ? (
+                      <img
+                        src={testimonial.avatar}
+                        alt={testimonial.name}
+                        className="w-10 h-10 rounded-xl object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-black text-black"
+                        style={{ background: testimonial.color }}
+                      >
+                        {testimonial.avatar_letter}
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-black text-white">{testimonial.name}</p>
                       <p className="text-xs text-white/60">{testimonial.role}</p>
@@ -450,6 +471,105 @@ export default function TestimonialsAdmin() {
           </motion.div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function AvatarUploader({ currentAvatar, onAvatarUpload }: { currentAvatar: string; onAvatarUpload: (url: string) => void }) {
+  const [isUploading, setIsUploading] = useState(false)
+  const [preview, setPreview] = useState<string | null>(currentAvatar || null)
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const accessToken = localStorage.getItem('kili_access_token')
+      if (!accessToken) {
+        alert('Authentication required')
+        return
+      }
+
+      const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/upload-image/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: formData,
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        console.error('Upload error:', data)
+        alert(`Upload failed: ${data.error || 'Unknown error'}`)
+        return
+      }
+      
+      if (data.secure_url) {
+        setPreview(data.secure_url)
+        onAvatarUpload(data.secure_url)
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Failed to upload image. Please try again.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleRemove = () => {
+    setPreview(null)
+    onAvatarUpload('')
+  }
+
+  return (
+    <div>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        className="hidden"
+        id="avatar-upload"
+      />
+      
+      {preview ? (
+        <div className="relative group w-20 h-20">
+          <img
+            src={preview}
+            alt="Avatar preview"
+            className="w-full h-full object-cover rounded-full"
+          />
+          <button
+            onClick={handleRemove}
+            className="absolute top-0 right-0 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      ) : (
+        <label
+          htmlFor="avatar-upload"
+          className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-white/20 rounded-full cursor-pointer hover:border-gold/50 transition-colors bg-white/5"
+        >
+          {isUploading ? (
+            <div className="text-center">
+              <Loader2 size={16} className="animate-spin text-gold mx-auto mb-1" />
+              <p className="text-[10px] text-white/60">Uploading...</p>
+            </div>
+          ) : (
+            <>
+              <Upload size={16} className="text-white/40 mb-1" />
+              <p className="text-[10px] text-white/40">Upload</p>
+            </>
+          )}
+        </label>
+      )}
     </div>
   )
 }

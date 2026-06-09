@@ -5,20 +5,34 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   generateEtags: true,
-  output: 'standalone',
-  // Turbopack disabled due to enqueueModel bug in Next.js 16.2.6
-  // Using webpack for stability and production readiness
+  turbopack: {},
 
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
-      { protocol: 'http',  hostname: 'localhost', port: '8000', pathname: '/media/**' },
-      { protocol: 'https', hostname: 'res.cloudinary.com',  pathname: '/**' },
-      { protocol: 'https', hostname: '*.cloudinary.com',    pathname: '/**' },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8000',
+        pathname: '/media/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ? `${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}.cloudinary.com` : 'dqgdsuok7.cloudinary.com',
+        pathname: '/**',
+      },
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
-    imageSizes:  [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60 * 60 * 24 * 30,
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 
   experimental: {
@@ -62,28 +76,11 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-
-  webpack: (config, { dev, isServer }) => {
-    if (!dev && !isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            framerMotion: { test: /[\\/]node_modules[\\/]framer-motion[\\/]/, name: 'framer-motion', chunks: 'all' },
-            recharts:     { test: /[\\/]node_modules[\\/]recharts[\\/]/,      name: 'recharts',      chunks: 'all' },
-            mapbox:       { test: /[\\/]node_modules[\\/]mapbox-gl[\\/]/,     name: 'mapbox',        chunks: 'all' },
-          },
-        },
-      }
-    }
-    return config
-  },
 }
 
 export default withPWA({
   dest: 'public',
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
+  disable: true, // Disabled in development to prevent cache issues
 })(nextConfig)
