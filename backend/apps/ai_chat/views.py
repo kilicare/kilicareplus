@@ -318,7 +318,8 @@ def preferences_view(request):
             'daily_message_count': pref.daily_message_count,
         })
     lang = request.data.get('preferred_language', pref.preferred_language)
-    if lang in ('sw', 'en'):
+    valid_langs = ('sw', 'en', 'fr', 'es', 'de', 'ar', 'zh')
+    if lang in valid_langs:
         pref.preferred_language = lang
         pref.save(update_fields=['preferred_language'])
     return Response({'preferred_language': pref.preferred_language})

@@ -38,7 +38,15 @@ class AIMessage(models.Model):
 
 
 class UserAIPreference(models.Model):
-    LANG_CHOICES = [('sw', 'Kiswahili'), ('en', 'English')]
+    LANG_CHOICES = [
+        ('sw', 'Kiswahili'),
+        ('en', 'English'),
+        ('fr', 'Français'),
+        ('es', 'Español'),
+        ('de', 'Deutsch'),
+        ('ar', 'العربية'),
+        ('zh', '中文'),
+    ]
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

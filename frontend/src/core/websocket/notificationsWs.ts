@@ -1,4 +1,8 @@
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL
+
+if (!WS_URL) {
+  throw new Error('❌ Missing NEXT_PUBLIC_WS_URL environment variable')
+}
 
 type Handler = (data: Record<string, unknown>) => void
 

@@ -6,14 +6,9 @@ import { Upload, X, Save, Loader2, ArrowLeft } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-
-// Type-safe environment variable access
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  }
-  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
+import { ConfigService } from '@/services/config.service'
+import { apiClient } from '@/lib/apiClient'
+import { ENDPOINTS } from '@/lib/endpoints'
 
 const getCloudinaryCloudName = () => {
   if (typeof window !== 'undefined') {
@@ -51,11 +46,8 @@ export default function LandingPageAdmin() {
 
   async function fetchConfig() {
     try {
-      const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
-      if (response.ok) {
-        const data = await response.json()
-        setConfig(data)
-      }
+      const data = await ConfigService.getLandingPageConfig()
+      setConfig(data)
     } catch (error) {
       console.error('Failed to fetch config:', error)
     } finally {
@@ -66,21 +58,9 @@ export default function LandingPageAdmin() {
   async function handleSave() {
     setSaving(true)
     try {
-      const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/update/`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('kili_access_token')}`,
-        },
-        body: JSON.stringify(config),
-      })
-
-      if (response.ok) {
-        console.log('✅ Landing page configuration saved successfully')
-        console.log('Updated at:', new Date().toISOString())
-      } else {
-        console.error('❌ Failed to save configuration')
-      }
+      await apiClient.put(ENDPOINTS.ADMIN_LANDING_PAGE_UPDATE, config)
+      console.log('✅ Landing page configuration saved successfully')
+      console.log('Updated at:', new Date().toISOString())
     } catch (error) {
       console.error('❌ Failed to save config:', error)
     } finally {
@@ -328,7 +308,7 @@ function ImageUploader({ currentImage, onImageUpload, label }: { currentImage: s
         return
       }
 
-      const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/upload-image/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin-ops/landing-page/upload-image/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,

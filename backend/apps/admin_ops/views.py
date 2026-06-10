@@ -586,17 +586,27 @@ def update_landing_page_config_view(request):
         if not config:
             config = LandingPageConfig.objects.create()
         
-        # Update fields
-        config.cta_background_image = request.data.get('cta_background_image', config.cta_background_image)
-        config.stats_background_image = request.data.get('stats_background_image', config.stats_background_image)
-        config.features_background_image = request.data.get('features_background_image', config.features_background_image)
-        config.testimonials_background_image = request.data.get('testimonials_background_image', config.testimonials_background_image)
-        config.kilicarebet_background_image = request.data.get('kilicarebet_background_image', config.kilicarebet_background_image)
-        config.pricing_background_image = request.data.get('pricing_background_image', config.pricing_background_image)
-        config.download_background_image = request.data.get('download_background_image', config.download_background_image)
-        config.serengeti_image = request.data.get('serengeti_image', config.serengeti_image)
-        config.zanzibar_image = request.data.get('zanzibar_image', config.zanzibar_image)
-        config.ngorongoro_image = request.data.get('ngorongoro_image', config.ngorongoro_image)
+        # Update fields - handle empty strings to allow clearing images
+        if 'cta_background_image' in request.data:
+            config.cta_background_image = request.data.get('cta_background_image')
+        if 'stats_background_image' in request.data:
+            config.stats_background_image = request.data.get('stats_background_image')
+        if 'features_background_image' in request.data:
+            config.features_background_image = request.data.get('features_background_image')
+        if 'testimonials_background_image' in request.data:
+            config.testimonials_background_image = request.data.get('testimonials_background_image')
+        if 'kilicarebet_background_image' in request.data:
+            config.kilicarebet_background_image = request.data.get('kilicarebet_background_image')
+        if 'pricing_background_image' in request.data:
+            config.pricing_background_image = request.data.get('pricing_background_image')
+        if 'download_background_image' in request.data:
+            config.download_background_image = request.data.get('download_background_image')
+        if 'serengeti_image' in request.data:
+            config.serengeti_image = request.data.get('serengeti_image')
+        if 'zanzibar_image' in request.data:
+            config.zanzibar_image = request.data.get('zanzibar_image')
+        if 'ngorongoro_image' in request.data:
+            config.ngorongoro_image = request.data.get('ngorongoro_image')
         config.updated_by = request.user
         config.save()
 
@@ -662,9 +672,88 @@ def public_stats_view(request):
 def public_testimonials_view(request):
     """Public testimonials for landing page — no auth required"""
     try:
-        testimonials = Testimonial.objects.filter(
+        # Try to get featured testimonials first
+        featured_testimonials = Testimonial.objects.filter(
             is_featured=True
         ).order_by('display_order', '-created_at')[:6]
+
+        # If no featured testimonials, fall back to all testimonials
+        if not featured_testimonials.exists():
+            all_testimonials = Testimonial.objects.all().order_by('display_order', '-created_at')[:6]
+            if all_testimonials.exists():
+                testimonials = all_testimonials
+            else:
+                # If DB is completely empty, return fallback
+                return Response([
+                    {
+                        'id': 1,
+                        'name': 'Sarah Mitchell',
+                        'role': 'Travel Blogger, USA 🇺🇸',
+                        'avatar': 'S',
+                        'color': '#F5A623',
+                        'rating': 5,
+                        'text': 'KilicareGO+ changed how I explore Tanzania. The AI guide answered every question in perfect English, and the SOS feature gave me peace of mind hiking Kilimanjaro. Absolutely world-class app!',
+                        'location': 'Kilimanjaro Trek',
+                        'profile_url': '',
+                    },
+                    {
+                        'id': 2,
+                        'name': 'Abdullah Al-Rashid',
+                        'role': 'Adventure Tourist, UAE 🇦🇪',
+                        'avatar': 'A',
+                        'color': '#10B981',
+                        'rating': 5,
+                        'text': 'Nilipata guide bora kabisa kupitia app hii. Booking ilikuwa rahisi, malipo ya M-Pesa yalifanya kazi vizuri, na uzoefu wa Serengeti ulikuwa bora zaidi ya ndoto yangu.',
+                        'location': 'Serengeti Safari',
+                        'profile_url': '',
+                    },
+                    {
+                        'id': 3,
+                        'name': 'Amara Diallo',
+                        'role': 'Local Guide, Zanzibar 🇹🇿',
+                        'avatar': 'A',
+                        'color': '#3B82F6',
+                        'rating': 5,
+                        'text': 'As a local guide, KilicareGO+ transformed my business. I get 10x more bookings, the payment protection system protects me and my clients, and the insights show me where to improve.',
+                        'location': 'Zanzibar Tours',
+                        'profile_url': '',
+                    },
+                    {
+                        'id': 4,
+                        'name': 'Chen Wei',
+                        'role': 'Digital Nomad, China 🇨🇳',
+                        'avatar': 'C',
+                        'color': '#8B5CF6',
+                        'rating': 5,
+                        'text': 'The moment feed is amazing — I could see real experiences from other tourists before booking. The KilicareBet predictions were surprisingly accurate for Tanzania Premier League!',
+                        'location': 'Dar es Salaam',
+                        'profile_url': '',
+                    },
+                    {
+                        'id': 5,
+                        'name': 'Fatima Nkrumah',
+                        'role': 'Business Traveler, Ghana 🇬🇭',
+                        'avatar': 'F',
+                        'color': '#EC4899',
+                        'rating': 5,
+                        'text': 'Safari bora kabisa Afrika! Nimesafiri nchi 23 lakini Tanzania na KilicareGO+ ilikuwa tofauti kabisa. App inaelewa utamaduni wetu na lugha yetu.',
+                        'location': 'Arusha & Zanzibar',
+                        'profile_url': '',
+                    },
+                    {
+                        'id': 6,
+                        'name': 'Marco Rossi',
+                        'role': 'Photographer, Italy 🇮🇹',
+                        'avatar': 'M',
+                        'color': '#F59E0B',
+                        'rating': 5,
+                        'text': 'The Moments feed helped me find incredible photography spots. Connected with a local guide through chat, booked instantly via M-Pesa. Shot the most beautiful wildlife photos of my career.',
+                        'location': 'Ngorongoro Crater',
+                        'profile_url': '',
+                    },
+                ])
+        else:
+            testimonials = featured_testimonials
 
         return Response([
             {
@@ -712,7 +801,7 @@ def public_testimonials_view(request):
                 'avatar': 'A',
                 'color': '#3B82F6',
                 'rating': 5,
-                'text': 'As a local guide, KilicareGO+ transformed my business. I get 10x more bookings, the escrow system protects me and my clients, and the analytics show me where to improve.',
+                'text': 'As a local guide, KilicareGO+ transformed my business. I get 10x more bookings, the payment protection system protects me and my clients, and the insights show me where to improve.',
                 'location': 'Zanzibar Tours',
                 'profile_url': '',
             },

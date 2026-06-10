@@ -34,7 +34,7 @@ export function PWAInstallBanner() {
         }}
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
+        exit={{ y: 100, opacity: 0, background: 'rgba(0,0,0,0)' }}
         transition={{ type: 'spring', stiffness: 280, damping: 28 }}
       >
         {/* App icon */}

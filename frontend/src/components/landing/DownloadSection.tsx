@@ -3,13 +3,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Smartphone, Globe, Download } from 'lucide-react'
 import { useState, useEffect } from 'react'
-
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  }
-  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
+import { ConfigService } from '@/services/config.service'
 
 export function DownloadSection() {
   const [downloadBackground, setDownloadBackground] = useState<string>('')
@@ -17,12 +11,9 @@ export function DownloadSection() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.download_background_image) {
-            setDownloadBackground(data.download_background_image)
-          }
+        const data = await ConfigService.getLandingPageConfig()
+        if (data.download_background_image) {
+          setDownloadBackground(data.download_background_image)
         }
       } catch (error) {
         console.warn('Failed to fetch landing page config, using default background')
@@ -83,7 +74,7 @@ export function DownloadSection() {
               color: '#F5A623',
             }}
           >
-            📱 Progressive Web App — Sakinisha Sasa!
+            📱 Modern App Experience — Sakinisha Sasa!
           </div>
 
           <h2 className="text-4xl lg:text-6xl font-black text-white mb-6 leading-tight">
@@ -105,8 +96,8 @@ export function DownloadSection() {
             className="text-xl mb-12 max-w-2xl mx-auto font-semibold"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
-            KilicareGO+ ni Progressive Web App — sakinisha moja kwa moja kwenye
-            simu yako bila kupitia App Store. Haraka, offline-ready, na lightweight.
+            KilicareGO+ inafanya kazi kama app ya kweli — sakinisha moja kwa moja kwenye
+            simu yako bila kupitia App Store. Haraka, inafanya kazi bila mtandao, na ndogo ukubwa.
           </p>
 
           {/* Options */}

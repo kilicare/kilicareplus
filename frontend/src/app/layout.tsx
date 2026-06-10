@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Providers } from '@/components/Providers'
+import { validateEnv } from '@/lib/env'
 import './globals.css'
+
+// Validate environment variables on app startup
+validateEnv()
 
 const inter = Inter({
   subsets: ['latin'],

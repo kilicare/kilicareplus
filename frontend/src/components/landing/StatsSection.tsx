@@ -1,13 +1,7 @@
 'use client'
 import { motion, useInView } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
-
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  }
-  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
+import { ConfigService } from '@/services/config.service'
 
 interface Stat {
   value: number
@@ -23,7 +17,7 @@ const STATS: Stat[] = [
   { value: 350,   suffix: '+', label: 'Guides Waliothibitishwa', sublabel: 'verified experts', icon: '🧭', color: '#10B981' },
   { value: 8500,  suffix: '+', label: 'Moments Zilishirikiwa',  sublabel: 'kila wiki',        icon: '📸', color: '#3B82F6' },
   { value: 23,    suffix: '',  label: 'Miji ya Tanzania',       sublabel: 'yanafunikwa',      icon: '📍', color: '#8B5CF6' },
-  { value: 99.9,  suffix: '%', label: 'Uptime wa App',          sublabel: 'SOS always on',    icon: '🆘', color: '#FF2D2D' },
+  { value: 99.9,  suffix: '%', label: 'Uaminifu wa App',          sublabel: 'SOS inatumika kila wakati',    icon: '🆘', color: '#FF2D2D' },
   { value: 4.8,   suffix: '★', label: 'Rating ya Wastani',      sublabel: '1,247 tathmini',   icon: '⭐', color: '#F59E0B' },
 ]
 
@@ -64,12 +58,9 @@ export function StatsSection() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.stats_background_image) {
-            setStatsBackground(data.stats_background_image)
-          }
+        const data = await ConfigService.getLandingPageConfig()
+        if (data.stats_background_image) {
+          setStatsBackground(data.stats_background_image)
         }
       } catch (error) {
         console.warn('Failed to fetch landing page config, using default background')

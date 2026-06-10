@@ -134,8 +134,8 @@ export function FooterSection() {
             {[
               { emoji: '🔒', label: 'SSL Secured' },
               { emoji: '💳', label: 'M-Pesa Daraja' },
-              { emoji: '🤖', label: 'Groq AI' },
-              { emoji: '🗺️', label: 'Mapbox' },
+              { emoji: '🤖', label: 'Smart AI' },
+              { emoji: '🗺️', label: 'Smart Maps' },
             ].map((b) => (
               <div
                 key={b.label}

@@ -234,7 +234,7 @@ export const aiService = {
     return data
   },
 
-  async updatePreferences(lang: 'sw' | 'en') {
+  async updatePreferences(lang: 'sw' | 'en' | 'fr' | 'es' | 'de' | 'ar' | 'zh') {
     const { data } = await api.put('/api/ai/preferences/', {
       preferred_language: lang,
     })

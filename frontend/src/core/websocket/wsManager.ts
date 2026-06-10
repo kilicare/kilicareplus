@@ -15,13 +15,11 @@ function normalizeBaseUrl(url: string) {
 }
 
 function getDefaultWsUrl() {
-  if (typeof window === 'undefined') {
-    return 'ws://localhost:8000'
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL
+  if (!wsUrl) {
+    throw new Error('❌ Missing NEXT_PUBLIC_WS_URL environment variable')
   }
-  const host = window.location.host
-  return window.location.protocol === 'https:'
-    ? `wss://${host}`
-    : `ws://${host}`
+  return wsUrl
 }
 
 const WS_URL = RAW_WS_URL ? normalizeBaseUrl(RAW_WS_URL) : getDefaultWsUrl()

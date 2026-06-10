@@ -2,13 +2,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  }
-  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
+import { ConfigService } from '@/services/config.service'
 
 const FEATURES = [
   {
@@ -16,7 +10,7 @@ const FEATURES = [
     title:   'Feed ya Moments',
     desc:    'Tazama na shiriki uzoefu wa kweli wa Tanzania kwa scroll kama TikTok. Double-tap kupenda.',
     color:   '#F5A623',
-    tag:     'TikTok-style',
+    tag:     'fullscreen-style',
     demo:    '/feed',
   },
   {
@@ -24,7 +18,7 @@ const FEATURES = [
     title:   'AI Guide ya Tanzania',
     desc:    'Zungumza na AI inayojua Tanzania yote — Kiswahili au Kiingereza. Maswali yoyote, wakati wowote.',
     color:   '#10B981',
-    tag:     'Groq llama-3.3',
+    tag:     'Smart AI Guide',
     demo:    '/ai',
   },
   {
@@ -32,31 +26,31 @@ const FEATURES = [
     title:   'SOS Dharura',
     desc:    'Shika kitufe sekunde 3 — guides wa karibu wanaarifu mara moja. Salama Tanzania yote.',
     color:   '#FF2D2D',
-    tag:     'Real-time WebSocket',
+    tag:     'Instant Updates',
     demo:    '/sos',
   },
   {
     icon:    '🗺️',
     title:   'Ramani ya Maarifa',
-    desc:    'Tips za usalama, uzoefu, na maeneo — kwenye ramani ya giza ya Mapbox na markers za rangi.',
+    desc:    'Tips za usalama, uzoefu, na maeneo — kwenye ramani nzuri na markers za rangi.',
     color:   '#3B82F6',
-    tag:     'Mapbox Dark',
+    tag:     'Interactive Maps',
     demo:    '/map',
   },
   {
     icon:    '📅',
-    title:   'Booking na Escrow',
-    desc:    'Weka booking na guide verified. Malipo kwenye escrow — salama kabisa hadi uzoefu ukamilike.',
+    title:   'Booking na Malipo Salama',
+    desc:    'Weka booking na guide verified. Malipo yalindwa kabisa — salama hadi uzoefu ukamilike.',
     color:   '#8B5CF6',
-    tag:     'M-Pesa Escrow',
+    tag:     'Secure Payments',
     demo:    '/register',
   },
   {
     icon:    '🎯',
     title:   'KilicareBet Predictions',
-    desc:    'AI predictions za EPL, La Liga, na Bundesliga. Per-league models za XGBoost na ELO system.',
+    desc:    'AI predictions za EPL, La Liga, na Bundesliga. Advanced match analysis na league-specific insights.',
     color:   '#F59E0B',
-    tag:     'Elite V4 AI',
+    tag:     'Advanced AI',
     demo:    '/predictions',
   },
   {
@@ -70,7 +64,7 @@ const FEATURES = [
   {
     icon:    '🛍️',
     title:   'Virtual Showcase',
-    desc:    'Nunua bidhaa za asili za Tanzania moja kwa moja kwa mtengenezaji. Escrow ya 7% inakuhifadhi.',
+    desc:    'Nunua bidhaa za asili za Tanzania moja kwa moja kwa mtengenezaji. Payment protection inakuhifadhi.',
     color:   '#14B8A6',
     tag:     'E-Commerce',
     demo:    '/showcase',
@@ -83,12 +77,9 @@ export function FeaturesSection() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.features_background_image) {
-            setFeaturesBackground(data.features_background_image)
-          }
+        const data = await ConfigService.getLandingPageConfig()
+        if (data.features_background_image) {
+          setFeaturesBackground(data.features_background_image)
         }
       } catch (error) {
         console.warn('Failed to fetch landing page config, using default background')

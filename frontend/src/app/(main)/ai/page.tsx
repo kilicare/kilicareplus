@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Send, Mic, MicOff, Image as ImageIcon,
-  Plus, Trash2, Globe, ChevronLeft, Loader2,
+  Plus, Trash2, Globe, ChevronLeft, Loader2, ChevronDown,
 } from 'lucide-react'
 import { aiService, type AIThread, type AIMessage } from '@/services/ai.service'
 import { KiliButton } from '@/components/ui/KiliButton'
@@ -13,6 +13,19 @@ import { KiliBottomSheet } from '@/components/ui/KiliBottomSheet'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuthStore } from '@/stores/auth.store'
 import { cn } from '@/lib/utils'
+
+// ── Language config ─────────────────────────────────
+const LANGUAGES = {
+  sw: { name: 'Kiswahili', flag: '🇹🇿', code: 'sw' },
+  en: { name: 'English', flag: '🇬🇧', code: 'en' },
+  fr: { name: 'Français', flag: '🇫🇷', code: 'fr' },
+  es: { name: 'Español', flag: '🇪🇸', code: 'es' },
+  de: { name: 'Deutsch', flag: '🇩🇪', code: 'de' },
+  ar: { name: 'العربية', flag: '🇸🇦', code: 'ar' },
+  zh: { name: '中文', flag: '🇨🇳', code: 'zh' },
+} as const
+
+type LanguageCode = keyof typeof LANGUAGES
 
 // ── Typing animation ────────────────────────────────
 function TypingDots() {
@@ -56,7 +69,7 @@ function MessageBubble({ msg }: { msg: AIMessage & { streaming?: boolean; stream
       )}
       <div
         className={cn(
-          'max-w-[80%] px-4 py-3 rounded-3xl text-sm leading-relaxed',
+          'max-w-[85%] sm:max-w-[80%] lg:max-w-[75%] px-4 py-3 rounded-3xl text-sm leading-relaxed',
           isUser
             ? 'text-black font-medium'
             : 'text-text-primary'
@@ -68,9 +81,21 @@ function MessageBubble({ msg }: { msg: AIMessage & { streaming?: boolean; stream
           border: isUser ? 'none' : '1px solid rgba(255,255,255,0.08)',
           borderBottomRightRadius: isUser ? 8 : undefined,
           borderBottomLeftRadius: !isUser ? 8 : undefined,
+          wordBreak: 'break-word',
+          overflowWrap: 'break-word',
+          overflow: 'hidden',
         }}
       >
-        <p className="whitespace-pre-wrap prose-dark">{text}</p>
+        <p 
+          className="whitespace-pre-wrap prose-dark"
+          style={{
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word',
+            hyphens: 'auto',
+          }}
+        >
+          {text}
+        </p>
         {msg.streaming && (
           <span className="inline-block w-1 h-4 bg-gold ml-1 animate-pulse" />
         )}
@@ -168,9 +193,10 @@ export default function AIPage() {
   >([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
-  const [lang, setLang] = useState<'sw' | 'en'>('sw')
+  const [lang, setLang] = useState<LanguageCode>('sw')
   const [isRecording, setIsRecording] = useState(false)
   const [showThreads, setShowThreads] = useState(false)
+  const [showLangDropdown, setShowLangDropdown] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -298,14 +324,74 @@ export default function AIPage() {
     if (activeThreadId === id) newThread()
   }
 
-  const SUGGESTIONS = [
-    '🏔️ Kupanda Kilimanjaro?',
-    '🏖️ Pwani nzuri Zanzibar?',
-    '🦁 Safari Serengeti',
-    '🍛 Chakula cha Tanzania',
-    '🚕 Usafiri Dar es Salaam',
-    '🌊 Pemba Island',
-  ]
+  const SUGGESTIONS: Record<LanguageCode, string[]> = {
+    sw: [
+      '🏔️ Kupanda Kilimanjaro?',
+      '🏖️ Pwani nzuri Zanzibar?',
+      '🦁 Safari Serengeti',
+      '🍛 Chakula cha Tanzania',
+      '🚕 Usafiri Dar es Salaam',
+      '🌊 Pemba Island',
+    ],
+    en: [
+      '🏔️ Climb Kilimanjaro?',
+      '🏖️ Best beaches Zanzibar?',
+      '🦁 Serengeti Safari',
+      '🍛 Tanzanian food',
+      '🚕 Transport Dar es Salaam',
+      '🌊 Pemba Island',
+    ],
+    fr: [
+      '🏔️ Grimper Kilimanjaro?',
+      '🏖️ Meilleures plages Zanzibar?',
+      '🦁 Safari Serengeti',
+      '🍛 Cuisine tanzanienne',
+      '🚕 Transport Dar es Salaam',
+      '🌊 Île Pemba',
+    ],
+    es: [
+      '🏔️ Escalar Kilimanjaro?',
+      '🏖️ Mejores playas Zanzíbar?',
+      '🦁 Safari Serengueti',
+      '🍛 Comida tanzana',
+      '🚕 Transporte Dar es Salaam',
+      '🌊 Isla Pemba',
+    ],
+    de: [
+      '🏔️ Kilimandscharo besteigen?',
+      '🏖️ Beste Strände Sansibar?',
+      '🦁 Safari Serengeti',
+      '🍛 Tansanische Küche',
+      '🚕 Verkehr Daressalam',
+      '🌊 Insel Pemba',
+    ],
+    ar: [
+      '🏔️ تسلق كليمنجارو؟',
+      '🏖️ أفضل شواطئ زنجبار؟',
+      '🦁 سفاري سيرينجيتي',
+      '🍛 المطبخ التنزاني',
+      '🚕 النقل في دار السلام',
+      '🌊 جزيرة بيمبا',
+    ],
+    zh: [
+      '🏔️ 攀登乞力马扎罗山？',
+      '🏖️ 桑给巴尔最佳海滩？',
+      '🦁 塞伦盖蒂游猎',
+      '🍛 坦桑尼亚美食',
+      '🚕 达累斯萨拉姆交通',
+      '🌊 奔巴岛',
+    ],
+  }
+
+  const PLACEHOLDERS: Record<LanguageCode, string> = {
+    sw: 'Uliza swali lolote la Tanzania...',
+    en: 'Ask anything about Tanzania...',
+    fr: 'Posez n\'importe quelle question sur la Tanzanie...',
+    es: 'Pregunta cualquier cosa sobre Tanzania...',
+    de: 'Fragen Sie alles über Tansania...',
+    ar: 'اسأل أي شيء عن تنزانيا...',
+    zh: '询问关于坦桑尼亚的任何问题...',
+  }
 
   return (
     <div className="flex h-dvh bg-bg-base overflow-hidden">
@@ -362,20 +448,75 @@ export default function AIPage() {
             </p>
           </div>
 
-          {/* Language toggle */}
-          <motion.button
-            onClick={() => setLang(lang === 'sw' ? 'en' : 'sw')}
-            whileTap={{ scale: 0.9 }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
-            style={{
-              background: 'rgba(245,166,35,0.1)',
-              border: '1px solid rgba(245,166,35,0.3)',
-              color: '#F5A623',
-            }}
-          >
-            <Globe size={14} />
-            {lang === 'sw' ? '🇹🇿 SW' : '🇬🇧 EN'}
-          </motion.button>
+          {/* Language selector */}
+          <div className="relative">
+            <motion.button
+              onClick={() => setShowLangDropdown(!showLangDropdown)}
+              whileTap={{ scale: 0.9 }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
+              style={{
+                background: 'rgba(245,166,35,0.1)',
+                border: '1px solid rgba(245,166,35,0.3)',
+                color: '#F5A623',
+              }}
+            >
+              <Globe size={14} />
+              {LANGUAGES[lang].flag} {LANGUAGES[lang].code.toUpperCase()}
+              <ChevronDown size={12} />
+            </motion.button>
+            
+            {/* Language dropdown */}
+            <AnimatePresence>
+              {showLangDropdown && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowLangDropdown(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    className="absolute right-0 top-full mt-2 w-48 rounded-2xl z-50 overflow-hidden"
+                    style={{
+                      background: 'rgba(26,26,36,0.98)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      backdropFilter: 'blur(20px)',
+                    }}
+                  >
+                    {Object.entries(LANGUAGES).map(([code, config]) => (
+                      <motion.button
+                        key={code}
+                        onClick={() => {
+                          setLang(code as LanguageCode)
+                          setShowLangDropdown(false)
+                        }}
+                        whileTap={{ scale: 0.95 }}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors',
+                          lang === code ? 'bg-gold/10' : 'hover:bg-white/5'
+                        )}
+                      >
+                        <span className="text-xl">{config.flag}</span>
+                        <span className={cn(
+                          'font-medium',
+                          lang === code ? 'text-gold' : 'text-text-primary'
+                        )}>
+                          {config.name}
+                        </span>
+                        <span className="text-xs text-text-muted ml-auto">
+                          {config.code.toUpperCase()}
+                        </span>
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* Messages */}
@@ -402,7 +543,7 @@ export default function AIPage() {
               </p>
               {/* Suggestion chips */}
               <div className="flex flex-wrap gap-2 justify-center max-w-sm">
-                {SUGGESTIONS.map((s) => (
+                {SUGGESTIONS[lang].map((s: string) => (
                   <motion.button
                     key={s}
                     onClick={() => setInput(s.replace(/[🏔️🏖️🦁🍛🚕🌊]\s/, ''))}
@@ -427,16 +568,19 @@ export default function AIPage() {
               {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
                 <div className="flex gap-3">
                   <div
-                    className="w-8 h-8 rounded-2xl flex items-center justify-center text-lg"
+                    className="w-8 h-8 rounded-2xl flex items-center justify-center text-lg flex-shrink-0"
                     style={{ background: 'var(--gradient-gold)' }}
                   >
                     K
                   </div>
                   <div
-                    className="px-4 py-2 rounded-3xl rounded-bl-sm"
+                    className="px-4 py-2 rounded-3xl rounded-bl-sm max-w-[85%] sm:max-w-[80%] lg:max-w-[75%]"
                     style={{
                       background: 'rgba(26,26,36,0.9)',
                       border: '1px solid rgba(255,255,255,0.08)',
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word',
+                      overflow: 'hidden',
                     }}
                   >
                     <TypingDots />
@@ -478,14 +622,14 @@ export default function AIPage() {
                   sendMessage()
                 }
               }}
-              placeholder={
-                lang === 'sw'
-                  ? 'Uliza swali lolote la Tanzania...'
-                  : 'Ask anything about Tanzania...'
-              }
+              placeholder={PLACEHOLDERS[lang]}
               rows={1}
               className="flex-1 bg-transparent text-sm text-text-primary outline-none resize-none max-h-28 leading-relaxed"
-              style={{ minHeight: 24 }}
+              style={{ 
+                minHeight: 24,
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+              }}
             />
 
             {/* Voice */}

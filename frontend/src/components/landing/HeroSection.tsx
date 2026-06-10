@@ -1,8 +1,11 @@
 'use client'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion, useTransform } from 'framer-motion'
 import Link from 'next/link'
-import { useRef, useState, useEffect } from 'react'
-import { ArrowRight, Star, Shield, Zap } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowRight } from 'lucide-react'
+import { useIsMounted } from '@/hooks/useIsMounted'
+import { useSafeScroll } from '@/hooks/useSafeScroll'
+import { ConfigService } from '@/services/config.service'
 
 const PILLS = [
   { icon: '🦁', label: 'Serengeti' },
@@ -14,37 +17,24 @@ const PILLS = [
 ]
 
 const TRUST_BADGES = [
-  { icon: <Shield size={14} />, label: 'SOS Salama 24/7' },
-  { icon: <Star   size={14} />, label: '4.8★ Rating' },
-  { icon: <Zap    size={14} />, label: 'AI-Powered' },
+  { icon: '🛡️', label: 'SOS Salama 24/7' },
+  { icon: '⭐', label: '4.8★ Rating' },
+  { icon: '⚡', label: 'AI-Powered' },
 ]
 
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  }
-  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
-
 export function HeroSection() {
-  const ref = useRef<HTMLDivElement>(null)
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start start', 'end start'],
-  })
-  const y       = useTransform(scrollYProgress, [0, 1], ['0%', '30%'])
-  const opacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
+  const { ref, scroll } = useSafeScroll(['start start', 'end start'])
+  const y       = useTransform(scroll.scrollYProgress, [0, 1], ['0%', '30%'])
+  const opacity = useTransform(scroll.scrollYProgress, [0, 0.7], [1, 0])
   const [heroBackground, setHeroBackground] = useState<string>('')
+  const mounted = useIsMounted()
 
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.cta_background_image) {
-            setHeroBackground(data.cta_background_image)
-          }
+        const data = await ConfigService.getLandingPageConfig()
+        if (data.cta_background_image) {
+          setHeroBackground(data.cta_background_image)
         }
       } catch (error) {
         console.warn('Failed to fetch landing page config, using default background')
@@ -53,6 +43,26 @@ export function HeroSection() {
 
     fetchConfig()
   }, [])
+
+  // Prevent hydration mismatch by rendering skeleton on server
+  if (!mounted) {
+    return (
+      <section
+        className="relative min-h-screen flex flex-col items-center justify-center
+          overflow-hidden pt-20 pb-12 px-4"
+        style={{
+          background: 'linear-gradient(160deg,#050508 0%,#0A0A12 50%,#050508 100%)'
+        }}
+      >
+        <div className="relative z-10 max-w-5xl mx-auto text-center">
+          <div className="h-12 w-64 mx-auto mb-8 bg-gray-800/50 rounded-full animate-pulse" />
+          <div className="h-20 w-full mb-6 bg-gray-800/50 rounded animate-pulse" />
+          <div className="h-20 w-3/4 mx-auto mb-8 bg-gray-800/50 rounded animate-pulse" />
+          <div className="h-14 w-48 mx-auto bg-gray-800/50 rounded-2xl animate-pulse" />
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section

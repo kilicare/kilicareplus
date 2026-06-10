@@ -6,13 +6,8 @@ import { Plus, Edit, Trash2, Save, Loader2, ArrowLeft, ExternalLink, Star, Uploa
 import { useAuthStore } from '@/stores/auth.store'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  }
-  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
+import { apiClient } from '@/lib/apiClient'
+import { ENDPOINTS } from '@/lib/endpoints'
 
 interface Testimonial {
   id: number
@@ -77,16 +72,8 @@ export default function TestimonialsAdmin() {
 
   async function fetchTestimonials() {
     try {
-      const token = localStorage.getItem('kili_access_token')
-      const response = await fetch(`${getApiUrl()}/api/admin-ops/testimonials/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setTestimonials(data)
-      }
+      const data = await apiClient.get(ENDPOINTS.ADMIN_TESTIMONIALS)
+      setTestimonials(data)
     } catch (error) {
       console.error('Failed to fetch testimonials:', error)
     } finally {
@@ -97,29 +84,14 @@ export default function TestimonialsAdmin() {
   async function handleSave() {
     setSaving(true)
     try {
-      const token = localStorage.getItem('kili_access_token')
-      const url = editingId
-        ? `${getApiUrl()}/api/admin-ops/testimonials/${editingId}/`
-        : `${getApiUrl()}/api/admin-ops/testimonials/`
-
-      const method = editingId ? 'PUT' : 'POST'
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (response.ok) {
-        await fetchTestimonials()
-        resetForm()
-        console.log('✅ Testimonial saved successfully')
+      if (editingId) {
+        await apiClient.put(`${ENDPOINTS.ADMIN_TESTIMONIALS}${editingId}/`, formData)
       } else {
-        console.error('❌ Failed to save testimonial')
+        await apiClient.post(ENDPOINTS.ADMIN_TESTIMONIALS, formData)
       }
+      await fetchTestimonials()
+      resetForm()
+      console.log('✅ Testimonial saved successfully')
     } catch (error) {
       console.error('❌ Failed to save testimonial:', error)
     } finally {
@@ -148,20 +120,9 @@ export default function TestimonialsAdmin() {
     if (!confirm('Are you sure you want to delete this testimonial?')) return
 
     try {
-      const token = localStorage.getItem('kili_access_token')
-      const response = await fetch(`${getApiUrl()}/api/admin-ops/testimonials/${id}/`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        await fetchTestimonials()
-        console.log('✅ Testimonial deleted successfully')
-      } else {
-        console.error('❌ Failed to delete testimonial')
-      }
+      await apiClient.delete(`${ENDPOINTS.ADMIN_TESTIMONIALS}${id}/`)
+      await fetchTestimonials()
+      console.log('✅ Testimonial deleted successfully')
     } catch (error) {
       console.error('❌ Failed to delete testimonial:', error)
     }
@@ -495,7 +456,7 @@ function AvatarUploader({ currentAvatar, onAvatarUpload }: { currentAvatar: stri
         return
       }
 
-      const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/upload-image/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin-ops/landing-page/upload-image/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,

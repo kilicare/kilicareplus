@@ -3,13 +3,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Check } from 'lucide-react'
 import { useState, useEffect } from 'react'
-
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  }
-  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
+import { ConfigService } from '@/services/config.service'
 
 const PLANS = [
   {
@@ -42,8 +36,8 @@ const PLANS = [
       'Kila kitu cha Tourist',
       'Experiences bila kikomo',
       'Verified Badge ✓',
-      'Booking System na Escrow',
-      'Analytics ya kina',
+      'Booking System na Malipo Salama',
+      'Ripoti za kina',
       'Featured Placement 10x',
       'Virtual Showcase (500 items)',
       'AI Unlimited',
@@ -64,7 +58,7 @@ const PLANS = [
       'Value Bet signals zote',
       'WhatsApp alerts',
       'BTTS + Over 2.5 analysis',
-      'ELO comparison tool',
+      'Zana ya kulinganisha timu',
     ],
     cta:   'Jaribu Siku 14 Bure',
     href:  '/register',
@@ -77,12 +71,9 @@ export function PricingSection() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.pricing_background_image) {
-            setPricingBackground(data.pricing_background_image)
-          }
+        const data = await ConfigService.getLandingPageConfig()
+        if (data.pricing_background_image) {
+          setPricingBackground(data.pricing_background_image)
         }
       } catch (error) {
         console.warn('Failed to fetch landing page config, using default background')

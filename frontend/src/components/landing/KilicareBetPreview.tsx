@@ -2,13 +2,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  }
-  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
+import { ConfigService } from '@/services/config.service'
 
 const SAMPLE_MATCHES = [
   {
@@ -88,12 +82,9 @@ export function KilicareBetPreview() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.kilicarebet_background_image) {
-            setKilicarebetBackground(data.kilicarebet_background_image)
-          }
+        const data = await ConfigService.getLandingPageConfig()
+        if (data.kilicarebet_background_image) {
+          setKilicarebetBackground(data.kilicarebet_background_image)
         }
       } catch (error) {
         console.warn('Failed to fetch landing page config, using default background')
@@ -146,7 +137,7 @@ export function KilicareBetPreview() {
                 color: '#F5A623',
               }}
             >
-                🎯 AI-Powered Predictions — Pata Sasa
+                🎯 AI Predictions — Pata Sasa
             </div>
 
             <h2 className="text-4xl lg:text-5xl font-black text-white mb-4 leading-tight">
@@ -168,14 +159,14 @@ export function KilicareBetPreview() {
               className="text-xl mb-6 leading-relaxed font-semibold"
               style={{ color: 'rgba(255,255,255,0.9)' }}
             >
-              Modeli za XGBoost kwa kila ligi. EPL, La Liga, Bundesliga, na TPL —
+              Advanced match analysis kwa kila ligi. EPL, La Liga, Bundesliga, na TPL —
               uchanganuzi wa kina, signals za uhakika, na maamuzi yenye busara.
             </p>
 
             <div className="space-y-3 mb-8">
               {[
-                { icon: '🏆', label: 'Modeli za XGBoost kwa kila ligi' },
-                { icon: '📊', label: 'ELO Rating — usawa katika ligi zote' },
+                { icon: '🏆', label: 'Advanced match analysis kwa kila ligi' },
+                { icon: '📊', label: 'Team comparison — usawa katika ligi zote' },
                 { icon: '⚽', label: 'Signals: Over 2.5, BTTS, Value Bet' },
                 { icon: '🔥', label: 'STRONG / MEDIUM / WEAK / SKIP' },
                 { icon: '💰', label: 'Viungo vya betting (SportPesa, Betway)' },

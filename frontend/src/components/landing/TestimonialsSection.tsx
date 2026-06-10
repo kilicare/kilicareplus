@@ -1,13 +1,8 @@
 'use client'
 import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
-
-const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    return (window as any).NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  }
-  return (globalThis as any).process?.env?.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
+import { ConfigService } from '@/services/config.service'
+import { TestimonialsService } from '@/services/testimonials.service'
 
 interface Testimonial {
   id: number
@@ -49,7 +44,7 @@ const FALLBACK_TESTIMONIALS: Testimonial[] = [
     avatar: 'A',
     color: '#3B82F6',
     rating: 5,
-    text: 'As a local guide, KilicareGO+ transformed my business. I get 10x more bookings, the escrow system protects me and my clients, and the analytics show me where to improve.',
+    text: 'As a local guide, KilicareGO+ transformed my business. I get 10x more bookings, the payment protection system protects me and my clients, and the insights show me where to improve.',
     location: 'Zanzibar Tours',
   },
   {
@@ -88,19 +83,20 @@ export function TestimonialsSection() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>(FALLBACK_TESTIMONIALS)
   const [loading, setLoading] = useState(true)
   const [testimonialsBackground, setTestimonialsBackground] = useState<string>('')
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     const fetchTestimonials = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/admin-ops/public-testimonials/')
-        if (response.ok) {
-          const data = await response.json()
-          if (data && data.length > 0) {
-            setTestimonials(data)
-          }
+        const data = await TestimonialsService.getPublic()
+        if (data && data.length > 0) {
+          setTestimonials(data)
+        } else {
+          console.error('EMPTY TESTIMONIAL RESPONSE FROM API - No testimonials returned')
         }
       } catch (error) {
-        console.warn('Failed to fetch testimonials, using fallback:', error)
+        console.error('Failed to fetch testimonials, using fallback:', error)
+        setError(true)
       } finally {
         setLoading(false)
       }
@@ -108,12 +104,9 @@ export function TestimonialsSection() {
 
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${getApiUrl()}/api/admin-ops/landing-page/config/`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.testimonials_background_image) {
-            setTestimonialsBackground(data.testimonials_background_image)
-          }
+        const data = await ConfigService.getLandingPageConfig()
+        if (data.testimonials_background_image) {
+          setTestimonialsBackground(data.testimonials_background_image)
         }
       } catch (error) {
         console.warn('Failed to fetch landing page config, using default background')

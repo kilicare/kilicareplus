@@ -6,7 +6,7 @@ const STEPS = [
     step:   '01',
     icon:   '📱',
     title:  'Unda Akaunti Yako',
-    desc:   'Jiandikishe kama Tourist au Local Guide. OTP verification haraka — tayari kwa sekunde 30.',
+    desc:   'Jiandikishe kama Tourist au Local Guide. Uthibitisho wa haraka — tayari kwa sekunde 30.',
     color:  '#F5A623',
   },
   {
@@ -20,7 +20,7 @@ const STEPS = [
     step:   '03',
     icon:   '🤝',
     title:  'Unganika na Guides',
-    desc:   'Pata guide verified, ongea naye, weka booking salama na escrow ya M-Pesa.',
+    desc:   'Pata guide verified, ongea naye, weka booking salama na malipo salama ya M-Pesa.',
     color:  '#3B82F6',
   },
   {
