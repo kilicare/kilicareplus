@@ -2,33 +2,12 @@ import axios, {
   AxiosError,
   InternalAxiosRequestConfig,
 } from 'axios'
+import { tokenManager } from '@/core/auth/TokenManager'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 if (!API_URL) {
   throw new Error('❌ Missing NEXT_PUBLIC_API_URL environment variable')
-}
-
-// Token storage helpers
-const getAccessToken = () => {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('kili_access_token')
-}
-
-const getRefreshToken = () => {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('kili_refresh_token')
-}
-
-const setAccessToken = (token: string) => {
-  if (typeof window === 'undefined') return
-  localStorage.setItem('kili_access_token', token)
-}
-
-const clearTokens = () => {
-  if (typeof window === 'undefined') return
-  localStorage.removeItem('kili_access_token')
-  localStorage.removeItem('kili_refresh_token')
 }
 
 const api = axios.create({
@@ -56,7 +35,7 @@ const isPublicEndpoint = (url?: string): boolean => {
 // Request interceptor: Attach access token to Authorization header ONLY for protected endpoints
 api.interceptors.request.use(
   (config) => {
-    const accessToken = getAccessToken()
+    const accessToken = tokenManager.getAccessToken()
     const isPublic = isPublicEndpoint(config.url)
     
     // Only attach token if:
@@ -185,7 +164,7 @@ api.interceptors.response.use(
         })
         
         flush(err)
-        clearTokens()
+        tokenManager.clearTokens()
         
         // Redirect to login
         if (typeof window !== 'undefined') {
@@ -203,7 +182,7 @@ api.interceptors.response.use(
         })
         
         flush(err)
-        clearTokens()
+        tokenManager.clearTokens()
         
         if (typeof window !== 'undefined') {
           window.location.href = '/login'
@@ -232,12 +211,12 @@ api.interceptors.response.use(
       console.log('[API Interceptor] 🔄 Attempting token refresh (attempt 1)...')
       
       try {
-        const refreshToken = getRefreshToken()
+        const refreshToken = tokenManager.getRefreshToken()
         
         if (!refreshToken) {
           console.error('[API Interceptor] ❌ No refresh token found in localStorage')
           flush(err)
-          clearTokens()
+          tokenManager.clearTokens()
           
           if (typeof window !== 'undefined') {
             window.location.href = '/login'
@@ -263,7 +242,7 @@ api.interceptors.response.use(
         
         // Update access token in localStorage
         const newAccessToken = refreshResponse.data.access
-        setAccessToken(newAccessToken)
+        tokenManager.updateAccessToken(newAccessToken)
         
         console.log('[API Interceptor] ✅ New access token saved to localStorage')
         
@@ -292,7 +271,7 @@ api.interceptors.response.use(
         })
         
         flush(refreshError)
-        clearTokens()
+        tokenManager.clearTokens()
         
         // Refresh failed, redirect to login
         if (typeof window !== 'undefined') {

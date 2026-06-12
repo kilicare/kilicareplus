@@ -1,39 +1,6 @@
 import api from '@/core/api/axios'
 import type { AuthResponse, User } from '@/types'
-
-/**
- * Token Storage Helpers
- * 
- * Manage JWT tokens in localStorage
- */
-const tokenStorage = {
-  setTokens: (accessToken: string, refreshToken: string) => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem('kili_access_token', accessToken)
-    localStorage.setItem('kili_refresh_token', refreshToken)
-  },
-  
-  getAccessToken: () => {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem('kili_access_token')
-  },
-  
-  getRefreshToken: () => {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem('kili_refresh_token')
-  },
-  
-  clearTokens: () => {
-    if (typeof window === 'undefined') return
-    localStorage.removeItem('kili_access_token')
-    localStorage.removeItem('kili_refresh_token')
-  },
-  
-  hasTokens: () => {
-    if (typeof window === 'undefined') return false
-    return !!(localStorage.getItem('kili_access_token') && localStorage.getItem('kili_refresh_token'))
-  },
-}
+import { tokenManager } from '@/core/auth/TokenManager'
 
 /**
  * Authentication Service
@@ -84,7 +51,7 @@ export const authService = {
   async login(email: string, password: string): Promise<AuthResponse> {
     // CRITICAL: Clear stale auth state BEFORE authentication attempt
     // This prevents legacy token leakage and ensures clean login
-    tokenStorage.clearTokens()
+    tokenManager.clearTokens()
 
     try {
       const { data } = await api.post<AuthResponse>('/auth/login/', {
@@ -93,12 +60,12 @@ export const authService = {
       })
 
       // Store fresh tokens only after successful login
-      tokenStorage.setTokens(data.access, data.refresh)
+      tokenManager.setTokens(data.access, data.refresh)
 
       return data
     } catch (error: any) {
       // On login failure, ensure tokens remain cleared
-      tokenStorage.clearTokens()
+      tokenManager.clearTokens()
       throw error
     }
   },
@@ -106,10 +73,10 @@ export const authService = {
   async logout() {
     try {
       // Get refresh token before clearing
-      const refreshToken = tokenStorage.getRefreshToken()
+      const refreshToken = tokenManager.getRefreshToken()
 
       // Clear tokens from localStorage first (even if API call fails)
-      tokenStorage.clearTokens()
+      tokenManager.clearTokens()
 
       try {
         // Send refresh token to backend for blacklisting (optional)
@@ -230,7 +197,7 @@ export const authService = {
   async getMe(): Promise<User> {
     try {
       // Check if tokens exist before attempting
-      if (!tokenStorage.hasTokens()) {
+      if (!tokenManager.hasTokens()) {
         throw new Error('No tokens found in localStorage')
       }
 
@@ -268,6 +235,6 @@ export const authService = {
     }
   },
 
-  // Export token storage for direct access if needed
-  tokenStorage,
+  // Export tokenManager for direct access if needed
+  tokenManager,
 }

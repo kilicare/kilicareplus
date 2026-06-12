@@ -43,7 +43,7 @@ export interface MoreFeature {
   id: string
   label: string
   description?: string
-  Icon: React.ComponentType<{ size?: number; className?: string }>
+  Icon: any
   href: string
   badge?: string
   disabled?: boolean

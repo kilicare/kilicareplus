@@ -57,15 +57,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check auth token from cookie (set during login)
-  const token = request.cookies.get('kili_access')?.value
-
-  if (!token) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('next', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
-
+  // Middleware cannot access localStorage, so we skip server-side auth check
+  // Auth is handled client-side via TokenManager and AuthProvider
   return NextResponse.next()
 }
 

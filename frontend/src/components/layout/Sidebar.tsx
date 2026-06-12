@@ -86,7 +86,7 @@ export function Sidebar({
     isBell,
   }: {
     href: string
-    Icon?: React.ComponentType<{ size: number; strokeWidth: number }>
+    Icon?: any
     label: string
     isBell?: boolean
   }) {

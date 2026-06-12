@@ -1,4 +1,4 @@
-from rest_framework.throttling import UserRateThrottle
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 
 
 class FollowSpamThrottle(UserRateThrottle):
@@ -15,3 +15,24 @@ class NotificationSpamThrottle(UserRateThrottle):
 
 class MomentCreationThrottle(UserRateThrottle):
     scope = 'moment_creation'
+
+
+# Authentication throttles - Protect against brute force attacks
+class LoginThrottle(AnonRateThrottle):
+    scope = 'login'
+
+
+class RegisterThrottle(AnonRateThrottle):
+    scope = 'register'
+
+
+class TokenRefreshThrottle(AnonRateThrottle):
+    scope = 'token_refresh'
+
+
+class OTPThrottle(AnonRateThrottle):
+    scope = 'otp'
+
+
+class PasswordResetThrottle(AnonRateThrottle):
+    scope = 'password_reset'

@@ -14,7 +14,7 @@ from django.conf import settings as django_settings
 
 from rest_framework import status
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
@@ -22,7 +22,7 @@ from rest_framework.response import Response
 
 from rest_framework_simplejwt.tokens import RefreshToken
 
-
+from core.throttles import LoginThrottle, RegisterThrottle, TokenRefreshThrottle, OTPThrottle, PasswordResetThrottle
 
 from .models import User, OTPCode
 
@@ -189,9 +189,8 @@ def _send_otp(user, purpose):
 
 
 @api_view(['POST'])
-
 @permission_classes([AllowAny])
-
+@throttle_classes([RegisterThrottle])
 def register_view(request):
     try:
         serializer = RegisterSerializer(data=request.data)
@@ -221,9 +220,8 @@ def register_view(request):
 
 
 @api_view(['POST'])
-
 @permission_classes([AllowAny])
-
+@throttle_classes([LoginThrottle])
 def login_view(request):
 
     """
@@ -361,9 +359,8 @@ def login_view(request):
 
 
 @api_view(['POST'])
-
 @permission_classes([AllowAny])
-
+@throttle_classes([TokenRefreshThrottle])
 def token_refresh_view(request):
 
     """
@@ -489,9 +486,8 @@ def token_refresh_view(request):
 
 
 @api_view(['POST'])
-
 @permission_classes([AllowAny])
-
+@throttle_classes([OTPThrottle])
 def send_otp_view(request):
 
     email = request.data.get('email', '').lower().strip()
@@ -537,9 +533,8 @@ def send_otp_view(request):
 
 
 @api_view(['POST'])
-
 @permission_classes([AllowAny])
-
+@throttle_classes([OTPThrottle])
 def verify_otp_view(request):
 
     email = request.data.get('email', '').lower().strip()
@@ -725,7 +720,7 @@ def verify_otp_view(request):
 @api_view(['POST'])
 
 @permission_classes([AllowAny])
-
+@throttle_classes([PasswordResetThrottle])
 def forgot_password_view(request):
 
     """
@@ -775,9 +770,8 @@ def forgot_password_view(request):
 
 
 @api_view(['POST'])
-
 @permission_classes([AllowAny])
-
+@throttle_classes([OTPThrottle])
 def verify_forgot_otp_view(request):
 
     """
@@ -873,7 +867,7 @@ def verify_forgot_otp_view(request):
 @api_view(['POST'])
 
 @permission_classes([AllowAny])
-
+@throttle_classes([PasswordResetThrottle])
 def reset_password_view(request):
 
     """
@@ -1003,9 +997,8 @@ def reset_password_view(request):
 
 
 @api_view(['POST'])
-
 @permission_classes([AllowAny])
-
+@throttle_classes([PasswordResetThrottle])
 def password_reset_view(request):
 
     email = request.data.get('email', '').lower().strip()
@@ -1033,9 +1026,8 @@ def password_reset_view(request):
 
 
 @api_view(['POST'])
-
 @permission_classes([AllowAny])
-
+@throttle_classes([PasswordResetThrottle])
 def password_confirm_view(request):
 
     email = request.data.get('email', '').lower().strip()

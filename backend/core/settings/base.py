@@ -150,6 +150,12 @@ REST_FRAMEWORK = {
         'like_spam': '30/minute',
         'notif_spam': '60/minute',
         'moment_creation': '5/minute',
+        # Authentication throttles - Protect against brute force attacks
+        'login': '5/minute',
+        'register': '3/hour',
+        'token_refresh': '10/minute',
+        'otp': '10/minute',
+        'password_reset': '3/hour',
     }
 }
 

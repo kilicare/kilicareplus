@@ -231,6 +231,7 @@ function CreateMomentSheet({
   isOpen: boolean
   onClose: () => void
 }) {
+  const { user } = useAuthStore()
   const [file, setFile] = useState<File | null>(null)
   const [audio, setAudio] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -251,8 +252,69 @@ function CreateMomentSheet({
       if (audio) form.append('audio', audio)
       return momentsService.create(form)
     },
+    onMutate: async () => {
+      // Cancel ongoing feed queries to avoid overwriting optimistic update
+      await qc.cancelQueries({ queryKey: ['feed'] })
+      
+      // Snapshot previous feed data for rollback
+      const previousFeed = qc.getQueryData(['feed'])
+      
+      // Create temporary moment for optimistic update
+      const tempMoment = {
+        id: Date.now(), // Use number instead of string
+        posted_by_username: user?.username || '',
+        posted_by_avatar_url: user?.profile?.avatar_url || null,
+        posted_by_role: user?.role || 'TOURIST',
+        posted_by_verified: user?.is_verified || false,
+        media_url: preview ? URL.createObjectURL(file!) : null,
+        thumbnail_url: preview ? URL.createObjectURL(file!) : null,
+        audio_url: audioPreview ? URL.createObjectURL(audio!) : null,
+        media_type: file!.type.startsWith('video') ? 'video' : 'image',
+        caption: caption || null,
+        location: location || null,
+        latitude: null,
+        longitude: null,
+        views: 0,
+        shares: 0,
+        trending_score: 0,
+        like_count: 0,
+        is_liked: false,
+        is_saved: false,
+        trust_score: 0,
+        visibility: 'PUBLIC',
+        created_at: new Date().toISOString(),
+        is_optimistic: true, // Flag for optimistic update
+      }
+      
+      // Optimistically add new moment to feed cache
+      qc.setQueryData(['feed'], (old: any) => {
+        if (!old) return old
+        return {
+          ...old,
+          pages: [
+            {
+              results: [tempMoment, ...(old.pages?.[0]?.results || [])],
+              count: (old.pages?.[0]?.count || 0) + 1,
+              page: 1,
+              has_next: old.pages?.[0]?.has_next || false,
+            },
+            ...(old.pages?.slice(1) || []),
+          ],
+        }
+      })
+      
+      return { previousFeed }
+    },
+    onError: (error, variables, context) => {
+      // Rollback to previous feed data on error
+      if (context?.previousFeed) {
+        qc.setQueryData(['feed'], context.previousFeed)
+      }
+      toast.error('Imeshindwa kuchapisha')
+    },
     onSuccess: () => {
       toast.success('Moment imechapishwa! 🎉')
+      // Invalidate to get real data from server
       qc.invalidateQueries({ queryKey: ['feed'] })
       setFile(null)
       setAudio(null)
@@ -262,7 +324,10 @@ function CreateMomentSheet({
       setLocation('')
       onClose()
     },
-    onError: () => toast.error('Imeshindwa kuchapisha'),
+    onSettled: () => {
+      // Always refetch to ensure cache is in sync
+      qc.invalidateQueries({ queryKey: ['feed'] })
+    },
   })
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
