@@ -966,3 +966,413 @@ def admin_testimonial_detail_view(request, testimonial_id):
     elif request.method == 'DELETE':
         testimonial.delete()
         return Response({'message': 'Testimonial deleted successfully'})
+
+
+# ── Admin Payments & Subscriptions Views ─────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def admin_subscriptions_list_view(request):
+    """List all subscriptions with filtering"""
+    status_filter = request.query_params.get('status')
+    billing_filter = request.query_params.get('billing_cycle')
+    plan_filter = request.query_params.get('plan')
+    search = request.query_params.get('search', '')
+    page = int(request.query_params.get('page', 1))
+    
+    MAX_PAGE_SIZE = 100
+    DEFAULT_PAGE_SIZE = 20
+    page_size = int(request.query_params.get('page_size', DEFAULT_PAGE_SIZE))
+    page_size = min(max(page_size, 1), MAX_PAGE_SIZE)
+    
+    if page < 1:
+        page = 1
+
+    qs = UserSubscription.objects.select_related(
+        'user', 'plan'
+    ).order_by('-created_at')
+
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    if billing_filter:
+        qs = qs.filter(billing_cycle=billing_filter)
+    if plan_filter:
+        qs = qs.filter(plan__name=plan_filter)
+    if search:
+        qs = qs.filter(
+            Q(user__username__icontains=search) |
+            Q(user__email__icontains=search) |
+            Q(user__first_name__icontains=search)
+        )
+
+    total = qs.count()
+    offset = (page - 1) * page_size
+    subscriptions = qs[offset:offset + page_size]
+
+    data = []
+    for sub in subscriptions:
+        data.append({
+            'id': sub.id,
+            'user': {
+                'id': sub.user.id,
+                'username': sub.user.username,
+                'email': sub.user.email,
+                'first_name': sub.user.first_name,
+                'last_name': sub.user.last_name,
+                'role': sub.user.role,
+            },
+            'plan': {
+                'id': sub.plan.id,
+                'name': sub.plan.name,
+                'display_name': sub.plan.display_name,
+                'price_weekly': float(sub.plan.price_weekly) if sub.plan.price_weekly else None,
+                'price_monthly': float(sub.plan.price_monthly) if sub.plan.price_monthly else None,
+            },
+            'status': sub.status,
+            'billing_cycle': sub.billing_cycle,
+            'start_date': sub.start_date.isoformat(),
+            'end_date': sub.end_date.isoformat(),
+            'trial_end_date': sub.trial_end_date.isoformat() if sub.trial_end_date else None,
+            'auto_renew': sub.auto_renew,
+            'mpesa_subscription_id': sub.mpesa_subscription_id,
+            'stripe_subscription_id': sub.stripe_subscription_id,
+            'created_at': sub.created_at.isoformat(),
+            'cancelled_at': sub.cancelled_at.isoformat() if sub.cancelled_at else None,
+            'is_currently_active': sub.is_currently_active,
+        })
+
+    return Response({
+        'results': data,
+        'count': total,
+        'page': page,
+        'page_size': page_size,
+        'has_next': (offset + page_size) < total,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def admin_subscription_detail_view(request, subscription_id):
+    """Get subscription details"""
+    try:
+        sub = UserSubscription.objects.select_related('user', 'plan').get(id=subscription_id)
+    except UserSubscription.DoesNotExist:
+        return Response({'error': 'Subscription not found'}, status=404)
+
+    return Response({
+        'id': sub.id,
+        'user': {
+            'id': sub.user.id,
+            'username': sub.user.username,
+            'email': sub.user.email,
+            'first_name': sub.user.first_name,
+            'last_name': sub.user.last_name,
+            'role': sub.user.role,
+        },
+        'plan': {
+            'id': sub.plan.id,
+            'name': sub.plan.name,
+            'display_name': sub.plan.display_name,
+            'price_weekly': float(sub.plan.price_weekly) if sub.plan.price_weekly else None,
+            'price_monthly': float(sub.plan.price_monthly) if sub.plan.price_monthly else None,
+        },
+        'status': sub.status,
+        'billing_cycle': sub.billing_cycle,
+        'start_date': sub.start_date.isoformat(),
+        'end_date': sub.end_date.isoformat(),
+        'trial_end_date': sub.trial_end_date.isoformat() if sub.trial_end_date else None,
+        'auto_renew': sub.auto_renew,
+        'mpesa_subscription_id': sub.mpesa_subscription_id,
+        'stripe_subscription_id': sub.stripe_subscription_id,
+        'created_at': sub.created_at.isoformat(),
+        'cancelled_at': sub.cancelled_at.isoformat() if sub.cancelled_at else None,
+        'is_currently_active': sub.is_currently_active,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def admin_subscription_activate_view(request):
+    """Manually activate a subscription"""
+    user_id = request.data.get('user_id')
+    plan_name = request.data.get('plan_name')
+    billing_cycle = request.data.get('billing_cycle')
+
+    if not all([user_id, plan_name, billing_cycle]):
+        return Response({'error': 'Missing required fields'}, status=400)
+
+    try:
+        from apps.subscriptions.models import SubscriptionPlan
+        from apps.subscriptions.services import SubscriptionService
+
+        user = User.objects.get(id=user_id)
+        plan = SubscriptionPlan.objects.get(name=plan_name)
+
+        service = SubscriptionService()
+        subscription = service.create_subscription(
+            user=user,
+            plan=plan,
+            billing_cycle=billing_cycle
+        )
+
+        return Response({
+            'id': subscription.id,
+            'user': {
+                'id': subscription.user.id,
+                'username': subscription.user.username,
+            },
+            'plan': {
+                'name': subscription.plan.name,
+                'display_name': subscription.plan.display_name,
+            },
+            'status': subscription.status,
+            'billing_cycle': subscription.billing_cycle,
+            'start_date': subscription.start_date.isoformat(),
+            'end_date': subscription.end_date.isoformat(),
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def admin_subscription_cancel_view(request, subscription_id):
+    """Cancel a subscription"""
+    try:
+        sub = UserSubscription.objects.get(id=subscription_id)
+        sub.status = 'CANCELLED'
+        sub.cancelled_at = timezone.now()
+        sub.auto_renew = False
+        sub.save()
+
+        return Response({'message': 'Subscription cancelled successfully'})
+    except UserSubscription.DoesNotExist:
+        return Response({'error': 'Subscription not found'}, status=404)
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def admin_subscription_extend_view(request, subscription_id):
+    """Extend a subscription by X days"""
+    days = request.data.get('days', 30)
+
+    try:
+        sub = UserSubscription.objects.get(id=subscription_id)
+        sub.end_date = sub.end_date + timedelta(days=days)
+        sub.save()
+
+        return Response({
+            'id': sub.id,
+            'end_date': sub.end_date.isoformat(),
+        })
+    except UserSubscription.DoesNotExist:
+        return Response({'error': 'Subscription not found'}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def admin_payments_list_view(request):
+    """List all payments with filtering"""
+    status_filter = request.query_params.get('status')
+    subscription_filter = request.query_params.get('subscription_id')
+    search = request.query_params.get('search', '')
+    page = int(request.query_params.get('page', 1))
+    
+    MAX_PAGE_SIZE = 100
+    DEFAULT_PAGE_SIZE = 20
+    page_size = int(request.query_params.get('page_size', DEFAULT_PAGE_SIZE))
+    page_size = min(max(page_size, 1), MAX_PAGE_SIZE)
+    
+    if page < 1:
+        page = 1
+
+    qs = SubscriptionPayment.objects.select_related(
+        'subscription__user', 'subscription__plan'
+    ).order_by('-created_at')
+
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    if subscription_filter:
+        qs = qs.filter(subscription_id=subscription_filter)
+    if search:
+        qs = qs.filter(
+            Q(subscription__user__username__icontains=search) |
+            Q(subscription__user__email__icontains=search) |
+            Q(mpesa_transaction_code__icontains=search)
+        )
+
+    total = qs.count()
+    offset = (page - 1) * page_size
+    payments = qs[offset:offset + page_size]
+
+    data = []
+    for payment in payments:
+        data.append({
+            'id': payment.id,
+            'subscription': {
+                'id': payment.subscription.id,
+                'user': {
+                    'username': payment.subscription.user.username,
+                    'email': payment.subscription.user.email,
+                },
+                'plan': {
+                    'display_name': payment.subscription.plan.display_name,
+                },
+            },
+            'amount': float(payment.amount),
+            'currency': payment.currency,
+            'mpesa_transaction_code': payment.mpesa_transaction_code,
+            'mpesa_checkout_request_id': payment.mpesa_checkout_request_id,
+            'stripe_payment_intent_id': payment.stripe_payment_intent_id,
+            'status': payment.status,
+            'paid_at': payment.paid_at.isoformat() if payment.paid_at else None,
+            'created_at': payment.created_at.isoformat(),
+        })
+
+    return Response({
+        'results': data,
+        'count': total,
+        'page': page,
+        'page_size': page_size,
+        'has_next': (offset + page_size) < total,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def admin_payment_detail_view(request, payment_id):
+    """Get payment details"""
+    try:
+        payment = SubscriptionPayment.objects.select_related(
+            'subscription__user', 'subscription__plan'
+        ).get(id=payment_id)
+    except SubscriptionPayment.DoesNotExist:
+        return Response({'error': 'Payment not found'}, status=404)
+
+    return Response({
+        'id': payment.id,
+        'subscription': {
+            'id': payment.subscription.id,
+            'user': {
+                'username': payment.subscription.user.username,
+                'email': payment.subscription.user.email,
+            },
+            'plan': {
+                'display_name': payment.subscription.plan.display_name,
+            },
+        },
+        'amount': float(payment.amount),
+        'currency': payment.currency,
+        'mpesa_transaction_code': payment.mpesa_transaction_code,
+        'mpesa_checkout_request_id': payment.mpesa_checkout_request_id,
+        'stripe_payment_intent_id': payment.stripe_payment_intent_id,
+        'status': payment.status,
+        'paid_at': payment.paid_at.isoformat() if payment.paid_at else None,
+        'created_at': payment.created_at.isoformat(),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def admin_payment_refund_view(request, payment_id):
+    """Refund a payment"""
+    reason = request.data.get('reason', '')
+
+    try:
+        payment = SubscriptionPayment.objects.get(id=payment_id)
+        payment.status = 'REFUNDED'
+        payment.save()
+
+        return Response({
+            'id': payment.id,
+            'status': payment.status,
+        })
+    except SubscriptionPayment.DoesNotExist:
+        return Response({'error': 'Payment not found'}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def admin_payments_revenue_stats_view(request):
+    """Get revenue statistics for admin payments page"""
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # Total revenue this month
+    completed_payments = SubscriptionPayment.objects.filter(
+        status='COMPLETED',
+        paid_at__gte=month_start
+    )
+    total_this_month = completed_payments.aggregate(
+        total=Sum('amount')
+    )['total'] or 0
+
+    # Subscription revenue this month
+    subscription_revenue = completed_payments.aggregate(
+        total=Sum('amount')
+    )['total'] or 0
+
+    # Active subscriptions
+    active_subscriptions = UserSubscription.objects.filter(
+        status='ACTIVE',
+        end_date__gte=now.date()
+    ).count()
+
+    # Total subscriptions
+    total_subscriptions = UserSubscription.objects.count()
+
+    # Trial subscriptions
+    trial_subscriptions = UserSubscription.objects.filter(
+        status='TRIAL',
+        trial_end_date__gte=now.date()
+    ).count()
+
+    # Cancelled subscriptions
+    cancelled_subscriptions = UserSubscription.objects.filter(
+        status='CANCELLED'
+    ).count()
+
+    # Revenue by plan
+    revenue_by_plan = []
+    plans = completed_payments.values(
+        'subscription__plan__name'
+    ).annotate(
+        revenue=Sum('amount'),
+        count=Count('id')
+    ).order_by('-revenue')
+
+    for item in plans:
+        revenue_by_plan.append({
+            'plan_name': item['subscription__plan__name'],
+            'revenue': float(item['revenue']),
+            'count': item['count'],
+        })
+
+    # Monthly revenue (last 6 months)
+    monthly_revenue = []
+    for i in range(6):
+        month_start = (now - timedelta(days=30 * i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
+        
+        month_revenue = SubscriptionPayment.objects.filter(
+            status='COMPLETED',
+            paid_at__gte=month_start,
+            paid_at__lte=month_end
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        monthly_revenue.append({
+            'month': month_start.strftime('%B %Y'),
+            'revenue': float(month_revenue),
+        })
+
+    return Response({
+        'total_this_month': float(total_this_month),
+        'subscription_revenue_this_month': float(subscription_revenue),
+        'booking_fees_this_month': 0,  # No booking fees in subscriptions
+        'active_subscriptions': active_subscriptions,
+        'total_subscriptions': total_subscriptions,
+        'trial_subscriptions': trial_subscriptions,
+        'cancelled_subscriptions': cancelled_subscriptions,
+        'revenue_by_plan': revenue_by_plan,
+        'monthly_revenue': monthly_revenue,
+    })

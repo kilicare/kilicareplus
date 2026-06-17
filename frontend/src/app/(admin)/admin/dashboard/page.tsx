@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ChevronRight, TrendingUp, Users, Activity, DollarSign, Star } from 'lucide-react'
+import { ChevronRight, TrendingUp, Users, Activity, DollarSign, Star, CreditCard } from 'lucide-react'
 import api from '@/core/api/axios'
 import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { formatCurrency, formatCount } from '@/lib/utils'
@@ -37,6 +37,7 @@ export default function AdminDashboardPage() {
 
   const QUICK_LINKS = [
     { href: '/admin/users',      label: 'Watumiaji',   icon: Users,    color: '#3B82F6' },
+    { href: '/admin/payments',   label: 'Payments',   icon: CreditCard, color: '#10B981' },
     { href: '/admin/moderation', label: 'Moderation',  icon: Activity, color: '#F5A623' },
     { href: '/admin/sos-monitor',label: 'SOS Monitor', icon: TrendingUp, color: '#EF4444' },
     { href: '/admin/landing-page', label: 'Landing Page', icon: DollarSign, color: '#F59E0B' },

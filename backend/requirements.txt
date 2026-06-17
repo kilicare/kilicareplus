@@ -75,3 +75,4 @@ zope.interface==8.5
 sentry-sdk[django]==1.40.6
 celery[redis]==5.4.0
 django-celery-beat==2.6.0
+whitenoise==6.6.0

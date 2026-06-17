@@ -4,20 +4,23 @@ import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { authService } from '@/services/auth.service'
+import { tokenManager } from '@/core/auth/TokenManager'
+import { queryClient } from '@/lib/queryClient'
 
 /**
- * AuthProvider - Initializes authentication state on app load
+ * AuthProvider - Session bootstrap ONLY
  * 
  * CRITICAL COMPONENT: This must complete BEFORE any route decisions are made
  * 
  * Flow:
  * 1. Component mounts with isLoading=true
  * 2. Check if route is public (skip auth verification)
- * 3. If protected: Call /auth/me/ to verify HTTP-only JWT cookie
- * 4. If valid: setAuthState(user, true)
- * 5. If invalid (401): setAuthState(null, false)
- * 6. If network error: use cached auth state if available
- * 7. Finally: setLoading(false) → Routes can now redirect if needed
+ * 3. If protected: Get token from TokenManager
+ * 4. If no token → set isAuthenticated = false
+ * 5. If token exists → call /auth/me
+ * 6. If success: update auth.store with user + isAuthenticated=true
+ * 7. If fail: clear TokenManager + auth.store
+ * 8. Finally: setLoading(false) → Routes can now redirect if needed
  * 
  * TIMING IS CRITICAL:
  * - All routes check: if (isLoading) return <LoadingSpinner/>
@@ -27,12 +30,12 @@ import { authService } from '@/services/auth.service'
  * PUBLIC ROUTES: Skip loading state for /landing and other public routes
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setAuthState, setLoading, isLoading, user, isAuthenticated } = useAuthStore()
+  const { setUser, setAuthenticated, setLoading, isLoading } = useAuthStore()
   const pathname = usePathname()
   const hasInitialized = useRef(false)
   
   // Public routes that don't require auth verification
-  const publicRoutes = ['/landing', '/login', '/register']
+  const publicRoutes = ['/', '/landing', '/login', '/register']
   const isPublicRoute = publicRoutes.some(route => pathname?.startsWith(route))
 
   useEffect(() => {
@@ -56,20 +59,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Add timeout to prevent hanging
       const timeoutId = setTimeout(() => {
         console.warn('[AuthProvider] ⚠️  Auth verification timed out after 10 seconds')
-        // If we have cached auth state, use it instead of clearing
-        if (user && isAuthenticated) {
-          console.log('[AuthProvider] Using cached auth state due to timeout')
-          setLoading(false)
-        } else {
-          setLoading(false)
-        }
+        setLoading(false)
       }, 10000) // 10 second timeout
       
       try {
         console.log('[AuthProvider] Starting auth verification...')
         
-        // Call /auth/me/ to verify backend cookie authentication
-        // Backend validates the HTTP-only JWT cookie from browser
+        // Step 1: Get token from TokenManager
+        const token = tokenManager.getAccessToken()
+        
+        // Step 2: If no token → set isAuthenticated = false
+        if (!token) {
+          console.log('[AuthProvider] No token found in TokenManager')
+          setAuthenticated(false)
+          setLoading(false)
+          hasInitialized.current = true
+          clearTimeout(timeoutId)
+          return
+        }
+        
+        // Step 3: If token exists → call /auth/me
         const verifiedUser = await authService.getMe()
         
         // Clear timeout since we got a response
@@ -82,8 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: verifiedUser.email,
         })
         
-        // User is authenticated - set state
-        setAuthState(verifiedUser, true)
+        // Step 4: If success: update auth.store with user + isAuthenticated=true
+        setUser(verifiedUser)
+        setAuthenticated(true)
       } catch (error: any) {
         // Clear timeout since we got an error response
         clearTimeout(timeoutId)
@@ -92,37 +102,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const errorStatus = error?.response?.status || 'unknown'
         const errorMessage = error?.response?.data?.message || error?.message || 'Unknown error'
         
-        if (errorStatus === 401) {
-          console.log(
-            `[AuthProvider] ℹ️  User not authenticated (401) (${duration}ms)\n` +
-            `Reason: ${errorMessage}\n` +
-            `This is normal for users who haven't logged in.`
-          )
-          // 401 means tokens are invalid - clear auth state
-          setAuthState(null, false)
-        } else if (error?.isNetworkError || error?.isTimeout) {
-          console.warn(
-            `[AuthProvider] ⚠️  Network/timeout error during auth check (${duration}ms)\n` +
-            `Reason: ${errorMessage}\n` +
-            `Checking for cached auth state...`
-          )
-          // If we have cached auth state, use it instead of clearing
-          if (user && isAuthenticated) {
-            console.log('[AuthProvider] ✅ Using cached auth state due to network error')
-            setLoading(false)
-            return // Don't clear auth state
-          } else {
-            console.log('[AuthProvider] No cached auth state, clearing auth')
-            setAuthState(null, false)
-          }
-        } else {
-          console.warn(
-            `[AuthProvider] ⚠️  Auth check failed with error ${errorStatus} (${duration}ms)\n` +
-            `Reason: ${errorMessage}`
-          )
-          // Other errors - clear auth state for safety
-          setAuthState(null, false)
-        }
+        console.warn(
+          `[AuthProvider] ⚠️  Auth check failed with error ${errorStatus} (${duration}ms)\n` +
+          `Reason: ${errorMessage}`
+        )
+        
+        // Step 5: If fail: clear TokenManager + auth.store
+        tokenManager.clearTokens()
+        setAuthenticated(false)
       } finally {
         // CRITICAL: Mark auth verification as complete
         // Only after this, routes are allowed to redirect

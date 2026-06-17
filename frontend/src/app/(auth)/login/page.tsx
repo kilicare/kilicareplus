@@ -14,14 +14,15 @@ import { parseApiError } from '@/lib/utils'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { setAuth } = useAuthStore()
+  const { setUser, setAuthenticated } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   const loginMut = useMutation({
     mutationFn: () => authService.login(email, password),
     onSuccess: (data) => {
-      setAuth(data.user, data.access, data.refresh)
+      setUser(data.user)
+      setAuthenticated(true)
       toast.success(
         `Karibu ${data.user.first_name || data.user.username}! 🌍`
       )

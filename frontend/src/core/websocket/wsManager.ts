@@ -1,3 +1,5 @@
+import { tokenManager } from '@/core/auth/TokenManager'
+
 const RAW_WS_URL = process.env.NEXT_PUBLIC_WS_URL
 
 function normalizeBaseUrl(url: string) {
@@ -48,14 +50,16 @@ class WebSocketManager {
   private pingInterval: ReturnType<typeof setInterval> | null = null
   private lastMessageId: string | null = null
   private STORAGE_KEY = 'ws_connection_state'
+  private maxRetries = 5
+  private retryCount = 0
 
   connect(path: string) {
-    const token = localStorage.getItem('kili_access_token')
+    const token = tokenManager.getAccessToken()
     this.path = path
     this.url = buildWsUrl(path)
 
     if (token) {
-      this.url += this.url.includes('?') ? `&token=${encodeURIComponent(token)}` : `?token=${encodeURIComponent(token)}`
+      this.url += this.url.includes('?') ? `&kili_access_token=${encodeURIComponent(token)}` : `?kili_access_token=${encodeURIComponent(token)}`
     }
 
     // Save connection state for recovery
@@ -112,14 +116,31 @@ class WebSocketManager {
     }
   }
 
-  private _connect() {
+  private async _connect() {
     if (this.ws?.readyState === WebSocket.OPEN) return
+
+    // Validate token before connecting
+    if (!tokenManager.isTokenValid()) {
+      console.log('[WS] Token invalid, attempting refresh...')
+      const refreshed = await tokenManager.refreshIfPossible()
+      if (!refreshed) {
+        console.warn('[WS] Token refresh failed, skipping connection')
+        return
+      }
+      // Rebuild URL with fresh token
+      const token = tokenManager.getAccessToken()
+      this.url = buildWsUrl(this.path)
+      if (token) {
+        this.url += this.url.includes('?') ? `&kili_access_token=${encodeURIComponent(token)}` : `?kili_access_token=${encodeURIComponent(token)}`
+      }
+    }
 
     this.ws = new WebSocket(this.url)
 
     this.ws.onopen = () => {
-      console.log('[WS] Connected:', this.url)
+      console.log('[WS] Connected successfully:', this.url)
       this.reconnectDelay = 1000
+      this.retryCount = 0  // Reset retry count on successful connection
       this._startPing()
     }
 
@@ -138,15 +159,20 @@ class WebSocketManager {
         reason: e.reason,
         wasClean: e.wasClean,
         readyState: this.ws?.readyState,
+        retryCount: this.retryCount,
       })
       this._stopPing()
-      if (this.shouldReconnect) {
-        setTimeout(() => {
-          this.reconnectDelay = Math.min(
-            this.reconnectDelay * 2, this.maxDelay
-          )
-          this._connect()
+      if (this.shouldReconnect && this.retryCount < this.maxRetries) {
+        this.retryCount++
+        this.reconnectDelay = Math.min(
+          this.reconnectDelay * 2, this.maxDelay
+        )
+        console.log(`[WS] Reconnecting in ${this.reconnectDelay}ms (attempt ${this.retryCount}/${this.maxRetries})`)
+        setTimeout(async () => {
+          await this._connect()
         }, this.reconnectDelay)
+      } else if (this.retryCount >= this.maxRetries) {
+        console.error('[WS] Max retries reached, giving up')
       }
     }
 
@@ -155,6 +181,7 @@ class WebSocketManager {
         type: e.type,
         message: (e as ErrorEvent).message || 'WebSocket error',
         readyState: this.ws?.readyState,
+        url: this.url,
       })
     }
   }
@@ -173,7 +200,9 @@ class WebSocketManager {
   }
 
   disconnect() {
+    console.log('[WS] Disconnecting')
     this.shouldReconnect = false
+    this.retryCount = 0
     this._stopPing()
     this._clearConnectionState()
     this.ws?.close()
@@ -190,6 +219,33 @@ class WebSocketManager {
     if (this.pingInterval) {
       clearInterval(this.pingInterval)
       this.pingInterval = null
+    }
+  }
+
+  // Network state detection
+  private setupNetworkListeners() {
+    if (typeof window === 'undefined') return
+
+    const handleOnline = () => {
+      console.log('[WS] Network online, reconnecting...')
+      this.retryCount = 0
+      this.shouldReconnect = true
+      this.connect(this.path)
+    }
+
+    const handleOffline = () => {
+      console.log('[WS] Network offline, disconnecting...')
+      this.shouldReconnect = false
+      this.disconnect()
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // Return cleanup function
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
     }
   }
 }

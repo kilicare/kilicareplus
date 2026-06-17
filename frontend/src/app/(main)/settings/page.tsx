@@ -7,6 +7,7 @@ import {
   ChevronRight, ToggleLeft, Sun, Moon, Volume2, Zap, Shield, Smartphone, Mail,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
+import { performLogout } from '@/core/auth/logout'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
@@ -25,7 +26,7 @@ interface SettingItem {
 }
 
 export default function SettingsPage() {
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const router = useRouter()
 
   const [settings, setSettings] = useState({
@@ -50,7 +51,7 @@ export default function SettingsPage() {
   }
 
   const handleLogout = async () => {
-    await logout()
+    performLogout()
     router.push('/login')
   }
 

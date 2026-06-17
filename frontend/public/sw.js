@@ -100,9 +100,10 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome-extension
   if (url.protocol === 'chrome-extension:') return
 
-  // API requests — Network first, fallback cache
+  // NEVER cache ANY API endpoints - always fetch from network
+  // We use Token Manager for auth flow, not SW caching
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstStrategy(request))
+    event.respondWith(fetch(request))
     return
   }
 

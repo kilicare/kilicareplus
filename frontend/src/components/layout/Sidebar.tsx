@@ -24,10 +24,12 @@ import {
   AlertTriangle,
   Layout,
   Star,
+  CreditCard,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth.store'
+import { performLogout } from '@/core/auth/logout'
 import { authService } from '@/services/auth.service'
 import { KiliAvatar } from '@/components/ui/KiliAvatar'
 import { KiliBadge } from '@/components/ui/KiliBadge'
@@ -54,6 +56,7 @@ const CREATOR = [
 
 const ADMIN = [
   { href: '/admin/dashboard', Icon: Activity, label: 'Admin Dashboard' },
+  { href: '/admin/payments', Icon: CreditCard, label: 'Payments' },
   { href: '/admin/users', Icon: User, label: 'User Management' },
   { href: '/admin/moderation', Icon: Shield, label: 'Moderation' },
   { href: '/admin/sos-monitor', Icon: AlertTriangle, label: 'SOS Monitor' },
@@ -73,7 +76,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const { notificationCount } = useUIStore()
 
   const isGuide = user?.role === 'LOCAL_GUIDE'
@@ -98,6 +101,7 @@ export function Sidebar({
         <motion.div
           initial={false}
           whileTap={{ scale: 0.97 }}
+          style={{ background: 'transparent' }}
           className={cn(
             'flex items-center gap-3 py-2.5 rounded-xl transition-all relative',
             collapsed ? 'justify-center px-2' : 'px-3',
@@ -250,7 +254,7 @@ export function Sidebar({
                 onClick={async (e) => {
                   e.stopPropagation()
                   await authService.logout()
-                  logout()
+                  performLogout()
                   router.push('/login')
                 }}
                 className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500"

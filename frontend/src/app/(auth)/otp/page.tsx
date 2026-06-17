@@ -7,12 +7,13 @@ import { toast } from 'sonner'
 import { CheckCircle2, ChevronLeft } from 'lucide-react'
 import { authService } from '@/services/auth.service'
 import { useAuthStore } from '@/stores/auth.store'
+import { tokenManager } from '@/core/auth/TokenManager'
 import { KiliButton } from '@/components/ui/KiliButton'
 import { parseApiError } from '@/lib/utils'
 
 function OTPContent() {
   const router = useRouter()
-  const { setAuth } = useAuthStore()
+  const { setUser, setAuthenticated } = useAuthStore()
   const params = useSearchParams()
   const email = params.get('email') || ''
   const purpose = params.get('purpose') || 'EMAIL_VERIFY'
@@ -48,7 +49,9 @@ function OTPContent() {
           
           // Store tokens and update auth state
           if (data.access && data.refresh && data.user) {
-            setAuth(data.user, data.access, data.refresh)
+            tokenManager.setTokens(data.access, data.refresh)
+            setUser(data.user)
+            setAuthenticated(true)
             
             toast.success('Email imethibitishwa! Karibu! 🎉')
             console.log('[OTP] ✅ Redirecting to /feed')

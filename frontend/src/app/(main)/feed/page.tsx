@@ -23,6 +23,7 @@ import { useAudio } from '@/hooks/useAudio'
 import { useFeedAudio } from '@/hooks/useFeedAudio'
 import { useInViewport } from '@/hooks/useInViewport'
 import { useFeedSession } from '@/hooks/useFeedSession'
+import { tokenManager } from '@/core/auth/TokenManager'
 import Image from 'next/image'
 
 // ── Heart burst animation ───────────────────────────
@@ -950,6 +951,7 @@ function TouristFeedView({
   sessionId: string
 }) {
   const { isLoading: authLoading, isAuthenticated } = useAuthStore()
+  const { tokenManager } = require('@/core/auth/TokenManager')
   
   const {
     data,
@@ -965,8 +967,8 @@ function TouristFeedView({
     getNextPageParam: (last) =>
       last.has_next ? last.page + 1 : undefined,
     staleTime: 1000 * 15, // 15 seconds for more dynamic feed
-    // CRITICAL: Don't fetch until auth is loaded
-    enabled: !authLoading && isAuthenticated,
+    // CRITICAL: Don't fetch until auth is loaded AND tokens are available
+    enabled: !authLoading && isAuthenticated && tokenManager.hasTokens(),
   })
 
   const moments = useMemo(

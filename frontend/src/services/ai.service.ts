@@ -1,5 +1,6 @@
 import axios from 'axios'
 import api from '@/core/api/axios'
+import { tokenManager } from '@/core/auth/TokenManager'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -42,24 +43,19 @@ const mapErrorMessage = (backendError: string): string => {
 }
 
 const getAccessToken = () => {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('kili_access_token')
+  return tokenManager.getAccessToken()
 }
 
 const getRefreshToken = () => {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem('kili_refresh_token')
+  return tokenManager.getRefreshToken()
 }
 
 const setAccessToken = (token: string) => {
-  if (typeof window === 'undefined') return
-  localStorage.setItem('kili_access_token', token)
+  tokenManager.updateAccessToken(token)
 }
 
 const clearTokens = () => {
-  if (typeof window === 'undefined') return
-  localStorage.removeItem('kili_access_token')
-  localStorage.removeItem('kili_refresh_token')
+  tokenManager.clearTokens()
 }
 
 const logoutUser = () => {

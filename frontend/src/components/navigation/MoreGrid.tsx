@@ -31,6 +31,7 @@ const FEATURE_COLORS: { [key: string]: { gradient: string; glow: string; text: s
   settings: { gradient: 'from-slate-500/20 to-gray-500/10', glow: 'rgba(100, 116, 139, 0.3)', text: 'text-slate-300' },
   // Admin-specific colors
   'admin-dashboard': { gradient: 'from-red-600/20 to-rose-500/10', glow: 'rgba(220, 38, 38, 0.3)', text: 'text-red-400' },
+  'admin-payments': { gradient: 'from-green-600/20 to-emerald-500/10', glow: 'rgba(16, 185, 129, 0.3)', text: 'text-green-400' },
   'admin-users': { gradient: 'from-blue-600/20 to-indigo-500/10', glow: 'rgba(37, 99, 235, 0.3)', text: 'text-blue-400' },
   'admin-moderation': { gradient: 'from-purple-600/20 to-violet-500/10', glow: 'rgba(147, 51, 234, 0.3)', text: 'text-purple-400' },
   'admin-sos': { gradient: 'from-rose-600/20 to-pink-500/10', glow: 'rgba(225, 29, 72, 0.3)', text: 'text-rose-400' },
@@ -109,6 +110,13 @@ const ADMIN_FEATURES: MoreFeature[] = [
     description: 'System overview',
     Icon: Activity,
     href: '/admin/dashboard',
+  },
+  {
+    id: 'admin-payments',
+    label: 'Payments',
+    description: 'Revenue & subscriptions',
+    Icon: CreditCard,
+    href: '/admin/payments',
   },
   {
     id: 'admin-users',

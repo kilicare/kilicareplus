@@ -29,6 +29,8 @@ export interface ChatMessage {
   is_deleted: boolean
   reply_to: number | null
   timestamp: string
+  attachment: string | null
+  attachment_type: string | null
 }
 
 export const chatService = {
@@ -48,6 +50,32 @@ export const chatService = {
     const { data } = await api.post('/api/chat/start-dm/', {
       user_id: userId,
     })
+    return data
+  },
+
+  async getRoomByName(roomName: string): Promise<ChatContact | null> {
+    try {
+      const { data } = await api.get<ChatContact>(`/api/chat/room/${roomName}/`)
+      return data
+    } catch (error) {
+      console.error('[ChatService] Error getting room by name:', error)
+      return null
+    }
+  },
+
+  async uploadAttachment(file: File): Promise<{ url: string; path: string; type: string }> {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const { data } = await api.post<{ url: string; path: string; type: string }>(
+      '/api/chat/upload-attachment/',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    )
     return data
   },
 }

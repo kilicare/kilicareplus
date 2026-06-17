@@ -38,6 +38,16 @@ api.interceptors.request.use(
     const accessToken = tokenManager.getAccessToken()
     const isPublic = isPublicEndpoint(config.url)
     
+    // Log token presence for debugging
+    if (!isPublic) {
+      console.log('[API Request]', {
+        url: config.url,
+        hasToken: !!accessToken,
+        tokenPreview: accessToken ? `${accessToken.substring(0, 20)}...` : 'none',
+        isPublic
+      })
+    }
+    
     // Only attach token if:
     // 1. Token exists AND
     // 2. Endpoint is NOT public

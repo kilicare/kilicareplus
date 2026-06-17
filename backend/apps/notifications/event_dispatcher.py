@@ -10,6 +10,10 @@ class EventType:
     LIKE                  = 'LIKE'
     FOLLOW                = 'FOLLOW'
     SOS_RESPONSE          = 'SOS_RESPONSE'
+    SOS_CREATED           = 'SOS_CREATED'
+    SOS_RESOLVED          = 'SOS_RESOLVED'
+    SOS_CANCELLED         = 'SOS_CANCELLED'
+    SOS_ESCALATED         = 'SOS_ESCALATED'
     BOOKING_REQUEST       = 'BOOKING_REQUEST'
     BOOKING_CONFIRMED     = 'BOOKING_CONFIRMED'
     BOOKING_COMPLETED     = 'BOOKING_COMPLETED'
@@ -57,6 +61,22 @@ def _build_config(
         EventType.SOS_RESPONSE: (
             f'🆘 {name} anajibu SOS yako!',
             payload.get('message', 'Mtu anakusaidia — angalia sasa!')[:80],
+        ),
+        EventType.SOS_CREATED: (
+            f'🆘 SOS imetumwa!',
+            f'SOS {payload.get("severity", "HIGH")} — wasaidiji wanaarifiwa',
+        ),
+        EventType.SOS_RESOLVED: (
+            f'✅ SOS imesuluhishwa!',
+            f'SOS yako imesuluhishwa na {payload.get("resolved_by", "System")}',
+        ),
+        EventType.SOS_CANCELLED: (
+            f'❌ SOS imefutwa',
+            f'SOS yako imefutwa na {payload.get("cancelled_by", "System")}',
+        ),
+        EventType.SOS_ESCALATED: (
+            f'⚠️ SOS imepandishwa kiwango',
+            payload.get('reason', 'SOS imepelekwa kwa admin')[:80],
         ),
         EventType.BOOKING_REQUEST: (
             f'📅 Ombi jipya la booking kutoka {name}',

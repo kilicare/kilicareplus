@@ -43,6 +43,8 @@ class UserProfile(models.Model):
     )
     bio = models.TextField(max_length=300, blank=True, null=True)
     location = models.CharField(max_length=200, blank=True, null=True)
+    latitude = models.FloatField(blank=True, null=True)
+    longitude = models.FloatField(blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     gender = models.CharField(
         max_length=1, choices=GENDER_CHOICES, blank=True, null=True

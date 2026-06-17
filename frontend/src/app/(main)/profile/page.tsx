@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import type { User } from '@/types'
 import { useAuthStore } from '@/stores/auth.store'
+import { performLogout } from '@/core/auth/logout'
 import { authService } from '@/services/auth.service'
 import { momentsService } from '@/services/moments.service'
 import { tipsService } from '@/services/tips.service'
@@ -226,7 +227,7 @@ function FollowStats({
 
 // ── Main Profile Page ─────────────────────────────────
 function ProfileContent() {
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const router = useRouter()
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<'moments' | 'tips' | 'experiences'>('moments')

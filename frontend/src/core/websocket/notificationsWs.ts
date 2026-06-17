@@ -1,3 +1,5 @@
+import { tokenManager } from '@/core/auth/TokenManager'
+
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL
 
 if (!WS_URL) {
@@ -15,15 +17,29 @@ class NotificationsSocket {
   private url = ''
 
   connect() {
-    const token = localStorage.getItem('kili_access_token')
+    const token = tokenManager.getAccessToken()
     if (!token) return
     this.shouldReconnect = true
     this.url = `${WS_URL}/ws/notifications/?kili_access_token=${token}`
     this._connect()
   }
 
-  private _connect() {
+  private async _connect() {
     if (this.ws?.readyState === WebSocket.OPEN) return
+
+    // Validate token before connecting
+    if (!tokenManager.isTokenValid()) {
+      console.log('[NotificationsWS] Token invalid, attempting refresh...')
+      const refreshed = await tokenManager.refreshIfPossible()
+      if (!refreshed) {
+        console.warn('[NotificationsWS] Token refresh failed, skipping connection')
+        return
+      }
+      // Rebuild URL with fresh token
+      const token = tokenManager.getAccessToken()
+      if (!token) return
+      this.url = `${WS_URL}/ws/notifications/?kili_access_token=${token}`
+    }
 
     this.ws = new WebSocket(this.url)
 
@@ -42,9 +58,9 @@ class NotificationsSocket {
     this.ws.onclose = () => {
       this._stopPing()
       if (this.shouldReconnect) {
-        setTimeout(() => {
+        setTimeout(async () => {
           this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000)
-          this._connect()
+          await this._connect()
         }, this.reconnectDelay)
       }
     }

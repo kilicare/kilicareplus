@@ -32,4 +32,15 @@ urlpatterns = [
     # Testimonials Management (Admin)
     path('testimonials/',                    views.admin_testimonials_view),
     path('testimonials/<int:testimonial_id>/', views.admin_testimonial_detail_view),
+
+    # Payments & Subscriptions (Admin)
+    path('subscriptions/',                   views.admin_subscriptions_list_view),
+    path('subscriptions/<int:subscription_id>/', views.admin_subscription_detail_view),
+    path('subscriptions/activate/',          views.admin_subscription_activate_view),
+    path('subscriptions/<int:subscription_id>/cancel/', views.admin_subscription_cancel_view),
+    path('subscriptions/<int:subscription_id>/extend/', views.admin_subscription_extend_view),
+    path('payments/',                        views.admin_payments_list_view),
+    path('payments/<int:payment_id>/',       views.admin_payment_detail_view),
+    path('payments/<int:payment_id>/refund/', views.admin_payment_refund_view),
+    path('payments/revenue-stats/',          views.admin_payments_revenue_stats_view),
 ]

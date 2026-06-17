@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
+ import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
 
 export default function MainLayout({
   children,

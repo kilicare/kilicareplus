@@ -2,8 +2,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
-import { Send, ArrowLeft, Phone, MoreVertical, CheckCheck, LogOut } from 'lucide-react'
+import { Send, ArrowLeft, Phone, MoreVertical, Check, CheckCheck, LogOut, Paperclip, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { chatService, type ChatContact, type ChatMessage } from '@/services/chat.service'
 import { createWsManager } from '@/core/websocket/wsManager'
 import { KiliAvatar } from '@/components/ui/KiliAvatar'
@@ -12,6 +13,7 @@ import { KiliButton } from '@/components/ui/KiliButton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { useAuthStore } from '@/stores/auth.store'
+import { performLogout } from '@/core/auth/logout'
 import { timeAgo, cn } from '@/lib/utils'
 
 // ── Typing indicator ────────────────────────────────
@@ -75,7 +77,45 @@ function MsgBubble({
           border: isMe ? 'none' : '1px solid rgba(255,255,255,0.08)',
         }}
       >
-        <p className="leading-relaxed">{msg.content}</p>
+        {msg.attachment && (
+          <div className="mb-2">
+            {msg.attachment_type === 'image' && (
+              <img
+                src={msg.attachment}
+                alt="Attachment"
+                className="rounded-lg max-w-full h-auto max-h-64 sm:max-h-80 object-contain"
+                loading="lazy"
+              />
+            )}
+            {msg.attachment_type === 'video' && (
+              <video
+                src={msg.attachment}
+                controls
+                preload="metadata"
+                className="rounded-lg max-w-full h-auto max-h-64 sm:max-h-80"
+                playsInline
+              >
+                Your browser does not support the video tag.
+              </video>
+            )}
+            {msg.attachment_type === 'audio' && (
+              <audio src={msg.attachment} controls className="w-full" />
+            )}
+            {msg.attachment_type === 'file' && (
+              <a
+                href={msg.attachment}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-blue-400 hover:text-blue-300"
+              >
+                📎 Open file
+              </a>
+            )}
+          </div>
+        )}
+        {msg.content && (
+          <p className="leading-relaxed">{msg.content}</p>
+        )}
         <div className={cn(
           'flex items-center gap-1 mt-1',
           isMe ? 'justify-end' : 'justify-start'
@@ -86,10 +126,15 @@ function MsgBubble({
             })}
           </span>
           {isMe && (
-            <CheckCheck
-              size={12}
-              className={msg.is_read ? 'text-blue-400' : 'opacity-50'}
-            />
+            <>
+              {msg.is_delivered ? (
+                msg.is_read ? (
+                  <CheckCheck size={12} className="text-yellow-400" />
+                ) : (
+                  <Check size={12} className="text-gray-400" />
+                )
+              ) : null}
+            </>
           )}
         </div>
       </div>
@@ -113,6 +158,10 @@ function ChatWindow({
   const wsRef = useRef(createWsManager())
   const bottomRef = useRef<HTMLDivElement>(null)
   const isLoadingRef = useRef(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load history
   useEffect(() => {
@@ -169,11 +218,67 @@ function ChatWindow({
     }, 2000)
   }
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const text = input.trim()
-    if (!text) return
-    wsRef.current.send({ action: 'message', content: text })
+    const hasAttachment = selectedFile !== null
+    
+    if (!text && !hasAttachment) return
+    
+    let attachmentPath = null
+    let attachmentUrl = null
+    let attachmentType = null
+    
+    if (hasAttachment && selectedFile) {
+      setIsUploading(true)
+      try {
+        const uploadResult = await chatService.uploadAttachment(selectedFile)
+        attachmentPath = uploadResult.path  // Storage path for FileField
+        attachmentUrl = uploadResult.url    // URL for immediate display
+        attachmentType = uploadResult.type
+      } catch (error) {
+        console.error('[Chat] Upload failed:', error)
+        setIsUploading(false)
+        return
+      }
+      setIsUploading(false)
+    }
+    
+    wsRef.current.send({
+      action: 'message',
+      content: text,
+      attachment: attachmentPath,  // Send storage path to WebSocket
+      attachment_type: attachmentType,
+    })
+    
     setInput('')
+    setSelectedFile(null)
+    setPreviewUrl(null)
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setSelectedFile(file)
+    
+    // Create preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    } else {
+      setPreviewUrl(null)
+    }
+  }
+
+  const clearAttachment = () => {
+    setSelectedFile(null)
+    setPreviewUrl(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const other = contact.other_user
@@ -231,6 +336,42 @@ function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
+      {/* Media Preview - Above Input */}
+      {(previewUrl || (selectedFile && !previewUrl)) && (
+        <div className="flex-shrink-0 px-4 py-3 border-t bg-bg-elevated">
+          <div className="flex items-start gap-3">
+            <div className="relative flex-shrink-0">
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg object-cover border border-border-subtle"
+                />
+              ) : (
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-bg-base border border-border-subtle flex items-center justify-center">
+                  <span className="text-3xl">📎</span>
+                </div>
+              )}
+              <button
+                onClick={clearAttachment}
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 border-2 border-bg-elevated flex items-center justify-center"
+              >
+                <X size={12} className="text-white" />
+              </button>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-text-primary truncate">{selectedFile?.name}</p>
+              <p className="text-xs text-text-muted">
+                {(selectedFile?.size || 0) / 1024 < 1024
+                  ? `${Math.round((selectedFile?.size || 0) / 1024)} KB`
+                  : `${Math.round((selectedFile?.size || 0) / 1024 / 1024)} MB`}
+              </p>
+              <p className="text-xs text-gold mt-1">Ready to send</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div
         className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-t"
@@ -238,9 +379,22 @@ function ChatWindow({
           background: 'rgba(10,10,15,0.95)',
           backdropFilter: 'blur(20px)',
           borderColor: 'var(--border)',
-          paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+          paddingBottom: 'calc(max(12px, env(safe-area-inset-bottom)) + var(--bottom-nav-height))',
         }}
       >
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          className="hidden"
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="w-11 h-11 rounded-2xl flex items-center justify-center bg-bg-elevated border border-border-subtle hover:border-gold transition-colors"
+        >
+          <Paperclip size={18} className="text-text-muted" />
+        </button>
         <input
           value={input}
           onChange={(e) => { setInput(e.target.value); handleTyping() }}
@@ -250,12 +404,16 @@ function ChatWindow({
         />
         <motion.button
           onClick={sendMessage}
-          disabled={!input.trim()}
+          disabled={!input.trim() && !selectedFile}
           whileTap={{ scale: 0.88 }}
           className="w-11 h-11 rounded-2xl flex items-center justify-center disabled:opacity-40"
           style={{ background: 'var(--gradient-gold)' }}
         >
-          <Send size={18} className="text-black" />
+          {isUploading ? (
+            <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Send size={18} className="text-black" />
+          )}
         </motion.button>
       </div>
     </div>
@@ -363,7 +521,6 @@ function ContactsList({
 // ── Main Chat Page ──────────────────────────────────
 export default function ChatPage() {
   const router = useRouter()
-  const { clearAuth } = useAuthStore()
   const [activeContact, setActiveContact] = useState<ChatContact | null>(null)
 
   const { data: contacts = [], isLoading, error } = useQuery({
@@ -373,11 +530,52 @@ export default function ChatPage() {
     staleTime: 5000,
   })
 
+  // Handle ?room= query param for direct room opening
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const roomParam = searchParams.get('room')
+    
+    if (roomParam) {
+      // Try to find the contact with matching room_name
+      const matchingContact = contacts.find(c => c.room_name === roomParam)
+      
+      if (matchingContact) {
+        console.log('[Chat] Found matching contact for room:', roomParam)
+        setActiveContact(matchingContact)
+        // Clean up URL
+        window.history.replaceState({}, '', '/chat')
+      } else {
+        console.warn('[Chat] Room not found in contacts:', roomParam)
+        // Room might not be in contacts yet (new conversation from SOS)
+        // Try to fetch the room directly
+        const fetchRoom = async () => {
+          try {
+            const room = await chatService.getRoomByName(roomParam)
+            if (room) {
+              console.log('[Chat] Found room via direct fetch:', roomParam)
+              setActiveContact(room)
+              window.history.replaceState({}, '', '/chat')
+            } else {
+              console.error('[Chat] Room not found via direct fetch:', roomParam)
+              toast.error('Haiwezi kupata mazungumzo hayi. Tafadhali jaribu tena.')
+              window.history.replaceState({}, '', '/chat')
+            }
+          } catch (error) {
+            console.error('[Chat] Error fetching room:', error)
+            toast.error('Imeshindika kupata mazungumzo')
+            window.history.replaceState({}, '', '/chat')
+          }
+        }
+        fetchRoom()
+      }
+    }
+  }, [contacts])
+
   // Handle auth errors (401)
   const isAuthError = error && (error as any)?.response?.status === 401
   
   const handleLogout = () => {
-    clearAuth()
+    performLogout()
     router.push('/login')
   }
 

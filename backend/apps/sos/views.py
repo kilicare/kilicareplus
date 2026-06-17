@@ -1,53 +1,80 @@
+import logging
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, F
+from django.db import transaction
 from .models import SOSAlert, SOSResponse
+from .serializers import SOSAlertSerializer, SOSResponseSerializer, SOSAlertListSerializer
+from .permissions import IsTourist, IsLocalGuide
 from core.permissions import IsAdmin
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsTourist])
 def my_alerts_view(request):
+    """Get tourist's own SOS alerts with optional responses."""
+    include_responses = request.query_params.get('include_responses', 'false').lower() == 'true'
+    
+    # Get all alerts for this tourist, ordered by most recent
     alerts = SOSAlert.objects.filter(
         user=request.user
-    ).order_by('-created_at')[:20]
-    data = [
-        {
-            'id': a.id,
-            'latitude': a.latitude,
-            'longitude': a.longitude,
-            'severity': a.severity,
-            'status': a.status,
-            'message': a.message,
-            'responder_count': a.responder_count,
-            'priority': a.priority,
-            'first_response_at': a.first_response_at.isoformat() if a.first_response_at else None,
-            'avg_response_time_minutes': a.avg_response_time_minutes,
-            'created_at': a.created_at.isoformat(),
-            'resolved_at': (
-                a.resolved_at.isoformat() if a.resolved_at else None
-            ),
-            'escalated_at': a.escalated_at.isoformat() if a.escalated_at else None,
-        }
-        for a in alerts
-    ]
-    return Response(data)
+    ).select_related('user', 'user__profile', 'chat_room').prefetch_related('responses__responder__profile').order_by('-created_at')
+    
+    if include_responses:
+        serializer = SOSAlertSerializer(alerts, many=True)
+    else:
+        serializer = SOSAlertListSerializer(alerts, many=True)
+    
+    return Response(serializer.data)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def active_alerts_view(request):
-    """For LOCAL_GUIDE — see all active SOS nearby"""
-    alerts = SOSAlert.objects.filter(
-        status__in=('ACTIVE', 'RESPONDING', 'ESCALATED')
-    ).select_related('user', 'user__profile').order_by('-created_at')
+    """For LOCAL_GUIDE and ADMIN — see all active SOS nearby (distance filtered for guides)"""
+    # Allow ADMIN and LOCAL_GUIDE to access this endpoint
+    if request.user.role not in ('LOCAL_GUIDE', 'ADMIN'):
+        return Response({'message': 'Permission denied'}, status=403)
+    
+    if request.user.role == 'ADMIN':
+        # Admins see all active alerts without distance filtering
+        alerts = SOSAlert.objects.filter(
+            status__in=('ACTIVE', 'RESPONDING', 'ESCALATED')
+        ).select_related('user', 'user__profile', 'chat_room').order_by('-created_at')
+    else:
+        # Guides see nearby alerts with distance filtering
+        alerts = SOSAlert.objects.filter(
+            status__in=('ACTIVE', 'RESPONDING', 'ESCALATED')
+        ).select_related('user', 'user__profile', 'chat_room').order_by('-created_at')
 
     data = []
     for a in alerts:
         profile = getattr(a.user, 'profile', None)
+        
+        # Calculate distance if guide has location
+        distance_km = None
+        guide_lat = None
+        guide_lng = None
+        if hasattr(request.user, 'profile') and hasattr(request.user.profile, 'latitude') and hasattr(request.user.profile, 'longitude'):
+            guide_lat = request.user.profile.latitude
+            guide_lng = request.user.profile.longitude
+        if request.user.role == 'LOCAL_GUIDE' and guide_lat and guide_lng:
+            from .consumers import haversine_km
+            distance_km = haversine_km(
+                guide_lat,
+                guide_lng,
+                a.latitude,
+                a.longitude
+            )
+            # Only include alerts within 10km for guides
+            if distance_km > 10:
+                continue
+        
         data.append({
             'id': a.id,
             'user': {
@@ -67,9 +94,10 @@ def active_alerts_view(request):
             'status': a.status,
             'message': a.message,
             'responder_count': a.responder_count,
-            'priority': a.priority,
+            'distance_km': round(distance_km, 2) if distance_km else None,
             'created_at': a.created_at.isoformat(),
             'escalated_at': a.escalated_at.isoformat() if a.escalated_at else None,
+            'chat_room_name': a.chat_room.name if a.chat_room else None,
         })
     return Response(data)
 
@@ -146,34 +174,6 @@ def admin_escalate_sos_view(request, alert_id):
         return Response({'message': str(e)}, status=400)
 
 
-@api_view(['PUT'])
-@permission_classes([IsAdmin])
-def admin_set_priority_view(request, alert_id):
-    """Admin set priority for an SOS alert"""
-    priority = int(request.data.get('priority', 5))
-    
-    if priority < 1 or priority > 10:
-        return Response({'message': 'Priority must be between 1 and 10'}, status=400)
-    
-    try:
-        alert = SOSAlert.objects.get(id=alert_id)
-        alert.priority = priority
-        alert.save(update_fields=['priority'])
-        
-        # Audit log
-        from apps.admin_ops.services import log_sos_action
-        log_sos_action(
-            actor=request.user,
-            action_type='SOS_PRIORITY_CHANGE',
-            alert_id=alert.id,
-            target_user=alert.user,
-            reason=f'Priority set to {priority}',
-        )
-        
-        return Response({'success': True, 'priority': priority})
-    except SOSAlert.DoesNotExist:
-        return Response({'message': 'Alert not found'}, status=404)
-
 
 @api_view(['GET'])
 @permission_classes([IsAdmin])
@@ -216,7 +216,6 @@ def admin_all_alerts_view(request):
             'status': a.status,
             'message': a.message,
             'responder_count': a.responder_count,
-            'priority': a.priority,
             'created_at': a.created_at.isoformat(),
             'resolved_at': a.resolved_at.isoformat() if a.resolved_at else None,
             'escalated_at': a.escalated_at.isoformat() if a.escalated_at else None,
@@ -277,3 +276,109 @@ def nearby_guides_view(request):
         'radius_km': radius_km,
         'guides': nearby_guides[:20],  # Limit results
     })
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# RESPONSE AND CHAT INTEGRATION
+# ════════════════════════════════════════════════════════════════════════════
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def alert_responses_view(request, alert_id):
+    """Get all responses for a specific SOS alert."""
+    try:
+        alert = SOSAlert.objects.select_related('user', 'chat_room').get(id=alert_id)
+        
+        # Check permission: tourist can only see their own alerts, guides can see any
+        if request.user.role == 'TOURIST' and alert.user != request.user:
+            return Response({'message': 'Permission denied'}, status=403)
+        
+        responses = SOSResponse.objects.filter(
+            alert=alert
+        ).select_related('responder__profile', 'alert__chat_room').order_by('created_at')
+        
+        serializer = SOSResponseSerializer(responses, many=True)
+        return Response(serializer.data)
+    except SOSAlert.DoesNotExist:
+        return Response({'message': 'Alert not found'}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def alert_chat_room_view(request, alert_id):
+    """Get or create chat room for an SOS alert."""
+    try:
+        alert = SOSAlert.objects.select_related('user', 'chat_room').get(id=alert_id)
+        
+        # Check permission: tourist can only access their own alerts, guides can access any
+        if request.user.role == 'TOURIST' and alert.user != request.user:
+            return Response({'message': 'Permission denied'}, status=403)
+        
+        # If chat room already exists, return it with latest messages
+        if alert.chat_room:
+            from apps.messaging.models import Message
+            # Get latest 5 messages for preview
+            messages = Message.objects.filter(
+                room=alert.chat_room
+            ).select_related('sender', 'sender__profile').order_by('-timestamp')[:5]
+            
+            # Get unread count
+            unread_count = Message.objects.filter(
+                room=alert.chat_room,
+                is_read=False
+            ).exclude(sender=request.user).count()
+            
+            messages_data = []
+            for msg in reversed(messages):
+                messages_data.append({
+                    'id': msg.id,
+                    'content': msg.content,
+                    'sender_id': msg.sender.id,
+                    'sender_username': msg.sender.username,
+                    'sender_first_name': msg.sender.first_name,
+                    'sender_avatar': (
+                        msg.sender.profile.avatar.url
+                        if hasattr(msg.sender, 'profile') and msg.sender.profile.avatar
+                        else None
+                    ),
+                    'timestamp': msg.timestamp.isoformat(),
+                    'is_read': msg.is_read,
+                })
+            
+            return Response({
+                'room_name': alert.chat_room.name,
+                'exists': True,
+                'messages': messages_data,
+                'unread_count': unread_count,
+            })
+        
+        # If no responses yet, no chat room exists
+        return Response({
+            'room_name': None,
+            'exists': False,
+            'message': 'Chat room will be created when a guide responds',
+        })
+    except SOSAlert.DoesNotExist:
+        return Response({'message': 'Alert not found'}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def alert_timeline_view(request, alert_id):
+    """Get structured event timeline for an SOS alert."""
+    try:
+        alert = SOSAlert.objects.select_related('user').get(id=alert_id)
+        
+        # Check permission: tourist can only see their own alerts, guides can see any
+        if request.user.role == 'TOURIST' and alert.user != request.user:
+            return Response({'message': 'Permission denied'}, status=403)
+        
+        from .services import SOSEventService
+        timeline = SOSEventService.get_timeline(alert_id)
+        
+        return Response({
+            'alert_id': alert_id,
+            'timeline': timeline,
+        })
+    except SOSAlert.DoesNotExist:
+        return Response({'message': 'Alert not found'}, status=404)

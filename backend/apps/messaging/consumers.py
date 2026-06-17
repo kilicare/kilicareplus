@@ -22,6 +22,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.mark_delivered()
 
     async def disconnect(self, code):
+        # Broadcast typing stop on disconnect to clear stale indicators
+        await self.channel_layer.group_send(self.room_group, {
+            'type': 'typing_event',
+            'user_id': self.user.id,
+            'username': self.user.username,
+            'is_typing': False,
+        })
         await self.channel_layer.group_discard(
             self.room_group, self.channel_name
         )
@@ -34,6 +41,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             msg = await self.save_message(
                 data.get('content', ''),
                 data.get('reply_to'),
+                data.get('attachment'),
+                data.get('attachment_type'),
             )
             payload = {
                 'type': 'chat_message',
@@ -44,8 +53,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'sender_username': self.user.username,
                     'reply_to': data.get('reply_to'),
                     'timestamp': msg.timestamp.isoformat(),
-                    'is_read': False,
-                    'is_deleted': False,
+                    'is_delivered': msg.is_delivered,
+                    'is_read': msg.is_read,
+                    'is_deleted': msg.is_deleted,
+                    'attachment': msg.attachment.url if msg.attachment else None,
+                    'attachment_type': msg.attachment_type,
                 },
             }
             await self.channel_layer.group_send(
@@ -92,15 +104,54 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     @database_sync_to_async
-    def save_message(self, content, reply_to_id=None):
+    def save_message(self, content, reply_to_id=None, attachment=None, attachment_type=None):
         from .models import ChatRoom, Message
+        from django.core.files.storage import default_storage
         room = ChatRoom.objects.get(name=self.room_name)
-        return Message.objects.create(
+        
+        # If attachment is a storage path, open the file for FileField
+        attachment_file = None
+        if attachment:
+            try:
+                # Open file from storage using the path
+                attachment_file = default_storage.open(attachment, 'rb')
+            except:
+                pass
+        
+        message = Message.objects.create(
             room=room,
             sender=self.user,
             content=content,
             reply_to_id=reply_to_id,
+            attachment=attachment_file,
+            attachment_type=attachment_type,
         )
+        
+        # Check if this chat room is linked to an SOS alert
+        # If so, create a CHAT_MESSAGE event in the timeline
+        try:
+            from apps.sos.models import SOSAlert
+            from apps.sos.services import SOSEventService
+            
+            alert = SOSAlert.objects.filter(chat_room=room).first()
+            if alert:
+                SOSEventService.create_event(
+                    alert=alert,
+                    event_type='CHAT_MESSAGE',
+                    actor=self.user,
+                    message=message,
+                    data={
+                        'content': content,
+                        'room_name': room.name,
+                    }
+                )
+        except Exception as e:
+            # Don't fail message sending if event creation fails
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"[ChatConsumer] Failed to create SOS event for message: {e}")
+        
+        return message
 
     @database_sync_to_async
     def mark_messages_read(self, ids):

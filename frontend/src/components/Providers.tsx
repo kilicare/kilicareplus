@@ -1,5 +1,5 @@
 'use client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { useEffect, useState } from 'react'
 import { OfflineIndicator } from './ui/OfflineIndicator'
@@ -9,7 +9,7 @@ import { useUIStore } from '@/stores/ui.store'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import { MoreGridProvider } from '@/components/navigation/MoreGridProvider'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
-import { setQueryClient } from '@/stores/auth.store'
+import { queryClient } from '@/lib/queryClient'
 
 function OfflineWatcher() {
   const [isOffline, setIsOffline] = useState(false)
@@ -41,33 +41,8 @@ function ServiceWorkerRegistrar() {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [qc] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 1000 * 60 * 2, // 2 min default
-            gcTime: 1000 * 60 * 10, // 10 min cache
-            retry: 1,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: true,
-            refetchOnMount: false,
-            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-          },
-          mutations: {
-            retry: 0,
-          },
-        },
-      })
-  )
-
-  // CRITICAL: Register QueryClient with auth store for cache invalidation
-  useEffect(() => {
-    setQueryClient(qc)
-  }, [qc])
-
   return (
-    <QueryClientProvider client={qc}>
+    <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
         <AuthProvider>
           <OfflineWatcher />

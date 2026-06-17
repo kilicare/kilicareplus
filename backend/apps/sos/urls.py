@@ -11,8 +11,14 @@ urlpatterns = [
     path('admin/<int:alert_id>/resolve/', views.admin_resolve_sos_view),
     path('admin/<int:alert_id>/cancel/', views.admin_cancel_sos_view),
     path('admin/<int:alert_id>/escalate/', views.admin_escalate_sos_view),
-    path('admin/<int:alert_id>/priority/', views.admin_set_priority_view),
     
     # Geospatial
     path('nearby-guides/', views.nearby_guides_view),
+    
+    # Response and Chat Integration
+    path('<int:alert_id>/responses/', views.alert_responses_view),
+    path('<int:alert_id>/chat-room/', views.alert_chat_room_view),
+    
+    # Timeline
+    path('<int:alert_id>/timeline/', views.alert_timeline_view),
 ]
