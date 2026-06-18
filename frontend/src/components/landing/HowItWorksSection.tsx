@@ -5,29 +5,29 @@ const STEPS = [
   {
     step:   '01',
     icon:   '📱',
-    title:  'Unda Akaunti Yako',
-    desc:   'Jiandikishe kama Tourist au Local Guide. Uthibitisho wa haraka — tayari kwa sekunde 30.',
+    title:  'Create Your Account',
+    desc:   'Sign up as a Traveler or Local Guide. Quick verification — ready in 30 seconds.',
     color:  '#F5A623',
   },
   {
     step:   '02',
     icon:   '🔍',
-    title:  'Gundua Tanzania',
-    desc:   'Tazama Feed, angalia Ramani, soma Tips za usalama. AI yako ya Tanzania iko tayari.',
+    title:  'Discover Tanzania',
+    desc:   'Browse the experience feed, check the map, and read safety tips. Your AI Companion is ready.',
     color:  '#10B981',
   },
   {
     step:   '03',
     icon:   '🤝',
-    title:  'Unganika na Guides',
-    desc:   'Pata guide verified, ongea naye, weka booking salama na malipo salama ya M-Pesa.',
+    title:  'Connect with Guides',
+    desc:   'Find a verified local guide, chat with them, and book securely with M-Pesa payments.',
     color:  '#3B82F6',
   },
   {
     step:   '04',
     icon:   '🌟',
-    title:  'Furahia Tanzania',
-    desc:   'Safari yako inaanza! Shiriki moments, pata badges, na uwe ambassador wa Tanzania.',
+    title:  'Experience Tanzania',
+    desc:   'Your journey begins! Share moments, earn badges, and become a Tanzania ambassador.',
     color:  '#8B5CF6',
   },
 ]
@@ -60,7 +60,7 @@ export function HowItWorksSection() {
         {/* Header */}
         <motion.div
           className="text-center mb-16"
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
@@ -68,16 +68,16 @@ export function HowItWorksSection() {
             className="text-xs font-bold uppercase tracking-widest mb-3"
             style={{ color: '#F5A623' }}
           >
-            Hatua za Kuanza
+            Getting Started
           </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
-            Jinsi Inavyofanya Kazi
+          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+            How It Works
           </h2>
           <p
-            className="text-lg max-w-xl mx-auto font-semibold"
+            className="text-lg max-w-xl mx-auto font-medium"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
-            Rahisi kama 1-2-3-4. Dakika chache tu na uko tayari kugundua Tanzania.
+            Simple as 1-2-3-4. Just a few minutes and you're ready to discover Tanzania.
           </p>
         </motion.div>
 
@@ -98,7 +98,7 @@ export function HowItWorksSection() {
               <motion.div
                 key={step.step}
                 className="relative flex flex-col items-center text-center"
-                initial={{ opacity: 0, y: 30 }}
+                initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.12 }}
@@ -124,11 +124,11 @@ export function HowItWorksSection() {
                   </div>
                 </motion.div>
 
-                <h3 className="text-lg font-black text-white mb-2">
+                <h3 className="font-space-grotesk text-lg font-bold text-white mb-2">
                   {step.title}
                 </h3>
                 <p
-                  className="text-sm leading-relaxed font-semibold"
+                  className="font-inter text-sm leading-relaxed font-normal"
                   style={{ color: 'rgba(255,255,255,0.85)' }}
                 >
                   {step.desc}
@@ -141,22 +141,22 @@ export function HowItWorksSection() {
         {/* Bottom CTA */}
         <motion.div
           className="text-center mt-16"
-          initial={{ opacity: 0 }}
+          initial={false}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.4 }}
         >
           <a
             href="/register"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl
-              text-black font-black text-lg transition-all hover:scale-105
+            className="font-inter inline-flex items-center gap-2 px-8 py-4 rounded-2xl
+              text-black font-semibold text-lg transition-all hover:scale-105
               active:scale-95"
             style={{
               background: 'linear-gradient(135deg,#F5A623,#E8892A)',
               boxShadow: '0 0 30px rgba(245,166,35,0.3)',
             }}
           >
-            Anza Sasa — Ni Bure 🇹🇿
+            Get Started Free 🇹🇿
           </a>
         </motion.div>
       </div>

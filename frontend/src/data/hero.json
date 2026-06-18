@@ -1,0 +1,51 @@
+{
+  "background_video": "https://res.cloudinary.com/dqgdsuok7/video/upload/v1781783588/InShot_20260618_125415326_rb05jj.mp4",
+  "background_image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1781773997/pexels-nguyendesigner-16554570_ddodgm.jpg",
+  "trust_badges": [
+    { "icon": "🛡️", "label": "Safety Network 24/7" },
+    { "icon": "⭐", "label": "4.8★ Rating" },
+    { "icon": "⚡", "label": "AI-Powered" }
+  ],
+  "badge": "🇹🇿 Tanzania Real-World Experience Network",
+  "title": {
+    "line1": "Discover Tanzania",
+    "line2": "Through Real People",
+    "line3": "Real Moments & Safety"
+  },
+  "subtitle": "Connect with locals, explore authentic experiences, and stay safe anywhere in Tanzania — powered by AI. Karibu Tanzania 🇹🇿",
+  "cta_primary": {
+    "text": "Get Started Free",
+    "link": "/register"
+  },
+  "cta_secondary": {
+    "text": "Sign In",
+    "link": "/login"
+  },
+  "scroll_indicator": "Scroll to explore",
+  "experience_strip": [
+    {
+      "image": "https://res.cloudinary.com/dqgdsuok7/image/upload/q_auto/f_auto/v1781773997/pexels-nguyendesigner-16554570_ddodgm.jpg",
+      "label": "Materuni Waterfall"
+    },
+    {
+      "image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1781783388/jorge-tung-1pZJqQlgpsY-unsplash_vxxytr.jpg",
+      "label": "Serengeti Safari"
+    },
+    {
+      "image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1781783813/humphrey-m-e6dRLBx6Kg8-unsplash_sbx2z6.jpg",
+      "label": "Zanzibar Beach"
+    },
+    {
+      "image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1781783810/nichika-sakurai-WMDSjqVV71c-unsplash_nzob3a.jpg",
+      "label": "Mount Kilimanjaro"
+    },
+    {
+      "image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1780835699/kilicare/landing-page/bfrbspkrhcvyibpok55h.jpg",
+      "label": "Ngorongoro Crater"
+    },
+    {
+      "image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1781783822/javi-lorbada-nkLfKiCf3EQ-unsplash_sqfyqh.jpg",
+      "label": "Stone Town"
+    }
+  ]
+}

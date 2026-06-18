@@ -11,6 +11,7 @@ urlpatterns = [
     path('admin/<int:alert_id>/resolve/', views.admin_resolve_sos_view),
     path('admin/<int:alert_id>/cancel/', views.admin_cancel_sos_view),
     path('admin/<int:alert_id>/escalate/', views.admin_escalate_sos_view),
+    path('admin/<int:alert_id>/reassign/', views.admin_reassign_primary_view),
     
     # Geospatial
     path('nearby-guides/', views.nearby_guides_view),
@@ -21,4 +22,8 @@ urlpatterns = [
     
     # Timeline
     path('<int:alert_id>/timeline/', views.alert_timeline_view),
+    
+    # Guide Lifecycle
+    path('<int:alert_id>/guide/accept/', views.guide_accept_assignment_view),
+    path('<int:alert_id>/guide/update-status/', views.guide_update_status_view),
 ]

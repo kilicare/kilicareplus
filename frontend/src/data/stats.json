@@ -1,0 +1,56 @@
+{
+  "background_image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1781684429/media/chat_attachments/samson-simon-F_cUy89i4EA-unsplash_ypo0mj.jpg",
+  "section_label": "Real Stats",
+  "title": "Growing Across East Africa",
+  "subtitle": "KilicareGO+ is expanding fast — real data from our experience network. Tunakua kwa kasi 🇹🇿",
+  "stats": [
+    {
+      "value": 1200,
+      "suffix": "+",
+      "label": "Active Users",
+      "sublabel": "from 47 countries",
+      "icon": "👥",
+      "color": "#F5A623"
+    },
+    {
+      "value": 350,
+      "suffix": "+",
+      "label": "Verified Local Guides",
+      "sublabel": "trusted experts",
+      "icon": "🧭",
+      "color": "#10B981"
+    },
+    {
+      "value": 8500,
+      "suffix": "+",
+      "label": "Moments Shared",
+      "sublabel": "every week",
+      "icon": "📸",
+      "color": "#3B82F6"
+    },
+    {
+      "value": 23,
+      "suffix": "",
+      "label": "Tanzania Cities",
+      "sublabel": "covered",
+      "icon": "📍",
+      "color": "#8B5CF6"
+    },
+    {
+      "value": 99.9,
+      "suffix": "%",
+      "label": "Network Reliability",
+      "sublabel": "Safety always active",
+      "icon": "🆘",
+      "color": "#FF2D2D"
+    },
+    {
+      "value": 4.8,
+      "suffix": "★",
+      "label": "Average Rating",
+      "sublabel": "1,247 reviews",
+      "icon": "⭐",
+      "color": "#F59E0B"
+    }
+  ]
+}

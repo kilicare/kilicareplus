@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { Mail, Lock } from 'lucide-react'
+import { Mail, Lock, Home, X } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { authService } from '@/services/auth.service'
 import { KiliInput } from '@/components/ui/KiliInput'
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const { setUser, setAuthenticated } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showHomeBtn, setShowHomeBtn] = useState(false)
 
   const loginMut = useMutation({
     mutationFn: () => authService.login(email, password),
@@ -41,7 +42,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-5 py-10">
+    <div className="flex-1 flex flex-col items-center justify-center px-5 py-10 relative">
+      {/* Home Button - Top Right */}
+      <div className="absolute top-4 right-4 z-10">
+        {showHomeBtn ? (
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all"
+          >
+            <Home size={18} />
+            <span className="text-sm font-medium">Home</span>
+          </Link>
+        ) : (
+          <button
+            onClick={() => setShowHomeBtn(true)}
+            className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all flex items-center justify-center"
+          >
+            <Home size={18} />
+          </button>
+        )}
+      </div>
       {/* Logo */}
       <motion.div
         className="text-center mb-10"

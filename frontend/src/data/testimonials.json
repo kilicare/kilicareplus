@@ -1,0 +1,69 @@
+{
+  "background_image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1780997758/kilicare/landing-page/lxmznfhpdxedktt9neka.jpg",
+  "section_label": "What Users Say",
+  "title": "Real People",
+  "title_highlight": "Real Experiences",
+  "rating_display": "4.8 / 5.0 (1,247 reviews)",
+  "testimonials": [
+    {
+      "id": 1,
+      "name": "Sarah Mitchell",
+      "role": "Travel Blogger, USA 🇺🇸",
+      "avatar": "S",
+      "color": "#F5A623",
+      "rating": 5,
+      "text": "KilicareGO+ changed how I explore Tanzania. The AI guide answered every question in perfect English, and the SOS feature gave me peace of mind hiking Kilimanjaro. Absolutely world-class app!",
+      "location": "Kilimanjaro Trek"
+    },
+    {
+      "id": 2,
+      "name": "Abdullah Al-Rashid",
+      "role": "Adventure Tourist, UAE 🇦🇪",
+      "avatar": "A",
+      "color": "#10B981",
+      "rating": 5,
+      "text": "I found the best guide through this app. Booking was easy, M-Pesa payments worked perfectly, and the Serengeti experience was better than my dreams.",
+      "location": "Serengeti Safari"
+    },
+    {
+      "id": 3,
+      "name": "Amara Diallo",
+      "role": "Local Guide, Zanzibar 🇹🇿",
+      "avatar": "A",
+      "color": "#3B82F6",
+      "rating": 5,
+      "text": "As a local guide, KilicareGO+ transformed my business. I get 10x more bookings, the payment protection system protects me and my clients, and the insights show me where to improve.",
+      "location": "Zanzibar Tours"
+    },
+    {
+      "id": 4,
+      "name": "Chen Wei",
+      "role": "Digital Nomad, China 🇨🇳",
+      "avatar": "C",
+      "color": "#8B5CF6",
+      "rating": 5,
+      "text": "The experience feed is amazing — I could see real moments from other travelers before booking. Kilicare Play's football insights are fun and engaging for match days!",
+      "location": "Dar es Salaam"
+    },
+    {
+      "id": 5,
+      "name": "Fatima Nkrumah",
+      "role": "Business Traveler, Ghana 🇬🇭",
+      "avatar": "F",
+      "color": "#EC4899",
+      "rating": 5,
+      "text": "The best safari in Africa! I've traveled to 23 countries but Tanzania and KilicareGO+ were completely different. The app understands our culture and language.",
+      "location": "Arusha & Zanzibar"
+    },
+    {
+      "id": 6,
+      "name": "Marco Rossi",
+      "role": "Photographer, Italy 🇮🇹",
+      "avatar": "M",
+      "color": "#F59E0B",
+      "rating": 5,
+      "text": "The Moments feed helped me find incredible photography spots. Connected with a local guide through chat, booked instantly via M-Pesa. Shot the most beautiful wildlife photos of my career.",
+      "location": "Ngorongoro Crater"
+    }
+  ]
+}

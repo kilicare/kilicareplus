@@ -2,86 +2,12 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Check } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import { ConfigService } from '@/services/config.service'
+import pricingData from '@/data/pricing.json'
 
-const PLANS = [
-  {
-    name:      'Tourist',
-    emoji:     '🌍',
-    price:     'Bure',
-    period:    '',
-    color:     '#10B981',
-    popular:   false,
-    features: [
-      'Feed ya Moments bila kikomo',
-      'AI Guide mazungumzo 20/siku',
-      'Ramani na Tips zote',
-      'SOS ya dharura 24/7',
-      'Messaging na guides',
-      'Passport + Badges',
-      'Predictions 2 bure/siku',
-    ],
-    cta:   'Anza Bure Sasa',
-    href:  '/register',
-  },
-  {
-    name:      'Pro Guide',
-    emoji:     '⭐',
-    price:     '25,000',
-    period:    '/mwezi',
-    color:     '#F5A623',
-    popular:   true,
-    features: [
-      'Kila kitu cha Tourist',
-      'Experiences bila kikomo',
-      'Verified Badge ✓',
-      'Booking System na Malipo Salama',
-      'Ripoti za kina',
-      'Featured Placement 10x',
-      'Virtual Showcase (500 items)',
-      'AI Unlimited',
-    ],
-    cta:   'Jaribu Siku 14 Bure',
-    href:  '/register',
-  },
-  {
-    name:      'Sports Premium',
-    emoji:     '🎯',
-    price:     '3,000',
-    period:    '/mwezi',
-    color:     '#8B5CF6',
-    popular:   false,
-    features: [
-      'Kila kitu cha Tourist',
-      'Predictions zote (EPL, La Liga, BL)',
-      'Value Bet signals zote',
-      'WhatsApp alerts',
-      'BTTS + Over 2.5 analysis',
-      'Zana ya kulinganisha timu',
-    ],
-    cta:   'Jaribu Siku 14 Bure',
-    href:  '/register',
-  },
-]
+const PLANS = pricingData.plans
 
 export function PricingSection() {
-  const [pricingBackground, setPricingBackground] = useState<string>('')
-
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const data = await ConfigService.getLandingPageConfig()
-        if (data.pricing_background_image) {
-          setPricingBackground(data.pricing_background_image)
-        }
-      } catch (error) {
-        console.warn('Failed to fetch landing page config, using default background')
-      }
-    }
-
-    fetchConfig()
-  }, [])
+  const pricingBackground = pricingData.background_image
 
   return (
     <section
@@ -105,7 +31,7 @@ export function PricingSection() {
         <div
           className="absolute inset-0"
           style={{
-            background: 'rgba(5,5,8,0.6)'
+            background: 'rgba(5,5,8,0.0)'
           }}
         />
       )}
@@ -113,7 +39,7 @@ export function PricingSection() {
         {/* Header */}
         <motion.div
           className="text-center mb-14"
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
@@ -121,17 +47,16 @@ export function PricingSection() {
             className="text-xs font-bold uppercase tracking-widest mb-3"
             style={{ color: '#F5A623' }}
           >
-            Bei
+            {pricingData.section_label}
           </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
-            Bei Wazi, Thamani Halisi
+          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+            {pricingData.title}
           </h2>
           <p
-            className="text-xl max-w-xl mx-auto font-semibold"
+            className="text-xl max-w-xl mx-auto font-medium"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
-            Anza bure. Panda kiwango unapohitaji zaidi.
-            Malipo ya M-Pesa — rahisi na ya haraka.
+            {pricingData.subtitle}
           </p>
         </motion.div>
 
@@ -152,14 +77,14 @@ export function PricingSection() {
                   ? `0 0 50px ${plan.color}20` 
                   : 'none',
               }}
-              initial={{ opacity: 0, y: 30 }}
+              initial={false}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
             >
               {plan.popular && (
                 <div
-                  className="absolute top-0 right-6 px-4 py-1.5 text-xs font-black
+                  className="font-inter absolute top-0 right-6 px-4 py-1.5 text-xs font-semibold
                     text-black rounded-b-xl"
                   style={{ background: plan.color }}
                 >
@@ -169,27 +94,27 @@ export function PricingSection() {
 
               <div className="mb-5">
                 <div className="text-3xl mb-2">{plan.emoji}</div>
-                <h3 className="text-xl font-black text-white mb-0.5">
+                <h3 className="font-space-grotesk text-xl font-bold text-white mb-0.5">
                   {plan.name}
                 </h3>
                 <div className="flex items-baseline gap-1">
-                  {plan.price === 'Bure' ? (
+                  {plan.price === 'Free' ? (
                     <span
-                      className="text-3xl font-black"
+                      className="font-jetbrains-mono text-3xl font-bold"
                       style={{ color: plan.color }}
                     >
-                      BURE
+                      FREE
                     </span>
                   ) : (
                     <>
                       <span
-                        className="text-3xl font-black"
+                        className="font-jetbrains-mono text-3xl font-bold"
                         style={{ color: plan.color }}
                       >
                         TZS {plan.price}
                       </span>
                       <span
-                        className="text-sm font-medium"
+                        className="font-inter text-sm font-normal"
                         style={{ color: 'rgba(255,255,255,0.7)' }}
                       >
                         {plan.period}
@@ -210,7 +135,7 @@ export function PricingSection() {
                       <Check size={10} style={{ color: plan.color }} />
                     </div>
                     <span
-                      className="text-base leading-snug font-semibold"
+                      className="font-inter text-base leading-snug font-normal"
                       style={{ color: 'rgba(255,255,255,0.9)' }}
                     >
                       {f}
@@ -221,8 +146,8 @@ export function PricingSection() {
 
               <Link
                 href={plan.href}
-                className="flex items-center justify-center w-full py-3.5
-                  rounded-2xl text-sm font-black transition-all hover:scale-105
+                className="font-inter flex items-center justify-center w-full py-3.5
+                  rounded-2xl text-sm font-semibold transition-all hover:scale-105
                   active:scale-95"
                 style={
                   plan.popular
@@ -248,13 +173,13 @@ export function PricingSection() {
         <motion.p
           className="text-center text-sm mt-8"
           style={{ color: 'rgba(255,255,255,0.35)' }}
-          initial={{ opacity: 0 }}
+          initial={false}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          B2B dashboard na Enterprise plans zinapatikana.{' '}
+          {pricingData.business_note}{' '}
           <a href="mailto:business@kilicarego.com" style={{ color: '#F5A623' }}>
-            Wasiliana nasi
+            Contact Us
           </a>
         </motion.p>
       </div>

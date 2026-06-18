@@ -1,0 +1,67 @@
+{
+  "background_image": "",
+  "badge": "🎯 Kilicare Play — Entertainment Layer",
+  "title": "Football Insights",
+  "title_highlight": "For Fun & Engagement",
+  "subtitle": "An entertainment layer inside KilicareGO+ providing football insights, predictions, and fun engagement for users. For entertainment and insights only.",
+  "features": [
+    { "icon": "🏆", "label": "Advanced match analysis for every league" },
+    { "icon": "📊", "label": "Team comparison across all leagues" },
+    { "icon": "⚽", "label": "Insights: Over 2.5, BTTS, Value analysis" },
+    { "icon": "🔥", "label": "Signal strength indicators" },
+    { "icon": "🎮", "label": "Fun engagement for football fans" }
+  ],
+  "cta": {
+    "text": "Explore Kilicare Play",
+    "link": "/register"
+  },
+  "cta_note": "2 free matches/day",
+  "disclaimer": "⚠️ For entertainment and insights only. 18+ only. Follow Tanzania regulations.",
+  "matches": [
+    {
+      "home": "Simba SC",
+      "away": "Young Africans",
+      "league": "🇹🇿 TPL",
+      "homeProb": 71,
+      "drawProb": 20,
+      "awayProb": 9,
+      "overProb": 68,
+      "btts": 54,
+      "signal": "🔥 STRONG",
+      "signalColor": "#F5A623",
+      "valueBet": "SIMBA WIN",
+      "confidence": 71,
+      "time": "18:00"
+    },
+    {
+      "home": "Man City",
+      "away": "Arsenal",
+      "league": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 EPL",
+      "homeProb": 54,
+      "drawProb": 25,
+      "awayProb": 21,
+      "overProb": 65,
+      "btts": 60,
+      "signal": "⚡ MEDIUM",
+      "signalColor": "#3B82F6",
+      "valueBet": "MAN CITY WIN",
+      "confidence": 54,
+      "time": "15:00"
+    },
+    {
+      "home": "Real Madrid",
+      "away": "Barcelona",
+      "league": "🇪🇸 La Liga",
+      "homeProb": 47,
+      "drawProb": 27,
+      "awayProb": 26,
+      "overProb": 58,
+      "btts": 62,
+      "signal": "👀 WEAK",
+      "signalColor": "#10B981",
+      "valueBet": "REAL MADRID WIN",
+      "confidence": 47,
+      "time": "20:00"
+    }
+  ]
+}

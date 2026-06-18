@@ -1,56 +1,9 @@
 'use client'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
-import { ConfigService } from '@/services/config.service'
+import kilicarebetData from '@/data/kilicarebet.json'
 
-const SAMPLE_MATCHES = [
-  {
-    home:     'Simba SC',
-    away:     'Young Africans',
-    league:   '🇹🇿 TPL',
-    homeProb: 71,
-    drawProb: 20,
-    awayProb: 9,
-    overProb: 68,
-    btts:     54,
-    signal:   '🔥 STRONG',
-    signalColor: '#F5A623',
-    valueBet: 'SIMBA WIN',
-    confidence: 71,
-    time: '18:00',
-  },
-  {
-    home:     'Man City',
-    away:     'Arsenal',
-    league:   '🏴󠁧󠁢󠁥󠁮󠁧󠁿 EPL',
-    homeProb: 54,
-    drawProb: 25,
-    awayProb: 21,
-    overProb: 65,
-    btts:     60,
-    signal:   '⚡ MEDIUM',
-    signalColor: '#3B82F6',
-    valueBet: 'MAN CITY WIN',
-    confidence: 54,
-    time: '15:00',
-  },
-  {
-    home:     'Real Madrid',
-    away:     'Barcelona',
-    league:   '🇪🇸 La Liga',
-    homeProb: 47,
-    drawProb: 27,
-    awayProb: 26,
-    overProb: 58,
-    btts:     62,
-    signal:   '👀 WEAK',
-    signalColor: '#10B981',
-    valueBet: 'REAL MADRID WIN',
-    confidence: 47,
-    time: '20:00',
-  },
-]
+const SAMPLE_MATCHES = kilicarebetData.matches
 
 function ProbBar({
   label, prob, color,
@@ -64,7 +17,7 @@ function ProbBar({
         <motion.div
           className="h-full rounded-lg flex items-center justify-end pr-2"
           style={{ background: color, width: `${prob}%` }}
-          initial={{ width: 0 }}
+          initial={false}
           whileInView={{ width: `${prob}%` }}
           viewport={{ once: true }}
           transition={{ duration: 1, ease: 'easeOut' }}
@@ -77,22 +30,7 @@ function ProbBar({
 }
 
 export function KilicareBetPreview() {
-  const [kilicarebetBackground, setKilicarebetBackground] = useState<string>('')
-
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const data = await ConfigService.getLandingPageConfig()
-        if (data.kilicarebet_background_image) {
-          setKilicarebetBackground(data.kilicarebet_background_image)
-        }
-      } catch (error) {
-        console.warn('Failed to fetch landing page config, using default background')
-      }
-    }
-
-    fetchConfig()
-  }, [])
+  const kilicarebetBackground = kilicarebetData.background_image
 
   return (
     <section
@@ -115,7 +53,7 @@ export function KilicareBetPreview() {
         <div
           className="absolute inset-0"
           style={{
-            background: 'rgba(5,5,8,0.6)'
+            background: 'rgba(5,5,8,0.0)'
           }}
         />
       )}
@@ -124,7 +62,7 @@ export function KilicareBetPreview() {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left: Description */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
+            initial={false}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
           >
@@ -137,11 +75,11 @@ export function KilicareBetPreview() {
                 color: '#F5A623',
               }}
             >
-                🎯 AI Predictions — Pata Sasa
+                {kilicarebetData.badge}
             </div>
 
-            <h2 className="text-4xl lg:text-5xl font-black text-white mb-4 leading-tight">
-              Ushindi
+            <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight">
+              {kilicarebetData.title}
               <br />
               <span
                 style={{
@@ -151,7 +89,7 @@ export function KilicareBetPreview() {
                   backgroundClip: 'text',
                 }}
               >
-                Kwa Akili Yako
+                {kilicarebetData.title_highlight}
               </span>
             </h2>
 
@@ -159,29 +97,22 @@ export function KilicareBetPreview() {
               className="text-xl mb-6 leading-relaxed font-semibold"
               style={{ color: 'rgba(255,255,255,0.9)' }}
             >
-              Advanced match analysis kwa kila ligi. EPL, La Liga, Bundesliga, na TPL —
-              uchanganuzi wa kina, signals za uhakika, na maamuzi yenye busara.
+              {kilicarebetData.subtitle}
             </p>
 
             <div className="space-y-3 mb-8">
-              {[
-                { icon: '🏆', label: 'Advanced match analysis kwa kila ligi' },
-                { icon: '📊', label: 'Team comparison — usawa katika ligi zote' },
-                { icon: '⚽', label: 'Signals: Over 2.5, BTTS, Value Bet' },
-                { icon: '🔥', label: 'STRONG / MEDIUM / WEAK / SKIP' },
-                { icon: '💰', label: 'Viungo vya betting (SportPesa, Betway)' },
-              ].map((item, i) => (
+              {kilicarebetData.features.map((item, i) => (
                 <motion.div
                   key={i}
                   className="flex items-center gap-3"
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={false}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.07 }}
                 >
                   <span>{item.icon}</span>
                   <span
-                    className="text-base font-semibold"
+                    className="font-inter text-base font-medium"
                     style={{ color: 'rgba(255,255,255,0.9)' }}
                   >
                     {item.label}
@@ -192,15 +123,15 @@ export function KilicareBetPreview() {
 
             <div className="flex items-center gap-3">
               <Link
-                href="/register"
-                className="flex items-center gap-2 px-8 py-4 rounded-xl
-                  text-black font-black text-base transition-all hover:scale-105"
+                href={kilicarebetData.cta.link}
+                className="font-inter flex items-center gap-2 px-8 py-4 rounded-xl
+                  text-black font-semibold text-base transition-all hover:scale-105"
                 style={{ background: 'linear-gradient(135deg,#F5A623,#E8892A)' }}
               >
-                Pata Predictions Bure
+                {kilicarebetData.cta.text}
               </Link>
-              <p className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                Mechi 2 bure/siku
+              <p className="font-inter text-sm font-normal" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                {kilicarebetData.cta_note}
               </p>
             </div>
           </motion.div>
@@ -215,7 +146,7 @@ export function KilicareBetPreview() {
                   background: 'rgba(30,30,40,0.95)',
                   border: '1px solid rgba(255,255,255,0.15)',
                 }}
-                initial={{ opacity: 0, x: 30 }}
+                initial={false}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.12 }}
@@ -295,7 +226,7 @@ export function KilicareBetPreview() {
               className="text-xs text-center font-medium"
               style={{ color: 'rgba(255,255,255,0.5)' }}
             >
-              ⚠️ Predictions ni kwa burudani tu. 18+ pekee. Fuata sheria za Tanzania.
+              {kilicarebetData.disclaimer}
             </p>
           </div>
         </div>

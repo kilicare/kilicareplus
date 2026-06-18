@@ -2,26 +2,10 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Smartphone, Globe, Download } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import { ConfigService } from '@/services/config.service'
+import downloadData from '@/data/download.json'
 
 export function DownloadSection() {
-  const [downloadBackground, setDownloadBackground] = useState<string>('')
-
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const data = await ConfigService.getLandingPageConfig()
-        if (data.download_background_image) {
-          setDownloadBackground(data.download_background_image)
-        }
-      } catch (error) {
-        console.warn('Failed to fetch landing page config, using default background')
-      }
-    }
-
-    fetchConfig()
-  }, [])
+  const downloadBackground = downloadData.background_image
 
   return (
     <section
@@ -61,7 +45,7 @@ export function DownloadSection() {
 
       <div className="max-w-4xl mx-auto text-center relative">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
@@ -74,11 +58,11 @@ export function DownloadSection() {
               color: '#F5A623',
             }}
           >
-            📱 Modern App Experience — Sakinisha Sasa!
+            {downloadData.badge}
           </div>
 
-          <h2 className="text-4xl lg:text-6xl font-black text-white mb-6 leading-tight">
-            Tanzania Yote
+          <h2 className="text-4xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+            {downloadData.title}
             <br />
             <span
               style={{
@@ -88,40 +72,20 @@ export function DownloadSection() {
                 backgroundClip: 'text',
               }}
             >
-              Mfukoni Mwako
+              {downloadData.title_highlight}
             </span>
           </h2>
 
           <p
-            className="text-xl mb-12 max-w-2xl mx-auto font-semibold"
+            className="text-xl mb-12 max-w-2xl mx-auto font-medium"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
-            KilicareGO+ inafanya kazi kama app ya kweli — sakinisha moja kwa moja kwenye
-            simu yako bila kupitia App Store. Haraka, inafanya kazi bila mtandao, na ndogo ukubwa.
+            {downloadData.subtitle}
           </p>
 
           {/* Options */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-            {[
-              {
-                icon:  <Smartphone size={24} />,
-                label: 'Android',
-                desc:  'Bonyeza "Add to Home Screen" kwenye Chrome',
-                color: '#10B981',
-              },
-              {
-                icon:  <Smartphone size={24} />,
-                label: 'iOS',
-                desc:  'Bonyeza Share → "Add to Home Screen" kwenye Safari',
-                color: '#3B82F6',
-              },
-              {
-                icon:  <Globe size={24} />,
-                label: 'Web',
-                desc:  'Tumia moja kwa moja kwenye browser yoyote',
-                color: '#F5A623',
-              },
-            ].map((opt, i) => (
+            {downloadData.options.map((opt, i) => (
               <motion.div
                 key={opt.label}
                 className="rounded-2xl p-5"
@@ -129,14 +93,16 @@ export function DownloadSection() {
                   background: `${opt.color}08`,
                   border: `1px solid ${opt.color}20`,
                 }}
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
               >
-                <div className="mb-3" style={{ color: opt.color }}>{opt.icon}</div>
-                <p className="font-black text-white mb-1">{opt.label}</p>
-                <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                <div className="mb-3" style={{ color: opt.color }}>
+                  {opt.icon === 'Smartphone' ? <Smartphone size={24} /> : opt.icon === 'Globe' ? <Globe size={24} /> : null}
+                </div>
+                <p className="font-inter font-semibold text-white mb-1">{opt.label}</p>
+                <p className="font-inter text-xs font-normal" style={{ color: 'rgba(255,255,255,0.7)' }}>
                   {opt.desc}
                 </p>
               </motion.div>
@@ -145,9 +111,9 @@ export function DownloadSection() {
 
           {/* Main CTA */}
           <Link
-            href="/register"
-            className="inline-flex items-center gap-3 px-10 py-5 rounded-2xl
-              text-black font-black text-xl transition-all hover:scale-105
+            href={downloadData.cta.link}
+            className="font-inter inline-flex items-center gap-3 px-10 py-5 rounded-2xl
+              text-black font-semibold text-xl transition-all hover:scale-105
               active:scale-95"
             style={{
               background: 'linear-gradient(135deg,#F5A623,#E8892A)',
@@ -155,14 +121,14 @@ export function DownloadSection() {
             }}
           >
             <Download size={24} />
-            Anza Safari Yako — Ni Bure 🇹🇿
+            {downloadData.cta.text}
           </Link>
 
           <p
             className="text-xs mt-4"
             style={{ color: 'rgba(255,255,255,0.3)' }}
           >
-            Hakuna App Store inahitajika · Inafanya kazi offline · 2MB tu
+            {downloadData.note}
           </p>
         </motion.div>
       </div>

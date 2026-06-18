@@ -1,93 +1,12 @@
 'use client'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
-import { ConfigService } from '@/services/config.service'
+import featuresData from '@/data/features.json'
 
-const FEATURES = [
-  {
-    icon:    '📸',
-    title:   'Feed ya Moments',
-    desc:    'Tazama na shiriki uzoefu wa kweli wa Tanzania kwa scroll kama TikTok. Double-tap kupenda.',
-    color:   '#F5A623',
-    tag:     'fullscreen-style',
-    demo:    '/feed',
-  },
-  {
-    icon:    '🤖',
-    title:   'AI Guide ya Tanzania',
-    desc:    'Zungumza na AI inayojua Tanzania yote — Kiswahili au Kiingereza. Maswali yoyote, wakati wowote.',
-    color:   '#10B981',
-    tag:     'Smart AI Guide',
-    demo:    '/ai',
-  },
-  {
-    icon:    '🆘',
-    title:   'SOS Dharura',
-    desc:    'Shika kitufe sekunde 3 — guides wa karibu wanaarifu mara moja. Salama Tanzania yote.',
-    color:   '#FF2D2D',
-    tag:     'Instant Updates',
-    demo:    '/sos',
-  },
-  {
-    icon:    '🗺️',
-    title:   'Ramani ya Maarifa',
-    desc:    'Tips za usalama, uzoefu, na maeneo — kwenye ramani nzuri na markers za rangi.',
-    color:   '#3B82F6',
-    tag:     'Interactive Maps',
-    demo:    '/map',
-  },
-  {
-    icon:    '📅',
-    title:   'Booking na Malipo Salama',
-    desc:    'Weka booking na guide verified. Malipo yalindwa kabisa — salama hadi uzoefu ukamilike.',
-    color:   '#8B5CF6',
-    tag:     'Secure Payments',
-    demo:    '/register',
-  },
-  {
-    icon:    '🎯',
-    title:   'KilicareBet Predictions',
-    desc:    'AI predictions za EPL, La Liga, na Bundesliga. Advanced match analysis na league-specific insights.',
-    color:   '#F59E0B',
-    tag:     'Advanced AI',
-    demo:    '/predictions',
-  },
-  {
-    icon:    '🛂',
-    title:   'Passport ya Gamification',
-    desc:    'Pata pointi, fungua badges, na panda kiwango. Leaderboard ya watalii bora Tanzania.',
-    color:   '#EC4899',
-    tag:     'Gamified XP',
-    demo:    '/passport',
-  },
-  {
-    icon:    '🛍️',
-    title:   'Virtual Showcase',
-    desc:    'Nunua bidhaa za asili za Tanzania moja kwa moja kwa mtengenezaji. Payment protection inakuhifadhi.',
-    color:   '#14B8A6',
-    tag:     'E-Commerce',
-    demo:    '/showcase',
-  },
-]
+const FEATURES = featuresData.features
 
 export function FeaturesSection() {
-  const [featuresBackground, setFeaturesBackground] = useState<string>('')
-
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const data = await ConfigService.getLandingPageConfig()
-        if (data.features_background_image) {
-          setFeaturesBackground(data.features_background_image)
-        }
-      } catch (error) {
-        console.warn('Failed to fetch landing page config, using default background')
-      }
-    }
-
-    fetchConfig()
-  }, [])
+  const featuresBackground = featuresData.background_image
 
   return (
     <section
@@ -111,7 +30,7 @@ export function FeaturesSection() {
         <div
           className="absolute inset-0"
           style={{
-            background: 'rgba(5,5,8,0.6)'
+            background: 'rgba(5,5,8,0.0)'
           }}
         />
       )}
@@ -119,7 +38,7 @@ export function FeaturesSection() {
         {/* Header */}
         <motion.div
           className="text-center mb-16"
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
@@ -127,10 +46,10 @@ export function FeaturesSection() {
             className="text-xs font-bold uppercase tracking-widest mb-3"
             style={{ color: '#F5A623' }}
           >
-            Vipengele
+            {featuresData.section_label}
           </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
-            Kila Kitu Unachohitaji
+          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+            {featuresData.title}
             <br />
             <span
               style={{
@@ -140,15 +59,14 @@ export function FeaturesSection() {
                 backgroundClip: 'text',
               }}
             >
-              Safari Nzuri
+              {featuresData.title_highlight}
             </span>
           </h2>
           <p
-            className="text-xl max-w-2xl mx-auto font-semibold"
+            className="text-xl max-w-2xl mx-auto font-medium"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
-            Super-app moja inayounganisha watalii, guides, biashara, na usalama
-            katika Tanzania yote — kutoka Zanzibar hadi Kilimanjaro.
+            {featuresData.subtitle}
           </p>
         </motion.div>
 
@@ -162,7 +80,7 @@ export function FeaturesSection() {
                 background: `linear-gradient(135deg,${feat.color}08,rgba(10,10,18,0.9))`,
                 border: `1px solid ${feat.color}18`,
               }}
-              initial={{ opacity: 0, y: 30 }}
+              initial={false}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.06 }}
@@ -198,11 +116,11 @@ export function FeaturesSection() {
                 </span>
               </div>
 
-              <h3 className="text-lg font-black text-white mb-2">
+              <h3 className="font-space-grotesk text-lg font-bold text-white mb-2">
                 {feat.title}
               </h3>
               <p
-                className="text-base leading-relaxed mb-4 font-semibold"
+                className="font-inter text-base leading-relaxed mb-4 font-normal"
                 style={{ color: 'rgba(255,255,255,0.85)' }}
               >
                 {feat.desc}
@@ -215,7 +133,7 @@ export function FeaturesSection() {
                 style={{ color: feat.color }}
                 onClick={(e) => e.stopPropagation()}
               >
-                Jaribu sasa →
+                Try Now →
               </Link>
             </motion.div>
           ))}

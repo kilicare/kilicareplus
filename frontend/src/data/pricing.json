@@ -1,0 +1,67 @@
+{
+  "background_image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1781070552/kilicare/landing-page/zr5wnq7tcqvom7ybbu9o.jpg",
+  "section_label": "Pricing",
+  "title": "Transparent Pricing",
+  "subtitle": "Start free. Upgrade when you need more. Pay with M-Pesa — fast and easy. Malipo rahisi na salama 🇹🇿",
+  "business_note": "B2B dashboard and Enterprise plans available.",
+  "business_email": "business@kilicarego.com",
+  "plans": [
+    {
+      "name": "Tourist",
+      "emoji": "🌍",
+      "price": "Bure",
+      "period": "",
+      "color": "#10B981",
+      "popular": false,
+      "features": [
+        "Unlimited experience feed",
+        "AI Companion 20 chats/day",
+        "All maps and safety tips",
+        "24/7 Safety Network",
+        "Messaging with guides",
+        "Passport + Badges",
+        "Kilicare Play 2 free matches/day"
+      ],
+      "cta": "Get Started Free",
+      "href": "/register"
+    },
+    {
+      "name": "Pro Guide",
+      "emoji": "⭐",
+      "price": "25,000",
+      "period": "/mwezi",
+      "color": "#F5A623",
+      "popular": true,
+      "features": [
+        "Everything in Tourist",
+        "Unlimited experiences",
+        "Verified Badge ✓",
+        "Booking System with Secure Payments",
+        "Detailed analytics",
+        "10x Featured Placement",
+        "Culture Gallery (500 items)",
+        "Unlimited AI"
+      ],
+      "cta": "Try 14 Days Free",
+      "href": "/register"
+    },
+    {
+      "name": "Kilicare Play Premium",
+      "emoji": "🎯",
+      "price": "3,000",
+      "period": "/mwezi",
+      "color": "#8B5CF6",
+      "popular": false,
+      "features": [
+        "Everything in Tourist",
+        "All football insights (EPL, La Liga, BL)",
+        "All value analysis signals",
+        "WhatsApp alerts",
+        "BTTS + Over 2.5 insights",
+        "Team comparison tools"
+      ],
+      "cta": "Try 14 Days Free",
+      "href": "/register"
+    }
+  ]
+}

@@ -20,14 +20,6 @@ urlpatterns = [
     path('platform-stats/',                  views.platform_stats_view),
     path('guide-performance/',                views.guide_performance_view),
 
-    # Landing Page Configuration
-    path('landing-page/upload-image/',       views.upload_image_view),
-    path('landing-page/config/',             views.landing_page_config_view),
-    path('landing-page/config/update/',      views.update_landing_page_config_view),
-
-    # Public Stats (for landing page)
-    path('public-stats/',                    views.public_stats_view),
-    path('public-testimonials/',             views.public_testimonials_view),
 
     # Testimonials Management (Admin)
     path('testimonials/',                    views.admin_testimonials_view),

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google'
 import { Providers } from '@/components/Providers'
 import { validateEnv } from '@/lib/env'
 import './globals.css'
@@ -13,13 +13,25 @@ const inter = Inter({
   display: 'swap',
 })
 
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
+  display: 'swap',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: {
-    default: 'KilicareGO+ — Tanzania\'s First Tourism Super-App',
+    default: 'KilicareGO+ — Tanzania Real-World Experience Network',
     template: '%s | KilicareGO+',
   },
   description:
-    'Tanzania\'s first all-in-one tourism platform. Connect with 350+ verified local guides, explore Serengeti, Zanzibar, Kilimanjaro, and more. Book experiences, chat with AI guide, and stay safe with SOS.',
+    'Discover Tanzania through real people, real moments, and real safety — powered by AI. Connect with locals, explore authentic experiences, and stay safe anywhere in Tanzania.',
   keywords: [
     'Tanzania tourism', 'Kilimanjaro', 'Serengeti', 'Zanzibar',
     'Africa travel', 'local guides Tanzania', 'Tanzania safari',
@@ -105,7 +117,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="sw" className={inter.variable} suppressHydrationWarning data-scroll-behavior="smooth">
+    <html lang="sw" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         <meta name="mobile-web-app-capable"            content="yes" />
         <meta name="apple-mobile-web-app-capable"      content="yes" />
@@ -119,7 +131,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
         {/* Schema.org structured data */}
@@ -132,7 +144,7 @@ export default function RootLayout({
               name:       'KilicareGO+',
               applicationCategory: 'TravelApplication',
               operatingSystem: 'Android, iOS, Web',
-              description: "Tanzania's First Tourism Super-App",
+              description: "Tanzania Real-World Experience Network",
               offers: {
                 '@type': 'Offer',
                 price:   '0',

@@ -63,6 +63,8 @@ class SOSResponseSerializer(serializers.ModelSerializer):
     responder_first_name = serializers.CharField(source='responder.first_name')
     responder_avatar = serializers.SerializerMethodField()
     chat_room_name = serializers.CharField(source='alert.chat_room.name', read_only=True, allow_null=True)
+    guide_status = serializers.CharField(read_only=True)
+    is_primary = serializers.SerializerMethodField()
     
     class Meta:
         model = SOSResponse
@@ -74,10 +76,16 @@ class SOSResponseSerializer(serializers.ModelSerializer):
             'responder_avatar',
             'message',
             'eta_minutes',
+            'guide_status',
             'is_onsite',
             'onsite_at',
+            'accepted_at',
+            'on_the_way_at',
+            'arrived_at',
+            'completed_at',
             'created_at',
             'chat_room_name',
+            'is_primary',
         ]
     
     def get_responder_avatar(self, obj):
@@ -85,6 +93,10 @@ class SOSResponseSerializer(serializers.ModelSerializer):
         if hasattr(obj.responder, 'profile') and obj.responder.profile.avatar:
             return obj.responder.profile.avatar.url
         return None
+    
+    def get_is_primary(self, obj):
+        """Check if this responder is the primary responder for the alert."""
+        return obj.alert.primary_responder_id == obj.responder_id
 
 
 class SOSAlertSerializer(serializers.ModelSerializer):
@@ -99,6 +111,12 @@ class SOSAlertSerializer(serializers.ModelSerializer):
     chat_unread_count = serializers.SerializerMethodField()
     timeline = serializers.SerializerMethodField()
     responders = serializers.SerializerMethodField()
+    primary_responder_id = serializers.IntegerField(source='primary_responder.id', read_only=True, allow_null=True)
+    primary_responder_username = serializers.CharField(source='primary_responder.username', read_only=True, allow_null=True)
+    primary_responder_first_name = serializers.CharField(source='primary_responder.first_name', read_only=True, allow_null=True)
+    primary_responder_avatar = serializers.SerializerMethodField()
+    standby_responders = serializers.SerializerMethodField()
+    assigned_at = serializers.DateTimeField(read_only=True, allow_null=True)
     
     class Meta:
         model = SOSAlert
@@ -129,6 +147,12 @@ class SOSAlertSerializer(serializers.ModelSerializer):
             'chat_unread_count',
             'timeline',
             'responders',
+            'primary_responder_id',
+            'primary_responder_username',
+            'primary_responder_first_name',
+            'primary_responder_avatar',
+            'standby_responders',
+            'assigned_at',
         ]
     
     def get_user_avatar(self, obj):
@@ -182,29 +206,42 @@ class SOSAlertSerializer(serializers.ModelSerializer):
     
     def get_responders(self, obj):
         """Get list of guides who have responded to this SOS alert."""
-        from .models import SOSEvent
-        responder_events = SOSEvent.objects.filter(
-            alert=obj,
-            event_type='GUIDE_RESPONDED'
-        ).select_related('actor', 'actor__profile').order_by('created_at')
-        
+        from .models import SOSResponse
         responders = []
-        for event in responder_events:
-            if event.actor:
-                responders.append({
-                    'id': event.actor.id,
-                    'username': event.actor.username,
-                    'first_name': event.actor.first_name,
-                    'avatar': (
-                        event.actor.profile.avatar.url
-                        if hasattr(event.actor, 'profile') and event.actor.profile.avatar
-                        else None
-                    ),
-                    'responded_at': event.created_at.isoformat(),
-                    'message': event.response.message if event.response else None,
-                    'eta_minutes': event.response.eta_minutes if event.response else None,
-                })
+        for response in obj.responses.select_related('responder__profile').order_by('created_at'):
+            profile = getattr(response.responder, 'profile', None)
+            responders.append({
+                'id': response.responder.id,
+                'username': response.responder.username,
+                'first_name': response.responder.first_name,
+                'avatar': profile.avatar.url if profile and profile.avatar else None,
+                'eta_minutes': response.eta_minutes,
+                'guide_status': response.guide_status,
+                'is_primary': obj.primary_responder_id == response.responder.id,
+            })
         return responders
+    
+    def get_primary_responder_avatar(self, obj):
+        """Get primary responder avatar URL if available."""
+        if obj.primary_responder and hasattr(obj.primary_responder, 'profile') and obj.primary_responder.profile.avatar:
+            return obj.primary_responder.profile.avatar.url
+        return None
+    
+    def get_standby_responders(self, obj):
+        """Get list of standby responders (not primary)."""
+        from .models import SOSResponse
+        standby = []
+        for response in obj.responses.exclude(responder=obj.primary_responder).select_related('responder__profile').order_by('created_at'):
+            profile = getattr(response.responder, 'profile', None)
+            standby.append({
+                'id': response.responder.id,
+                'username': response.responder.username,
+                'first_name': response.responder.first_name,
+                'avatar': profile.avatar.url if profile and profile.avatar else None,
+                'eta_minutes': response.eta_minutes,
+                'guide_status': response.guide_status,
+            })
+        return standby
 
 
 class SOSAlertListSerializer(serializers.ModelSerializer):

@@ -1,8 +1,6 @@
 'use client'
 import { motion } from 'framer-motion'
-import { useState, useEffect } from 'react'
-import { ConfigService } from '@/services/config.service'
-import { TestimonialsService } from '@/services/testimonials.service'
+import testimonialsData from '@/data/testimonials.json'
 
 interface Testimonial {
   id: number
@@ -16,106 +14,11 @@ interface Testimonial {
   profile_url?: string
 }
 
-const FALLBACK_TESTIMONIALS: Testimonial[] = [
-  {
-    id: 1,
-    name: 'Sarah Mitchell',
-    role: 'Travel Blogger, USA 🇺🇸',
-    avatar: 'S',
-    color: '#F5A623',
-    rating: 5,
-    text: 'KilicareGO+ changed how I explore Tanzania. The AI guide answered every question in perfect English, and the SOS feature gave me peace of mind hiking Kilimanjaro. Absolutely world-class app!',
-    location: 'Kilimanjaro Trek',
-  },
-  {
-    id: 2,
-    name: 'Abdullah Al-Rashid',
-    role: 'Adventure Tourist, UAE 🇦🇪',
-    avatar: 'A',
-    color: '#10B981',
-    rating: 5,
-    text: 'Nilipata guide bora kabisa kupitia app hii. Booking ilikuwa rahisi, malipo ya M-Pesa yalifanya kazi vizuri, na uzoefu wa Serengeti ulikuwa bora zaidi ya ndoto yangu.',
-    location: 'Serengeti Safari',
-  },
-  {
-    id: 3,
-    name: 'Amara Diallo',
-    role: 'Local Guide, Zanzibar 🇹🇿',
-    avatar: 'A',
-    color: '#3B82F6',
-    rating: 5,
-    text: 'As a local guide, KilicareGO+ transformed my business. I get 10x more bookings, the payment protection system protects me and my clients, and the insights show me where to improve.',
-    location: 'Zanzibar Tours',
-  },
-  {
-    id: 4,
-    name: 'Chen Wei',
-    role: 'Digital Nomad, China 🇨🇳',
-    avatar: 'C',
-    color: '#8B5CF6',
-    rating: 5,
-    text: 'The moment feed is amazing — I could see real experiences from other tourists before booking. The KilicareBet predictions were surprisingly accurate for Tanzania Premier League!',
-    location: 'Dar es Salaam',
-  },
-  {
-    id: 5,
-    name: 'Fatima Nkrumah',
-    role: 'Business Traveler, Ghana 🇬🇭',
-    avatar: 'F',
-    color: '#EC4899',
-    rating: 5,
-    text: 'Safari bora kabisa Afrika! Nimesafiri nchi 23 lakini Tanzania na KilicareGO+ ilikuwa tofauti kabisa. App inaelewa utamaduni wetu na lugha yetu.',
-    location: 'Arusha & Zanzibar',
-  },
-  {
-    id: 6,
-    name: 'Marco Rossi',
-    role: 'Photographer, Italy 🇮🇹',
-    avatar: 'M',
-    color: '#F59E0B',
-    rating: 5,
-    text: 'The Moments feed helped me find incredible photography spots. Connected with a local guide through chat, booked instantly via M-Pesa. Shot the most beautiful wildlife photos of my career.',
-    location: 'Ngorongoro Crater',
-  },
-]
+const TESTIMONIALS: Testimonial[] = testimonialsData.testimonials
 
 export function TestimonialsSection() {
-  const [testimonials, setTestimonials] = useState<Testimonial[]>(FALLBACK_TESTIMONIALS)
-  const [loading, setLoading] = useState(true)
-  const [testimonialsBackground, setTestimonialsBackground] = useState<string>('')
-  const [error, setError] = useState(false)
-
-  useEffect(() => {
-    const fetchTestimonials = async () => {
-      try {
-        const data = await TestimonialsService.getPublic()
-        if (data && data.length > 0) {
-          setTestimonials(data)
-        } else {
-          console.error('EMPTY TESTIMONIAL RESPONSE FROM API - No testimonials returned')
-        }
-      } catch (error) {
-        console.error('Failed to fetch testimonials, using fallback:', error)
-        setError(true)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    const fetchConfig = async () => {
-      try {
-        const data = await ConfigService.getLandingPageConfig()
-        if (data.testimonials_background_image) {
-          setTestimonialsBackground(data.testimonials_background_image)
-        }
-      } catch (error) {
-        console.warn('Failed to fetch landing page config, using default background')
-      }
-    }
-
-    fetchTestimonials()
-    fetchConfig()
-  }, [])
+  const testimonials = TESTIMONIALS
+  const testimonialsBackground = testimonialsData.background_image
 
   return (
     <section
@@ -138,7 +41,7 @@ export function TestimonialsSection() {
         <div
           className="absolute inset-0"
           style={{
-            background: 'rgba(5,5,8,0.6)'
+            background: 'rgba(5,5,8,0.0)'
           }}
         />
       )}
@@ -146,7 +49,7 @@ export function TestimonialsSection() {
         {/* Header */}
         <motion.div
           className="text-center mb-14"
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
@@ -154,10 +57,10 @@ export function TestimonialsSection() {
             className="text-xs font-bold uppercase tracking-widest mb-3"
             style={{ color: '#F5A623' }}
           >
-            Wanachosema Watumiaji
+            {testimonialsData.section_label}
           </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
-            Watu Wa Kweli,
+          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+            {testimonialsData.title}
             <br />
             <span
               style={{
@@ -167,14 +70,14 @@ export function TestimonialsSection() {
                 backgroundClip: 'text',
               }}
             >
-              Uzoefu Wa Kweli
+              {testimonialsData.title_highlight}
             </span>
           </h2>
           <div className="flex items-center justify-center gap-2">
             {'★★★★★'.split('').map((s, i) => (
               <span key={i} style={{ color: '#F5A623', fontSize: 24 }}>{s}</span>
             ))}
-            <span className="text-white/60 text-sm ml-2">4.8 / 5.0 (1,247 reviews)</span>
+            <span className="text-white/60 text-sm ml-2">{testimonialsData.rating_display}</span>
           </div>
         </motion.div>
 
@@ -188,7 +91,7 @@ export function TestimonialsSection() {
                 background: `linear-gradient(135deg,${t.color}06,rgba(10,10,18,0.95))`,
                 border: `1px solid ${t.color}18`,
               }}
-              initial={{ opacity: 0, y: 30 }}
+              initial={false}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
@@ -239,15 +142,15 @@ export function TestimonialsSection() {
                   </div>
                 )}
                 <div>
-                  <p className="text-base font-black text-white">{t.name}</p>
+                  <p className="font-inter text-base font-semibold text-white">{t.name}</p>
                   <p
-                    className="text-sm font-semibold"
+                    className="font-inter text-sm font-medium"
                     style={{ color: 'rgba(255,255,255,0.85)' }}
                   >
                     {t.role}
                   </p>
                   <p
-                    className="text-xs font-bold mt-0.5"
+                    className="font-inter text-xs font-semibold mt-0.5"
                     style={{ color: t.color }}
                   >
                     📍 {t.location}

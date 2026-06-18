@@ -1,0 +1,32 @@
+{
+  "background_image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1780856470/kilicare/landing-page/ewodcpv8mzg0v1axbxk2.jpg",
+  "badge": "📱 Modern App Experience — Install Now!",
+  "title": "All of Tanzania",
+  "title_highlight": "In Your Pocket",
+  "subtitle": "KilicareGO+ works like a real app — install directly to your phone without App Store. Fast, works offline, and lightweight. Sakinisha sasa 🇹🇿",
+  "options": [
+    {
+      "icon": "Smartphone",
+      "label": "Android",
+      "desc": "Tap \"Add to Home Screen\" in Chrome",
+      "color": "#10B981"
+    },
+    {
+      "icon": "Smartphone",
+      "label": "iOS",
+      "desc": "Tap Share → \"Add to Home Screen\" in Safari",
+      "color": "#3B82F6"
+    },
+    {
+      "icon": "Globe",
+      "label": "Web",
+      "desc": "Use directly in any browser",
+      "color": "#F5A623"
+    }
+  ],
+  "cta": {
+    "text": "Get Started Free 🇹🇿",
+    "link": "/register"
+  },
+  "note": "No App Store needed · Works offline · Only 2MB"
+}

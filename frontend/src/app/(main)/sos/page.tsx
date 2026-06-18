@@ -78,6 +78,31 @@ interface ActiveAlert {
   responder_count: number
   created_at: string
   chat_room_name?: string
+  primary_responder_id?: number | null
+  primary_responder_username?: string | null
+  primary_responder_first_name?: string | null
+  primary_responder_avatar?: string | null
+  standby_responders?: Array<{
+    id: number
+    username: string
+    first_name: string
+    avatar: string | null
+    eta_minutes: number | null
+    guide_status: string
+  }>
+  assigned_at?: string | null
+  responses?: Array<{
+    id: number
+    responder_id: number
+    responder_username: string
+    responder_first_name: string
+    responder_avatar: string | null
+    message: string
+    eta_minutes: number | null
+    guide_status: string
+    is_primary: boolean
+    created_at: string
+  }>
   responders?: Array<{
     id: number
     username: string
@@ -87,6 +112,82 @@ interface ActiveAlert {
     message: string | null
     eta_minutes: number | null
   }>
+}
+
+// ── Timeline Helper Functions ──────────────────────────
+const getEventIcon = (eventType: string) => {
+  switch (eventType) {
+    case 'SOS_CREATED':
+      return <AlertCircle className="w-4 h-4" />
+    case 'GUIDE_INTERESTED':
+      return <UserCheck className="w-4 h-4" />
+    case 'GUIDE_ASSIGNED':
+      return <Shield className="w-4 h-4" />
+    case 'GUIDE_ACCEPTED':
+      return <CheckCircle className="w-4 h-4" />
+    case 'GUIDE_ON_THE_WAY':
+      return <Activity className="w-4 h-4" />
+    case 'GUIDE_ARRIVED':
+      return <MapPin className="w-4 h-4" />
+    case 'GUIDE_COMPLETED':
+      return <CheckCircle className="w-4 h-4" />
+    case 'PRIMARY_REASSIGNED':
+      return <ArrowUp className="w-4 h-4" />
+    case 'ADMIN_INTERVENTION':
+      return <Shield className="w-4 h-4" />
+    case 'CHAT_MESSAGE':
+      return <MessageSquare className="w-4 h-4" />
+    case 'SOS_RESOLVED':
+      return <CheckCircle className="w-4 h-4" />
+    case 'SOS_CANCELLED':
+      return <XCircle className="w-4 h-4" />
+    case 'SOS_ESCALATED':
+      return <ArrowUp className="w-4 h-4" />
+    default:
+      return <Activity className="w-4 h-4" />
+  }
+}
+
+const getEventColor = (eventType: string) => {
+  switch (eventType) {
+    case 'SOS_CREATED':
+      return 'text-kili-red'
+    case 'GUIDE_INTERESTED':
+      return 'text-gold'
+    case 'CHAT_MESSAGE':
+      return 'text-blue-400'
+    case 'SOS_RESOLVED':
+      return 'text-green-400'
+    case 'SOS_CANCELLED':
+      return 'text-gray-400'
+    case 'SOS_ESCALATED':
+      return 'text-orange-400'
+    case 'ADMIN_INTERVENTION':
+      return 'text-purple-400'
+    default:
+      return 'text-text-muted'
+  }
+}
+
+const getEventLabel = (event: TimelineEvent) => {
+  switch (event.event_type) {
+    case 'SOS_CREATED':
+      return 'SOS imetumwa'
+    case 'GUIDE_INTERESTED':
+      return `${event.actor?.first_name || 'Wasaidaji'} anajibu`
+    case 'CHAT_MESSAGE':
+      return `${event.actor?.first_name || 'Mtumiaji'} ameandika`
+    case 'SOS_RESOLVED':
+      return 'SOS imesuluhishwa'
+    case 'SOS_CANCELLED':
+      return 'SOS imefutwa'
+    case 'SOS_ESCALATED':
+      return 'SOS imepandishwa kiwango'
+    case 'ADMIN_INTERVENTION':
+      return `Admin: ${event.data?.action || 'intervention'}`
+    default:
+      return 'Tukio'
+  }
 }
 
 // ── Guide Alert Card ────────────────────────────────
@@ -110,8 +211,59 @@ function GuideAlertCard({
   const [responded, setResponded] = useState(false)
   const [quickReplyText, setQuickReplyText] = useState('')
   const [responseMode, setResponseMode] = useState<'quick' | 'chat'>('quick')
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([])
+  const [showTimeline, setShowTimeline] = useState(false)
   const { user } = useAuthStore()
   const sev = SEV_CONFIG[alert.severity]
+
+  // Fetch timeline for this alert
+  useEffect(() => {
+    const fetchTimeline = async () => {
+      try {
+        const { data } = await api.get(`/api/sos/${alert.id}/timeline/`)
+        setTimeline(data.timeline)
+      } catch (error) {
+        console.error('Failed to fetch timeline:', error)
+      }
+    }
+    fetchTimeline()
+  }, [alert.id])
+
+  // Determine if current user is primary or standby responder
+  const myResponse = alert.responses?.find(r => r.responder_id === user?.id)
+  const isPrimary = myResponse?.is_primary || false
+  const isStandby = myResponse && !myResponse.is_primary
+  const guideStatus = myResponse?.guide_status || 'INTERESTED'
+
+  // Lifecycle action handlers
+  const handleAcceptMission = async () => {
+    try {
+      const response = await fetch(`/api/sos/${alert.id}/guide/accept/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (response.ok) {
+        vibrate([100, 50, 100])
+      }
+    } catch (error) {
+      console.error('Failed to accept mission:', error)
+    }
+  }
+
+  const handleUpdateGuideStatus = async (newStatus: string) => {
+    try {
+      const response = await fetch(`/api/sos/${alert.id}/guide/update-status/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (response.ok) {
+        vibrate([100, 50, 100])
+      }
+    } catch (error) {
+      console.error('Failed to update guide status:', error)
+    }
+  }
 
   return (
     <motion.div
@@ -230,7 +382,7 @@ function GuideAlertCard({
         </motion.div>
 
         {/* Responders Section */}
-        {alert.responders && alert.responders.length > 0 && (
+        {alert.responses && alert.responses.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -239,39 +391,89 @@ function GuideAlertCard({
             <div className="flex items-center gap-2 mb-2">
               <Users size={12} className="text-gold" />
               <p className="text-xs font-semibold text-text-primary">
-                Wasaidaji Wanajibu ({alert.responders.length})
+                Wasaidaji Wanajibu ({alert.responses.length})
               </p>
             </div>
             <div className="space-y-2">
-              {alert.responders.map((responder) => (
+              {alert.responses.map((response) => (
                 <div
-                  key={responder.id}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10"
+                  key={response.id}
+                  className={`flex items-center gap-2 p-2 rounded-lg border ${
+                    response.is_primary 
+                      ? 'bg-gold/10 border-gold/30' 
+                      : 'bg-white/5 border-white/10'
+                  }`}
                 >
                   <KiliAvatar
-                    src={responder.avatar}
-                    name={responder.first_name}
+                    src={response.responder_avatar}
+                    name={response.responder_first_name}
                     size="xs"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-text-primary truncate">
-                      {responder.first_name}
-                    </p>
-                    {responder.message && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-text-primary truncate">
+                        {response.responder_first_name}
+                      </p>
+                      {response.is_primary && (
+                        <span className="text-[10px] font-bold text-gold">MKUU</span>
+                      )}
+                    </div>
+                    {response.message && (
                       <p className="text-[10px] text-text-muted truncate">
-                        "{responder.message}"
+                        "{response.message}"
+                      </p>
+                    )}
+                    {response.guide_status && (
+                      <p className="text-[10px] text-text-muted">
+                        {response.guide_status}
                       </p>
                     )}
                   </div>
-                  {responder.eta_minutes && (
+                  {response.eta_minutes && (
                     <div className="flex items-center gap-1 text-[10px] text-gold">
                       <Clock size={10} />
-                      <span>{responder.eta_minutes}min</span>
+                      <span>{response.eta_minutes}min</span>
                     </div>
                   )}
                 </div>
               ))}
             </div>
+          </motion.div>
+        )}
+
+        {/* Role Badge - Primary vs Standby */}
+        {myResponse && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`p-4 rounded-2xl backdrop-blur-sm border ${
+              isPrimary
+                ? 'bg-gold/15 border-gold/40'
+                : 'bg-white/5 border-white/10'
+            }`}
+          >
+            {isPrimary ? (
+              <div className="text-center">
+                <div className="text-3xl mb-2">🚑</div>
+                <p className="text-sm font-bold text-gold mb-1">YOU ARE PRIMARY RESPONDER</p>
+                <p className="text-xs text-text-muted">Status: {guideStatus}</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="text-3xl mb-2">🟡</div>
+                <p className="text-sm font-bold text-text-muted mb-1">YOU ARE STANDBY</p>
+                {alert.primary_responder_first_name && (
+                  <p className="text-xs text-text-muted">
+                    Primary: {alert.primary_responder_first_name}
+                  </p>
+                )}
+                {alert.responses?.find((r: any) => r.is_primary)?.eta_minutes && (
+                  <p className="text-xs text-gold">
+                    ETA: {alert.responses.find((r: any) => r.is_primary)?.eta_minutes} min
+                  </p>
+                )}
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -432,6 +634,239 @@ function GuideAlertCard({
                 )}
               </KiliButton>
             </motion.div>
+
+            {/* Guide Lifecycle Controls - Only for Primary Responder */}
+            {isPrimary && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-2"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity size={12} className="text-gold" />
+                  <p className="text-xs font-semibold text-text-primary">
+                    Mission Controls
+                  </p>
+                </div>
+
+                {/* ACCEPT MISSION - Show when status is INTERESTED or ASSIGNED */}
+                {(guideStatus === 'INTERESTED' || guideStatus === 'ASSIGNED') && (
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <KiliButton
+                      fullWidth
+                      size="sm"
+                      onClick={handleAcceptMission}
+                      icon={<CheckCircle size={14} />}
+                      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-500/90 hover:to-green-600/90 shadow-lg shadow-green-500/30"
+                    >
+                      ✅ ACCEPT MISSION
+                    </KiliButton>
+                  </motion.div>
+                )}
+
+                {/* START JOURNEY - Show when status is ACCEPTED */}
+                {guideStatus === 'ACCEPTED' && (
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <KiliButton
+                      fullWidth
+                      size="sm"
+                      onClick={() => handleUpdateGuideStatus('on_the_way')}
+                      icon={<Activity size={14} />}
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-500/90 hover:to-blue-600/90 shadow-lg shadow-blue-500/30"
+                    >
+                      🚀 ON THE WAY
+                    </KiliButton>
+                  </motion.div>
+                )}
+
+                {/* ARRIVED - Show when status is ON_THE_WAY */}
+                {guideStatus === 'ON_THE_WAY' && (
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <KiliButton
+                      fullWidth
+                      size="sm"
+                      onClick={() => handleUpdateGuideStatus('ARRIVED')}
+                      icon={<MapPin size={14} />}
+                      className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-500/90 hover:to-purple-600/90 shadow-lg shadow-purple-500/30"
+                    >
+                      📍 ARRIVED
+                    </KiliButton>
+                  </motion.div>
+                )}
+
+                {/* COMPLETE INCIDENT - Show when status is ARRIVED */}
+                {guideStatus === 'ARRIVED' && (
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <KiliButton
+                      fullWidth
+                      size="sm"
+                      onClick={() => handleUpdateGuideStatus('completed')}
+                      icon={<CheckCircle size={14} />}
+                      className="bg-gradient-to-r from-gold to-gold-dim hover:from-gold/90 hover:to-gold-dim/90 shadow-lg shadow-gold/30"
+                    >
+                      ✅ COMPLETE INCIDENT
+                    </KiliButton>
+                  </motion.div>
+                )}
+
+                {/* UNABLE TO CONTINUE - Failure Scenario */}
+                {(guideStatus === 'ACCEPTED' || guideStatus === 'ON_THE_WAY') && (
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <KiliButton
+                      fullWidth
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleUpdateGuideStatus('unable_to_continue')}
+                      icon={<XCircle size={14} />}
+                      className="bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20"
+                    >
+                      ❌ UNABLE TO CONTINUE
+                    </KiliButton>
+                  </motion.div>
+                )}
+
+                {/* Status Display */}
+                <div className="text-center py-2">
+                  <p className="text-[10px] text-text-muted">
+                    Current Status: <span className="font-bold text-gold">{guideStatus}</span>
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Standby Guide - Stay Available Button Only */}
+            {isStandby && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-2"
+              >
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <KiliButton
+                    fullWidth
+                    size="sm"
+                    variant="ghost"
+                    icon={<Shield size={14} />}
+                    className="bg-white/10 text-text-muted border border-white/20 hover:bg-white/20"
+                  >
+                    👁️ STAY AVAILABLE
+                  </KiliButton>
+                </motion.div>
+                <p className="text-[10px] text-text-muted text-center">
+                  You are on standby. No lifecycle controls available.
+                </p>
+              </motion.div>
+            )}
+
+            {/* Timeline Section */}
+            {timeline.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl p-4 bg-white/5 border border-white/10 backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Activity size={14} className="text-gold" />
+                    <p className="text-xs font-semibold text-text-primary">
+                      Mwelekeo wa Dharura
+                    </p>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowTimeline(!showTimeline)}
+                    className="text-[10px] text-gold hover:text-gold/80"
+                  >
+                    {showTimeline ? 'Funga' : 'Onesha zaidi'}
+                  </motion.button>
+                </div>
+                {showTimeline ? (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {timeline.map((event) => (
+                      <div
+                        key={event.id}
+                        className="flex items-start gap-3 p-2 rounded-xl bg-white/5 border border-white/10"
+                      >
+                        <div className={cn(
+                          'w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0',
+                          getEventColor(event.event_type)
+                        )}>
+                          {getEventIcon(event.event_type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={cn('text-[10px] font-semibold', getEventColor(event.event_type))}>
+                              {getEventLabel(event)}
+                            </span>
+                            <span className="text-[9px] text-text-muted">
+                              {timeAgo(event.created_at)}
+                            </span>
+                          </div>
+                          {event.response_data && (
+                            <p className="text-[10px] text-text-secondary">
+                              {event.response_data.message}
+                              {event.response_data.eta_minutes && (
+                                <span className="ml-1 text-gold">ETA: {event.response_data.eta_minutes} min</span>
+                              )}
+                            </p>
+                          )}
+                          {event.message_data && (
+                            <p className="text-[10px] text-text-secondary">
+                              {event.message_data.content}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {timeline.slice(-3).map((event) => (
+                      <div
+                        key={event.id}
+                        className="flex items-start gap-3 p-2 rounded-xl bg-white/5 border border-white/10"
+                      >
+                        <div className={cn(
+                          'w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0',
+                          getEventColor(event.event_type)
+                        )}>
+                          {getEventIcon(event.event_type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={cn('text-[10px] font-semibold', getEventColor(event.event_type))}>
+                              {getEventLabel(event)}
+                            </span>
+                            <span className="text-[9px] text-text-muted">
+                              {timeAgo(event.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
 
             {/* Chat Preview */}
             <motion.div
@@ -620,6 +1055,12 @@ export default function SOSPage() {
         console.log('[SOS] Restoring active alert:', activeAlert.id)
         setActiveAlertId(activeAlert.id)
 
+        // Join incident-scoped WebSocket group
+        wsRef.current.send({
+          action: 'join_incident',
+          alert_id: activeAlert.id,
+        })
+
         // Restore responses if they exist
         if (activeAlert.responses && activeAlert.responses.length > 0) {
           console.log('[SOS] Restoring responses:', activeAlert.responses.length)
@@ -684,6 +1125,17 @@ export default function SOSPage() {
         setChatMessages([])
         setChatUnreadCount(0)
         toast.success('SOS imesuluhishwa! ✅')
+      }
+      if (data.type === 'sos_cancelled') {
+        setActiveAlertId(null)
+        setResponses([])
+        setChatRoomName(null)
+        setChatMessages([])
+        setChatUnreadCount(0)
+        toast.info('SOS imefutwa')
+      }
+      if (data.type === 'sos_escalated') {
+        toast.warning('SOS imepandishwa!')
       }
       if (data.type === 'new_sos') {
         const d = data.alert as ActiveAlert
@@ -828,6 +1280,12 @@ export default function SOSPage() {
       message: msg,
     })
 
+    // Join incident-scoped WebSocket group after responding
+    wsRef.current.send({
+      action: 'join_incident',
+      alert_id: alertId,
+    })
+
     // Fetch chat messages after responding
     setTimeout(() => {
       const alert = guideAlerts.find(a => a.id === alertId)
@@ -906,63 +1364,6 @@ export default function SOSPage() {
       setTimeline(data.timeline)
     } catch (error) {
       console.error('[SOS] Error fetching timeline:', error)
-    }
-  }
-
-  const getEventIcon = (eventType: string) => {
-    switch (eventType) {
-      case 'SOS_CREATED':
-        return <AlertCircle className="w-4 h-4" />
-      case 'GUIDE_RESPONDED':
-        return <UserCheck className="w-4 h-4" />
-      case 'CHAT_MESSAGE':
-        return <MessageSquare className="w-4 h-4" />
-      case 'SOS_RESOLVED':
-        return <CheckCircle className="w-4 h-4" />
-      case 'SOS_CANCELLED':
-        return <XCircle className="w-4 h-4" />
-      case 'SOS_ESCALATED':
-        return <ArrowUp className="w-4 h-4" />
-      default:
-        return <Activity className="w-4 h-4" />
-    }
-  }
-
-  const getEventColor = (eventType: string) => {
-    switch (eventType) {
-      case 'SOS_CREATED':
-        return 'text-kili-red'
-      case 'GUIDE_RESPONDED':
-        return 'text-gold'
-      case 'CHAT_MESSAGE':
-        return 'text-blue-400'
-      case 'SOS_RESOLVED':
-        return 'text-green-400'
-      case 'SOS_CANCELLED':
-        return 'text-gray-400'
-      case 'SOS_ESCALATED':
-        return 'text-orange-400'
-      default:
-        return 'text-text-muted'
-    }
-  }
-
-  const getEventLabel = (event: TimelineEvent) => {
-    switch (event.event_type) {
-      case 'SOS_CREATED':
-        return 'SOS imetumwa'
-      case 'GUIDE_RESPONDED':
-        return `${event.actor?.first_name || 'Wasaidaji'} anajibu`
-      case 'CHAT_MESSAGE':
-        return `${event.actor?.first_name || 'Mtumiaji'} ameandika`
-      case 'SOS_RESOLVED':
-        return 'SOS imesuluhishwa'
-      case 'SOS_CANCELLED':
-        return 'SOS imefutwa'
-      case 'SOS_ESCALATED':
-        return 'SOS imepandishwa kiwango'
-      default:
-        return 'Tukio'
     }
   }
 
@@ -1238,45 +1639,240 @@ export default function SOSPage() {
         </div>
       )}
 
-      {/* Active SOS status */}
+      {/* Active Rescue Team Card - Hero Section */}
       {activeAlertId && (
         <div className="px-5 mb-4">
           <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
             className="rounded-3xl p-5"
             style={{
-              background: 'rgba(255,45,45,0.08)',
-              border: '1px solid rgba(255,45,45,0.25)',
+              background: 'linear-gradient(135deg, rgba(255,45,45,0.12) 0%, rgba(245,166,35,0.08) 100%)',
+              border: '2px solid rgba(255,45,45,0.3)',
             }}
-            animate={{ borderColor: ['rgba(255,45,45,0.25)', 'rgba(255,45,45,0.6)', 'rgba(255,45,45,0.25)'] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-kili-red animate-pulse" />
-              <p className="font-bold text-kili-red">SOS INAYOENDELEA</p>
+            {/* Hero Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-2xl"
+                >
+                  🚑
+                </motion.div>
+                <div>
+                  <p className="text-sm font-bold text-kili-red">ACTIVE RESCUE TEAM</p>
+                  <p className="text-[10px] text-text-muted">
+                    {myAlerts.find((a: any) => a.id === activeAlertId)?.status || 'WAITING'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-kili-red animate-pulse" />
+                <span className="text-[10px] text-text-muted">
+                  {timeAgo(myAlerts.find((a: any) => a.id === activeAlertId)?.created_at || '')}
+                </span>
+              </div>
             </div>
 
-            {timeline.filter(e => e.event_type === 'GUIDE_RESPONDED').length > 0 && (
-              <div className="space-y-2 mb-4">
-                {timeline
-                  .filter(e => e.event_type === 'GUIDE_RESPONDED')
-                  .map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex items-start gap-3 p-3 rounded-2xl bg-bg-elevated"
-                    >
-                      <CheckCircle size={16} className="text-kili-green flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-bold text-text-primary">
-                          {event.actor?.first_name || 'Wasaidaji'} anakuja!
-                        </p>
-                        <p className="text-xs text-text-muted">
-                          {event.response_data?.message || event.data.message}
-                          {event.response_data?.eta_minutes && ` • ETA ${event.response_data.eta_minutes} dakika`}
-                        </p>
+            {/* Primary Responder - Hero Section */}
+            {myAlerts.find((a: any) => a.id === activeAlertId)?.primary_responder_id && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mb-4 p-4 rounded-2xl bg-gold/15 border border-gold/40"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield size={16} className="text-gold" />
+                  <p className="text-sm font-bold text-gold">PRIMARY RESPONDER</p>
+                  <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-gold/20 text-gold">
+                    ⭐ ASSIGNED
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    className="relative"
+                  >
+                    <KiliAvatar
+                      src={myAlerts.find((a: any) => a.id === activeAlertId)?.primary_responder_avatar}
+                      name={myAlerts.find((a: any) => a.id === activeAlertId)?.primary_responder_first_name || ''}
+                      size="md"
+                    />
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-slate-900 bg-gold"
+                    />
+                  </motion.div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-text-primary">
+                      {myAlerts.find((a: any) => a.id === activeAlertId)?.primary_responder_first_name || 'Msaidizi'}
+                    </p>
+                    {myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.find((r: any) => r.is_primary)?.eta_minutes && (
+                      <div className="flex items-center gap-1 text-xs text-gold">
+                        <Clock size={10} />
+                        <span>ETA: {myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.find((r: any) => r.is_primary)?.eta_minutes} Minutes</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-semibold text-gold">
+                      {(() => {
+                        const status = myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.find((r: any) => r.is_primary)?.guide_status
+                        if (status === 'ON_THE_WAY') return '🚀 ON THE WAY'
+                        if (status === 'ARRIVED') return '📍 ARRIVED'
+                        if (status === 'COMPLETED') return '✅ COMPLETED'
+                        return status || 'ACCEPTED'
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* No Primary Responder Yet - Hero Section */}
+            {!myAlerts.find((a: any) => a.id === activeAlertId)?.primary_responder_id && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mb-4 p-4 rounded-2xl bg-white/5 border border-white/10"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield size={16} className="text-text-muted" />
+                  <p className="text-sm font-bold text-text-muted">WAITING FOR RESPONDER</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Loader2 size={20} className="text-gold" />
+                  </motion.div>
+                  <p className="text-xs text-text-muted">
+                    System is searching nearby guides...
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Backup Responders Count - Hero Section */}
+            <div className="flex items-center justify-between mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2">
+                <Users size={14} className="text-text-muted" />
+                <p className="text-xs font-semibold text-text-muted">
+                  Backup Responders
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-text-primary">
+                  {myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.filter((r: any) => !r.is_primary).length || 0}
+                </span>
+                <span className="text-[10px] text-text-muted">
+                  on standby
+                </span>
+              </div>
+            </div>
+
+            {/* Current Status - Hero Section */}
+            <div className="flex items-center justify-between mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2">
+                <Activity size={14} className="text-gold" />
+                <p className="text-xs font-semibold text-text-muted">
+                  Current Status
+                </p>
+              </div>
+              <span className="text-xs font-bold text-gold">
+                {myAlerts.find((a: any) => a.id === activeAlertId)?.status || 'WAITING_FOR_RESPONDER'}
+              </span>
+            </div>
+
+            {/* Rescue Confidence - Hero Section */}
+            <div className="flex items-center justify-between mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2">
+                <Shield size={14} className="text-gold" />
+                <p className="text-xs font-semibold text-text-muted">
+                  Rescue Confidence
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className={`w-2 h-2 rounded-full ${
+                    (myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.length || 0) >= 3
+                      ? 'bg-green-400'
+                      : (myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.length || 0) >= 1
+                      ? 'bg-gold'
+                      : 'bg-red-400'
+                  }`}
+                />
+                <span className={`text-xs font-bold ${
+                  (myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.length || 0) >= 3
+                    ? 'text-green-400'
+                    : (myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.length || 0) >= 1
+                    ? 'text-gold'
+                    : 'text-red-400'
+                }`}>
+                  {(myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.length || 0) >= 3
+                    ? '🟢 VERY HIGH'
+                    : (myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.length || 0) >= 1
+                    ? '🟡 HIGH'
+                    : '🔴 LOW'}
+                </span>
+              </div>
+            </div>
+
+            {/* Nearby Responders - Hero Section */}
+            <div className="flex items-center justify-between mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2">
+                <Users size={14} className="text-gold" />
+                <p className="text-xs font-semibold text-text-muted">
+                  Nearby Responders
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-text-primary">
+                  {myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.length || 0}
+                </span>
+                <span className="text-[10px] text-text-muted">
+                  available
+                </span>
+              </div>
+            </div>
+
+            {/* Standby Responders List - Collapsed */}
+            {myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.filter((r: any) => !r.is_primary).length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Users size={12} className="text-text-muted" />
+                  <p className="text-xs font-semibold text-text-muted">
+                    Standby Responders
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  {myAlerts.find((a: any) => a.id === activeAlertId)?.responses?.filter((r: any) => !r.is_primary).slice(0, 3).map((standby: any) => (
+                    <div key={standby.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
+                      <KiliAvatar
+                        src={standby.avatar}
+                        name={standby.first_name}
+                        size="xs"
+                      />
+                      <div className="flex-1">
+                        <p className="text-[10px] font-semibold text-text-muted">{standby.first_name}</p>
+                        {standby.eta_minutes && (
+                          <p className="text-[9px] text-text-muted">ETA: {standby.eta_minutes}min</p>
+                        )}
                       </div>
                     </div>
                   ))}
-              </div>
+                </div>
+              </motion.div>
             )}
 
             <div className="flex gap-2">

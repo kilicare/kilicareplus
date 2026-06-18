@@ -1,0 +1,73 @@
+{
+  "background_image": "https://res.cloudinary.com/dqgdsuok7/image/upload/v1781072038/kilicare/landing-page/wphb1vv88ahxlupx7yb1.jpg",
+  "section_label": "Features",
+  "title": "Everything You Need",
+  "title_highlight": "For Real Tanzania",
+  "subtitle": "Connect with real people, authentic moments, and safety across Tanzania.",
+  "features": [
+    {
+      "icon": "📸",
+      "title": "Live Tanzania Experience Feed",
+      "desc": "Discover real moments from local life, cultural experiences, and safety tips. Scroll through authentic Tanzania stories.",
+      "color": "#F5A623",
+      "tag": "Real Moments",
+      "demo": "/feed"
+    },
+    {
+      "icon": "🤖",
+      "title": "Your Tanzania Companion AI",
+      "desc": "Your local guide, safety advisor, and cultural explainer — available 24/7 in Swahili or English. Ask anything, anytime.",
+      "color": "#10B981",
+      "tag": "AI Companion",
+      "demo": "/ai"
+    },
+    {
+      "icon": "🆘",
+      "title": "Safety Network",
+      "desc": "One-tap emergency response connects you to nearby guides and responders instantly. Stay safe anywhere in Tanzania.",
+      "color": "#FF2D2D",
+      "tag": "24/7 Safety",
+      "demo": "/sos"
+    },
+    {
+      "icon": "🗺️",
+      "title": "Live Experience Map of Tanzania",
+      "desc": "Explore safety tips, authentic experiences, and hidden gems across Tanzania on an interactive map with real-time updates.",
+      "color": "#3B82F6",
+      "tag": "Interactive Map",
+      "demo": "/map"
+    },
+    {
+      "icon": "📅",
+      "title": "Secure Booking System",
+      "desc": "Book verified local guides with protected payments. Safe and secure until your experience is complete.",
+      "color": "#8B5CF6",
+      "tag": "Secure Payments",
+      "demo": "/register"
+    },
+    {
+      "icon": "🎯",
+      "title": "Kilicare Play",
+      "desc": "Football insights, predictions, and fun engagement. Entertainment layer for sports fans — for enjoyment and insights only.",
+      "color": "#F59E0B",
+      "tag": "Entertainment",
+      "demo": "/predictions"
+    },
+    {
+      "icon": "🛂",
+      "title": "Experience Passport",
+      "desc": "Earn points, unlock badges, and level up. Track your Tanzania journey and compete on the leaderboard.",
+      "color": "#EC4899",
+      "tag": "Gamified XP",
+      "demo": "/passport"
+    },
+    {
+      "icon": "🛍️",
+      "title": "Tanzania Culture & Experience Gallery",
+      "desc": "Discover local creators, cultural stories, and authentic experiences. A digital exhibition of Tanzania's rich heritage.",
+      "color": "#14B8A6",
+      "tag": "Cultural Discovery",
+      "demo": "/showcase"
+    }
+  ]
+}

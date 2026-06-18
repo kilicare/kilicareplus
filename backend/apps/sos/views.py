@@ -44,13 +44,13 @@ def active_alerts_view(request):
     if request.user.role == 'ADMIN':
         # Admins see all active alerts without distance filtering
         alerts = SOSAlert.objects.filter(
-            status__in=('ACTIVE', 'RESPONDING', 'ESCALATED')
-        ).select_related('user', 'user__profile', 'chat_room').order_by('-created_at')
+            status__in=('ACTIVE', 'ASSIGNED', 'ON_THE_WAY', 'ON_SITE', 'ESCALATED')
+        ).select_related('user', 'user__profile', 'chat_room', 'primary_responder').prefetch_related('responses__responder__profile').order_by('-created_at')
     else:
         # Guides see nearby alerts with distance filtering
         alerts = SOSAlert.objects.filter(
-            status__in=('ACTIVE', 'RESPONDING', 'ESCALATED')
-        ).select_related('user', 'user__profile', 'chat_room').order_by('-created_at')
+            status__in=('ACTIVE', 'ASSIGNED', 'ON_THE_WAY', 'ON_SITE', 'ESCALATED')
+        ).select_related('user', 'user__profile', 'chat_room', 'primary_responder').prefetch_related('responses__responder__profile').order_by('-created_at')
 
     data = []
     for a in alerts:
@@ -108,9 +108,9 @@ def statistics_view(request):
     from django.utils import timezone
     today = timezone.now().date()
     return Response({
-        'active_count': SOSAlert.objects.filter(status='ACTIVE').count(),
-        'responding_count': SOSAlert.objects.filter(status='RESPONDING').count(),
-        'escalated_count': SOSAlert.objects.filter(status='ESCALATED').count(),
+        'active': SOSAlert.objects.filter(status='ACTIVE').count(),
+        'responding': SOSAlert.objects.filter(status__in=['ASSIGNED', 'ON_THE_WAY', 'ON_SITE']).count(),
+        'escalated': SOSAlert.objects.filter(status='ESCALATED').count(),
         'resolved_today': SOSAlert.objects.filter(
             status='RESOLVED',
             resolved_at__date=today,
@@ -133,8 +133,35 @@ def admin_resolve_sos_view(request, alert_id):
     reason = request.data.get('reason', 'Admin override')
     
     try:
-        alert = SOSAlert.objects.get(id=alert_id)
-        alert.transition_to('RESOLVED', actor=request.user, reason=reason)
+        alert = SOSAlert.objects.select_for_update().get(id=alert_id)
+        
+        # Use IncidentStateService for state change
+        from .services import IncidentStateService
+        IncidentStateService.set_resolved_state(alert, actor=request.user, reason=reason)
+        
+        # Create ADMIN_INTERVENTION event
+        from .services import SOSEventService
+        SOSEventService.create_event(
+            alert=alert,
+            event_type='ADMIN_INTERVENTION',
+            actor=request.user,
+            data={
+                'action': 'resolve',
+                'reason': reason,
+            }
+        )
+        
+        # Also create SOS_RESOLVED event for state change
+        SOSEventService.create_event(
+            alert=alert,
+            event_type='SOS_RESOLVED',
+            actor=request.user,
+            data={
+                'admin_intervention': True,
+                'reason': reason,
+            }
+        )
+        
         return Response({'success': True, 'status': 'RESOLVED'})
     except SOSAlert.DoesNotExist:
         return Response({'message': 'Alert not found'}, status=404)
@@ -149,8 +176,35 @@ def admin_cancel_sos_view(request, alert_id):
     reason = request.data.get('reason', 'Admin override')
     
     try:
-        alert = SOSAlert.objects.get(id=alert_id)
-        alert.transition_to('CANCELLED', actor=request.user, reason=reason)
+        alert = SOSAlert.objects.select_for_update().get(id=alert_id)
+        
+        # Use IncidentStateService for state change
+        from .services import IncidentStateService
+        IncidentStateService.set_cancelled_state(alert, actor=request.user, reason=reason)
+        
+        # Create ADMIN_INTERVENTION event
+        from .services import SOSEventService
+        SOSEventService.create_event(
+            alert=alert,
+            event_type='ADMIN_INTERVENTION',
+            actor=request.user,
+            data={
+                'action': 'cancel',
+                'reason': reason,
+            }
+        )
+        
+        # Also create SOS_CANCELLED event for state change
+        SOSEventService.create_event(
+            alert=alert,
+            event_type='SOS_CANCELLED',
+            actor=request.user,
+            data={
+                'admin_intervention': True,
+                'reason': reason,
+            }
+        )
+        
         return Response({'success': True, 'status': 'CANCELLED'})
     except SOSAlert.DoesNotExist:
         return Response({'message': 'Alert not found'}, status=404)
@@ -165,8 +219,35 @@ def admin_escalate_sos_view(request, alert_id):
     reason = request.data.get('reason', 'Admin escalation')
     
     try:
-        alert = SOSAlert.objects.get(id=alert_id)
-        alert.transition_to('ESCALATED', actor=request.user, reason=reason)
+        alert = SOSAlert.objects.select_for_update().get(id=alert_id)
+        
+        # Use IncidentStateService for state change
+        from .services import IncidentStateService
+        IncidentStateService.set_escalated_state(alert, actor=request.user, reason=reason)
+        
+        # Create ADMIN_INTERVENTION event
+        from .services import SOSEventService
+        SOSEventService.create_event(
+            alert=alert,
+            event_type='ADMIN_INTERVENTION',
+            actor=request.user,
+            data={
+                'action': 'escalate',
+                'reason': reason,
+            }
+        )
+        
+        # Also create SOS_ESCALATED event for state change
+        SOSEventService.create_event(
+            alert=alert,
+            event_type='SOS_ESCALATED',
+            actor=request.user,
+            data={
+                'admin_intervention': True,
+                'reason': reason,
+            }
+        )
+        
         return Response({'success': True, 'status': 'ESCALATED'})
     except SOSAlert.DoesNotExist:
         return Response({'message': 'Alert not found'}, status=404)
@@ -367,11 +448,13 @@ def alert_chat_room_view(request, alert_id):
 def alert_timeline_view(request, alert_id):
     """Get structured event timeline for an SOS alert."""
     try:
-        alert = SOSAlert.objects.select_related('user').get(id=alert_id)
+        alert = SOSAlert.objects.select_related('user', 'primary_responder').get(id=alert_id)
         
-        # Check permission: tourist can only see their own alerts, guides can see any
-        if request.user.role == 'TOURIST' and alert.user != request.user:
-            return Response({'message': 'Permission denied'}, status=403)
+        # Security validation: only tourist, responders, standby responders, admins can access
+        from .services import IncidentSecurityService
+        can_access, error_msg = IncidentSecurityService.can_access_timeline(alert, request.user)
+        if not can_access:
+            return Response({'message': error_msg}, status=403)
         
         from .services import SOSEventService
         timeline = SOSEventService.get_timeline(alert_id)
@@ -382,3 +465,339 @@ def alert_timeline_view(request, alert_id):
         })
     except SOSAlert.DoesNotExist:
         return Response({'message': 'Alert not found'}, status=404)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# GUIDE LIFECYCLE ENDPOINTS
+# ════════════════════════════════════════════════════════════════════════════
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsLocalGuide])
+def guide_create_response_view(request, alert_id):
+    """Guide creates a response to an SOS alert."""
+    try:
+        # Rate limiting check
+        from .services import IncidentSecurityService
+        can_proceed, rate_error = IncidentSecurityService.check_rate_limit(request.user, 'response_creation')
+        if not can_proceed:
+            return Response({'message': rate_error}, status=429)
+        
+        alert = SOSAlert.objects.select_for_update().get(id=alert_id)
+        
+        # Validate alert is still active
+        if alert.status in ('RESOLVED', 'CANCELLED'):
+            return Response({'message': 'Alert is no longer active'}, status=400)
+        
+        # Check if guide already responded (unique constraint)
+        existing_response = SOSResponse.objects.filter(
+            alert=alert,
+            responder=request.user
+        ).first()
+        
+        if existing_response:
+            return Response({'message': 'You have already responded to this alert'}, status=400)
+        
+        message = request.data.get('message', '')
+        eta_minutes = request.data.get('eta_minutes')
+        
+        if not message:
+            return Response({'message': 'Message is required'}, status=400)
+        
+        # Create response atomically
+        with transaction.atomic():
+            from apps.messaging.models import ChatRoom
+            from .services import SOSEventService, IncidentStateService
+            
+            # Create or get chat room
+            if not alert.chat_room:
+                chat_room = ChatRoom.get_or_create_dm(request.user.id, alert.user_id)
+                alert.chat_room = chat_room
+                alert.save(update_fields=['chat_room'])
+            
+            response = SOSResponse.objects.create(
+                alert=alert,
+                responder=request.user,
+                message=message,
+                eta_minutes=eta_minutes,
+            )
+            
+            # Update alert state
+            IncidentStateService.set_responding_state(alert)
+            
+            # Atomic update of responder count
+            from django.db.models import F
+            alert.responder_count = F('responder_count') + 1
+            alert.save(update_fields=['responder_count', 'chat_room'])
+            alert.refresh_from_db(fields=['responder_count'])
+            
+            # Create GUIDE_INTERESTED event
+            SOSEventService.create_event(
+                alert=alert,
+                event_type='GUIDE_INTERESTED',
+                actor=request.user,
+                response=response,
+                data={
+                    'message': message,
+                    'eta_minutes': eta_minutes,
+                    'chat_room_name': alert.chat_room.name if alert.chat_room else None,
+                }
+            )
+            
+            # Trigger smart dispatch
+            from .services import SmartDispatchService
+            SmartDispatchService.dispatch_primary(alert)
+        
+        return Response({
+            'success': True,
+            'response_id': response.id,
+            'guide_status': response.guide_status,
+            'alert_status': alert.status,
+        })
+    except SOSAlert.DoesNotExist:
+        return Response({'message': 'Alert not found'}, status=404)
+    except ValueError as e:
+        return Response({'message': str(e)}, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsLocalGuide])
+def guide_accept_assignment_view(request, alert_id):
+    """Guide accepts assignment as primary responder."""
+    try:
+        # Rate limiting check
+        from .services import IncidentSecurityService
+        can_proceed, rate_error = IncidentSecurityService.check_rate_limit(request.user, 'status_updates')
+        if not can_proceed:
+            return Response({'message': rate_error}, status=429)
+        
+        alert = SOSAlert.objects.select_related('user', 'primary_responder').get(id=alert_id)
+        response = SOSResponse.objects.select_related('responder').filter(
+            alert=alert,
+            responder=request.user
+        ).first()
+        
+        if not response:
+            return Response({'message': 'No response found for this alert'}, status=404)
+        
+        # Security validation: only primary responder can accept
+        can_perform, error_msg = IncidentSecurityService.can_guide_perform_lifecycle_action(alert, request.user)
+        if not can_perform:
+            return Response({'message': error_msg}, status=403)
+        
+        # Transition guide status to ACCEPTED
+        response.transition_guide_status('ACCEPTED')
+        
+        # Create GUIDE_ACCEPTED event
+        from .services import SOSEventService
+        SOSEventService.create_event(
+            alert=alert,
+            event_type='GUIDE_ACCEPTED',
+            actor=request.user,
+            response=response,
+            data={
+                'responder_id': request.user.id,
+                'responder_username': request.user.username,
+            }
+        )
+        
+        # Update alert status to ON_THE_WAY
+        alert.transition_to('ON_THE_WAY', actor=request.user)
+        
+        return Response({
+            'success': True,
+            'guide_status': response.guide_status,
+            'alert_status': alert.status,
+        })
+    except SOSAlert.DoesNotExist:
+        return Response({'message': 'Alert not found'}, status=404)
+    except ValueError as e:
+        return Response({'message': str(e)}, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsLocalGuide])
+def guide_update_status_view(request, alert_id):
+    """Guide updates their status (on_the_way, arrived, completed)."""
+    try:
+        # Rate limiting check
+        from .services import IncidentSecurityService
+        can_proceed, rate_error = IncidentSecurityService.check_rate_limit(request.user, 'status_updates')
+        if not can_proceed:
+            return Response({'message': rate_error}, status=429)
+        
+        alert = SOSAlert.objects.select_for_update().get(id=alert_id)
+        response = SOSResponse.objects.filter(
+            alert=alert,
+            responder=request.user
+        ).first()
+        
+        if not response:
+            return Response({'message': 'No response found for this alert'}, status=404)
+        
+        # Security validation: only primary responder can update status
+        can_perform, error_msg = IncidentSecurityService.can_guide_perform_lifecycle_action(alert, request.user)
+        if not can_perform:
+            return Response({'message': error_msg}, status=403)
+        
+        # Map frontend status to model status
+        status_mapping = {
+            'on_the_way': 'ON_THE_WAY',
+            'arrived': 'ARRIVED',
+            'completed': 'COMPLETED',
+            'unable_to_continue': 'UNABLE_TO_CONTINUE',
+        }
+        
+        new_status = request.data.get('status')
+        model_status = status_mapping.get(new_status)
+        
+        if not model_status:
+            return Response({'message': f'Invalid status: {new_status}'}, status=400)
+        
+        # Handle UNABLE_TO_CONTINUE - failure scenario
+        if model_status == 'UNABLE_TO_CONTINUE':
+            # Mark guide as unable to continue
+            response.guide_status = 'UNABLE_TO_CONTINUE'
+            response.save(update_fields=['guide_status'])
+            
+            # Create event for failure
+            from .services import SOSEventService
+            SOSEventService.create_event(
+                alert=alert,
+                event_type='ADMIN_INTERVENTION',
+                actor=request.user,
+                response=response,
+                data={
+                    'action': 'guide_unable_to_continue',
+                    'responder_id': request.user.id,
+                    'responder_username': request.user.username,
+                }
+            )
+            
+            # Trigger standby promotion
+            from .services import StandbyPromotionService
+            StandbyPromotionService.check_and_promote_standby(alert)
+            
+            return Response({
+                'success': True,
+                'guide_status': response.guide_status,
+                'alert_status': alert.status,
+            })
+        
+        # Use atomic transaction for state change
+        with transaction.atomic():
+            # Transition guide status
+            response.transition_guide_status(model_status)
+            
+            # Create appropriate event
+            from .services import SOSEventService
+            event_type_mapping = {
+                'ON_THE_WAY': 'GUIDE_ON_THE_WAY',
+                'ARRIVED': 'GUIDE_ARRIVED',
+                'COMPLETED': 'GUIDE_COMPLETED',
+            }
+            
+            event_type = event_type_mapping.get(model_status)
+            if event_type:
+                SOSEventService.create_event(
+                    alert=alert,
+                    event_type=event_type,
+                    actor=request.user,
+                    response=response,
+                    data={
+                        'responder_id': request.user.id,
+                        'responder_username': request.user.username,
+                    }
+                )
+            
+            # Update alert status using IncidentStateService
+            from .services import IncidentStateService
+            if model_status == 'ON_THE_WAY':
+                IncidentStateService.set_on_the_way_state(alert, actor=request.user)
+            elif model_status == 'ARRIVED':
+                IncidentStateService.set_on_site_state(alert, actor=request.user)
+            elif model_status == 'COMPLETED':
+                IncidentStateService.set_completed_state(alert, actor=request.user)
+        
+        return Response({
+            'success': True,
+            'guide_status': response.guide_status,
+            'alert_status': alert.status,
+        })
+    except SOSAlert.DoesNotExist:
+        return Response({'message': 'Alert not found'}, status=404)
+    except ValueError as e:
+        return Response({'message': str(e)}, status=400)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ADMIN REASSIGNMENT ENDPOINT
+# ════════════════════════════════════════════════════════════════════════════
+
+@api_view(['PUT'])
+@permission_classes([IsAdmin])
+def admin_reassign_primary_view(request, alert_id):
+    """Admin reassigns primary responder to a different guide."""
+    try:
+        # Rate limiting check
+        from .services import IncidentSecurityService
+        can_proceed, rate_error = IncidentSecurityService.check_rate_limit(request.user, 'assignment_actions')
+        if not can_proceed:
+            return Response({'message': rate_error}, status=429)
+        
+        alert = SOSAlert.objects.select_for_update().get(id=alert_id)
+        new_responder_id = request.data.get('responder_id')
+        reason = request.data.get('reason', 'Admin reassignment')
+        
+        if not new_responder_id:
+            return Response({'message': 'responder_id is required'}, status=400)
+        
+        # Security validation: admin can only assign responders already attached to incident
+        can_reassign, error_msg = IncidentSecurityService.can_admin_reassign_responder(alert, new_responder_id)
+        if not can_reassign:
+            return Response({'message': error_msg}, status=400)
+        
+        from apps.accounts.models import User
+        new_responder = User.objects.get(id=new_responder_id, role='LOCAL_GUIDE')
+        
+        # Check if new responder has a response for this alert
+        response = SOSResponse.objects.filter(
+            alert=alert,
+            responder=new_responder
+        ).first()
+        
+        if not response:
+            return Response({'message': 'Selected responder has not responded to this alert'}, status=400)
+        
+        # Reassign primary using atomic method
+        was_assigned = alert.assign_primary_responder(new_responder, actor=request.user)
+        
+        if was_assigned:
+            # Create ADMIN_INTERVENTION event for reassignment
+            from .services import SOSEventService
+            SOSEventService.create_event(
+                alert=alert,
+                event_type='PRIMARY_REASSIGNED',
+                actor=request.user,
+                data={
+                    'admin_intervention': True,
+                    'reason': reason,
+                    'new_primary_id': new_responder.id,
+                    'new_primary_username': new_responder.username,
+                }
+            )
+            
+            return Response({
+                'success': True,
+                'primary_responder_id': alert.primary_responder.id,
+                'primary_responder_username': alert.primary_responder.username,
+                'alert_status': alert.status,
+            })
+        else:
+            return Response({'message': 'Failed to reassign primary responder'}, status=400)
+            
+    except SOSAlert.DoesNotExist:
+        return Response({'message': 'Alert not found'}, status=404)
+    except User.DoesNotExist:
+        return Response({'message': 'Responder not found'}, status=404)
+    except ValueError as e:
+        return Response({'message': str(e)}, status=400)

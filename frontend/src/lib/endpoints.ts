@@ -1,12 +1,6 @@
 // API Endpoints - Single Source of Truth
 
 export const ENDPOINTS = {
-  // Landing Page Config
-  LANDING_PAGE_CONFIG: '/api/admin-ops/landing-page/config/',
-  
-  // Testimonials
-  PUBLIC_TESTIMONIALS: '/api/admin-ops/public-testimonials/',
-  
   // Auth
   AUTH_LOGIN: '/auth/login/',
   AUTH_REGISTER: '/auth/register/',
@@ -18,10 +12,6 @@ export const ENDPOINTS = {
   
   // Admin - Testimonials
   ADMIN_TESTIMONIALS: '/api/admin-ops/testimonials/',
-  
-  // Admin - Landing Page
-  ADMIN_LANDING_PAGE: '/api/admin-ops/landing-page/',
-  ADMIN_LANDING_PAGE_UPDATE: '/api/admin-ops/landing-page/config/update/',
   
   // Admin - Moments
   ADMIN_MOMENTS: '/api/admin-ops/moments/',

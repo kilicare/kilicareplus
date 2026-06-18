@@ -1,7 +1,7 @@
 'use client'
 import { motion, useInView } from 'framer-motion'
 import { useRef, useState, useEffect } from 'react'
-import { ConfigService } from '@/services/config.service'
+import statsData from '@/data/stats.json'
 
 interface Stat {
   value: number
@@ -12,14 +12,7 @@ interface Stat {
   color: string
 }
 
-const STATS: Stat[] = [
-  { value: 1200,  suffix: '+', label: 'Watalii Wanaotumia',    sublabel: 'kutoka nchi 47',  icon: '👥', color: '#F5A623' },
-  { value: 350,   suffix: '+', label: 'Guides Waliothibitishwa', sublabel: 'verified experts', icon: '🧭', color: '#10B981' },
-  { value: 8500,  suffix: '+', label: 'Moments Zilishirikiwa',  sublabel: 'kila wiki',        icon: '📸', color: '#3B82F6' },
-  { value: 23,    suffix: '',  label: 'Miji ya Tanzania',       sublabel: 'yanafunikwa',      icon: '📍', color: '#8B5CF6' },
-  { value: 99.9,  suffix: '%', label: 'Uaminifu wa App',          sublabel: 'SOS inatumika kila wakati',    icon: '🆘', color: '#FF2D2D' },
-  { value: 4.8,   suffix: '★', label: 'Rating ya Wastani',      sublabel: '1,247 tathmini',   icon: '⭐', color: '#F59E0B' },
-]
+const STATS: Stat[] = statsData.stats
 
 function AnimatedNumber({ value, suffix }: { value: number; suffix: string }) {
   const [display, setDisplay] = useState(0)
@@ -42,7 +35,7 @@ function AnimatedNumber({ value, suffix }: { value: number; suffix: string }) {
 
   const formatted =
     value >= 1000
-      ? `${(display / 1000).toFixed(1)}K` 
+      ? `${(display / 1000).toFixed(1)}K`
       : value < 10 && suffix === '★'
       ? display.toFixed(1)
       : value === 99.9
@@ -53,22 +46,7 @@ function AnimatedNumber({ value, suffix }: { value: number; suffix: string }) {
 }
 
 export function StatsSection() {
-  const [statsBackground, setStatsBackground] = useState<string>('')
-
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const data = await ConfigService.getLandingPageConfig()
-        if (data.stats_background_image) {
-          setStatsBackground(data.stats_background_image)
-        }
-      } catch (error) {
-        console.warn('Failed to fetch landing page config, using default background')
-      }
-    }
-
-    fetchConfig()
-  }, [])
+  const statsBackground = statsData.background_image
 
   return (
     <section
@@ -91,7 +69,7 @@ export function StatsSection() {
         <div
           className="absolute inset-0"
           style={{
-            background: 'rgba(5,5,8,0.6)'
+            background: 'rgba(5,5,8,0.0)'
           }}
         />
       )}
@@ -107,7 +85,7 @@ export function StatsSection() {
         {/* Section label */}
         <motion.div
           className="text-center mb-12"
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
@@ -115,16 +93,16 @@ export function StatsSection() {
             className="text-xs font-bold uppercase tracking-widest mb-3"
             style={{ color: '#F5A623' }}
           >
-            Takwimu za Kweli
+            {statsData.section_label}
           </p>
-          <h2 className="text-3xl lg:text-4xl font-black text-white">
-            Tunaongoza Afrika Mashariki
+          <h2 className="text-3xl lg:text-4xl font-bold text-white">
+            {statsData.title}
           </h2>
           <p
-            className="text-lg mt-3 max-w-xl mx-auto font-semibold"
+            className="text-lg mt-3 max-w-xl mx-auto font-medium"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
-            KilicareGO+ inakua kwa kasi — data halisi kutoka kwenye platform yetu
+            {statsData.subtitle}
           </p>
         </motion.div>
 
@@ -138,7 +116,7 @@ export function StatsSection() {
                 background: `${stat.color}08`,
                 border: `1px solid ${stat.color}20`,
               }}
-              initial={{ opacity: 0, y: 30 }}
+              initial={false}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08, duration: 0.5 }}
@@ -150,15 +128,15 @@ export function StatsSection() {
             >
               <div className="text-2xl mb-2">{stat.icon}</div>
               <p
-                className="text-2xl lg:text-3xl font-black mb-0.5"
+                className="font-jetbrains-mono text-2xl lg:text-3xl font-bold mb-0.5"
                 style={{ color: stat.color }}
               >
                 <AnimatedNumber value={stat.value} suffix={stat.suffix} />
               </p>
-              <p className="text-xs font-bold text-white/95 leading-tight mb-0.5">
+              <p className="font-inter text-xs font-semibold text-white/95 leading-tight mb-0.5">
                 {stat.label}
               </p>
-              <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>
+              <p className="font-inter text-xs font-normal" style={{ color: 'rgba(255,255,255,0.8)' }}>
                 {stat.sublabel}
               </p>
             </motion.div>

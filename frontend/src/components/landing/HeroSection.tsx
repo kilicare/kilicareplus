@@ -1,122 +1,51 @@
 'use client'
-import { motion, useTransform } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
 import { ArrowRight } from 'lucide-react'
-import { useIsMounted } from '@/hooks/useIsMounted'
-import { useSafeScroll } from '@/hooks/useSafeScroll'
-import { ConfigService } from '@/services/config.service'
+import heroData from '@/data/hero.json'
 
-const PILLS = [
-  { icon: '🦁', label: 'Serengeti' },
-  { icon: '🏔️', label: 'Kilimanjaro' },
-  { icon: '🏖️', label: 'Zanzibar' },
-  { icon: '🌊', label: 'Pemba Island' },
-  { icon: '🦒', label: 'Ngorongoro' },
-  { icon: '🐘', label: 'Tarangire' },
-]
-
-const TRUST_BADGES = [
-  { icon: '🛡️', label: 'SOS Salama 24/7' },
-  { icon: '⭐', label: '4.8★ Rating' },
-  { icon: '⚡', label: 'AI-Powered' },
-]
+const TRUST_BADGES = heroData.trust_badges
+const EXPERIENCE_STRIP = heroData.experience_strip || []
 
 export function HeroSection() {
-  const { ref, scroll } = useSafeScroll(['start start', 'end start'])
-  const y       = useTransform(scroll.scrollYProgress, [0, 1], ['0%', '30%'])
-  const opacity = useTransform(scroll.scrollYProgress, [0, 0.7], [1, 0])
-  const [heroBackground, setHeroBackground] = useState<string>('')
-  const mounted = useIsMounted()
+  const heroBackground = heroData.background_image
+  const heroVideo = heroData.background_video
 
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const data = await ConfigService.getLandingPageConfig()
-        if (data.cta_background_image) {
-          setHeroBackground(data.cta_background_image)
-        }
-      } catch (error) {
-        console.warn('Failed to fetch landing page config, using default background')
-      }
-    }
-
-    fetchConfig()
-  }, [])
-
-  // Prevent hydration mismatch by rendering skeleton on server
-  if (!mounted) {
-    return (
+  return (
+    <>
       <section
         className="relative min-h-screen flex flex-col items-center justify-center
           overflow-hidden pt-20 pb-12 px-4"
-        style={{
-          background: 'linear-gradient(160deg,#050508 0%,#0A0A12 50%,#050508 100%)'
-        }}
       >
-        <div className="relative z-10 max-w-5xl mx-auto text-center">
-          <div className="h-12 w-64 mx-auto mb-8 bg-gray-800/50 rounded-full animate-pulse" />
-          <div className="h-20 w-full mb-6 bg-gray-800/50 rounded animate-pulse" />
-          <div className="h-20 w-3/4 mx-auto mb-8 bg-gray-800/50 rounded animate-pulse" />
-          <div className="h-14 w-48 mx-auto bg-gray-800/50 rounded-2xl animate-pulse" />
-        </div>
-      </section>
-    )
-  }
-
-  return (
-    <section
-      ref={ref}
-      className="relative min-h-screen flex flex-col items-center justify-center
-        overflow-hidden pt-20 pb-12 px-4"
-      style={{
-        background: heroBackground 
-          ? `url(${heroBackground}) center/cover no-repeat` 
-          : 'linear-gradient(160deg,#050508 0%,#0A0A12 50%,#050508 100%)'
-      }}
-    >
-      {/* Dark overlay when using image background */}
-      {heroBackground && (
+      {/* Video background */}
+      {heroVideo ? (
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: 0.8 }}
+        >
+          <source src={heroVideo} type="video/mp4" />
+        </video>
+      ) : (
         <div
           className="absolute inset-0"
           style={{
-            background: 'linear-gradient(160deg,rgba(5,5,8,0.6) 0%,rgba(10,10,18,0.5) 50%,rgba(5,5,8,0.6) 100%)'
+            background: heroBackground 
+              ? `url(${heroBackground}) center/cover no-repeat` 
+              : 'linear-gradient(160deg,#0A0A12 0%,#0A0A12 50%,#0A0A12 100%)'
           }}
         />
       )}
-      {/* Animated background grid */}
-      <div
-        className="absolute inset-0 opacity-20 pointer-events-none"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(245,166,35,0.08) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(245,166,35,0.08) 1px, transparent 1px)
-          `,
-          backgroundSize: '60px 60px',
-        }}
-      />
 
-      {/* Glow orbs */}
-      <div
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2
-          w-96 h-96 rounded-full opacity-20 pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle, rgba(245,166,35,0.4) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }}
-      />
-      <div
-        className="absolute bottom-1/4 left-1/4 w-64 h-64 rounded-full
-          opacity-10 pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle, rgba(59,130,246,0.5) 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }}
-      />
 
       <motion.div
-        style={{ y, opacity }}
         className="relative z-10 max-w-5xl mx-auto text-center"
+        initial={false}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7 }}
       >
         {/* Top badge */}
         <motion.div
@@ -127,23 +56,23 @@ export function HeroSection() {
             border: '1px solid rgba(245,166,35,0.3)',
             color: '#F5A623',
           }}
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           <span className="w-2 h-2 rounded-full bg-gold animate-pulse" />
-          🇹🇿 Tanzania's First Tourism Super-App
+          {heroData.badge}
         </motion.div>
 
         {/* Headline */}
         <motion.h1
-          className="text-5xl sm:text-6xl lg:text-8xl font-black leading-none
+          className="text-5xl sm:text-6xl lg:text-8xl font-bold leading-none
             tracking-tight mb-6"
-          initial={{ opacity: 0, y: 30 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
         >
-          <span className="text-white">Gundua</span>
+          <span className="text-white">{heroData.title.line1}</span>
           <br />
           <span
             className="relative"
@@ -154,68 +83,69 @@ export function HeroSection() {
               backgroundClip: 'text',
             }}
           >
-            Tanzania
+            {heroData.title.line2}
           </span>
           <br />
-          <span className="text-white">Bila Mipaka</span>
+          <span className="text-white">{heroData.title.line3}</span>
         </motion.h1>
 
         {/* Subheadline */}
         <motion.p
           className="text-xl sm:text-2xl lg:text-3xl max-w-3xl mx-auto mb-8
-            leading-relaxed font-semibold"
-          style={{ color: 'rgba(255,255,255,0.9)' }}
-          initial={{ opacity: 0, y: 20 }}
+            leading-relaxed font-medium backdrop-blur-sm p-4 rounded-2xl"
+          style={{ 
+            color: 'rgba(255,255,255,0.95)',
+            background: 'rgba(0,0,0,0.3)',
+            backdropFilter: 'blur(10px)'
+          }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
         >
-          Unganika na{' '}
-          <span className="text-gold font-bold">guides wa kuzaliwa Tanzania</span>,
-          chunguza uzoefu wa kipekee, pata msaada wa AI, na kaa salama popote
-          ulipo — kutoka Kilimanjaro hadi Zanzibar.
+          {heroData.subtitle}
         </motion.p>
 
         {/* CTA buttons */}
         <motion.div
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3 }}
         >
           <Link
-            href="/register"
+            href={heroData.cta_primary.link}
             className="group flex items-center gap-2 px-8 py-4 rounded-2xl
-              text-black font-black text-lg transition-all hover:scale-105
+              text-black font-semibold text-lg transition-all hover:scale-105
               active:scale-95 shadow-2xl"
             style={{
               background: 'linear-gradient(135deg,#F5A623,#E8892A)',
-              boxShadow: '0 0 40px rgba(245,166,35,0.4)',
+              boxShadow: '0 0 40px rgba(245,166,35,0.5), 0 0 80px rgba(245,166,35,0.3)',
             }}
           >
-            Anza Safari Yako — Bure
+            {heroData.cta_primary.text}
             <ArrowRight
               size={20}
               className="group-hover:translate-x-1 transition-transform"
             />
           </Link>
           <Link
-            href="/login"
+            href={heroData.cta_secondary.link}
             className="flex items-center gap-2 px-8 py-4 rounded-2xl
-              text-white font-bold text-lg transition-all hover:scale-105
+              text-white font-medium text-lg transition-all hover:scale-105
               active:scale-95"
             style={{
               background: 'rgba(255,255,255,0.08)',
               border: '1px solid rgba(255,255,255,0.15)',
             }}
           >
-            Tayari una akaunti? Ingia
+            {heroData.cta_secondary.text}
           </Link>
         </motion.div>
 
         {/* Trust badges */}
         <motion.div
           className="flex items-center justify-center gap-6 mb-12 flex-wrap"
-          initial={{ opacity: 0 }}
+          initial={false}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
@@ -231,60 +161,8 @@ export function HeroSection() {
           ))}
         </motion.div>
 
-        {/* Destination pills */}
-        <motion.div
-          className="flex flex-wrap items-center justify-center gap-3"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          {PILLS.map((pill, i) => (
-            <motion.div
-              key={pill.label}
-              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm
-                font-medium"
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'rgba(255,255,255,0.7)',
-              }}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.5 + i * 0.07 }}
-              whileHover={{
-                background: 'rgba(245,166,35,0.12)',
-                borderColor: 'rgba(245,166,35,0.3)',
-                color: '#F5A623',
-                scale: 1.05,
-              }}
-            >
-              <span>{pill.icon}</span>
-              {pill.label}
-            </motion.div>
-          ))}
-        </motion.div>
       </motion.div>
 
-      {/* Scroll indicator */}
-      <motion.div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col
-          items-center gap-2"
-        animate={{ y: [0, 8, 0] }}
-        transition={{ duration: 2, repeat: Infinity }}
-      >
-        <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.3)' }}>
-          Scroll chini
-        </span>
-        <div
-          className="w-5 h-8 rounded-full border flex items-start justify-center pt-1.5"
-          style={{ borderColor: 'rgba(255,255,255,0.2)' }}
-        >
-          <div
-            className="w-1 h-2 rounded-full"
-            style={{ background: '#F5A623' }}
-          />
-        </div>
-      </motion.div>
       {/* Bottom gradient fade to blend with next section */}
       <div
         className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
@@ -293,5 +171,43 @@ export function HeroSection() {
         }}
       />
     </section>
+
+    {/* Experience Strip */}
+    {EXPERIENCE_STRIP.length > 0 && (
+      <section className="relative py-8 px-4 overflow-hidden bg-bg-base">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            {EXPERIENCE_STRIP.map((item, i) => (
+              <motion.div
+                key={i}
+                className="flex-shrink-0 relative group cursor-pointer"
+                initial={false}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                whileHover={{ scale: 1.05 }}
+              >
+                <div
+                  className="w-48 h-32 rounded-2xl overflow-hidden relative"
+                  style={{
+                    background: `url(${item.image}) center/cover no-repeat`
+                  }}
+                >
+                  <div
+                    className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"
+                  />
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <p className="text-sm font-semibold text-white">
+                      {item.label}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+    )}
+    </>
   )
 }

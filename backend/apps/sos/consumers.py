@@ -28,10 +28,6 @@ class SOSConsumer(AsyncWebsocketConsumer):
 
         logger.info(f"[SOSConsumer] User {self.user.id} ({self.user.username}) connecting to SOS WebSocket")
 
-        await self.channel_layer.group_add(
-            'sos_global', self.channel_name
-        )
-
         # User-specific room (to receive responses and nearby alerts)
         await self.channel_layer.group_add(
             f'sos_user_{self.user.id}', self.channel_name
@@ -43,11 +39,47 @@ class SOSConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, code):
         logger.info(f"[SOSConsumer] User {self.user.id} disconnecting (code: {code})")
         await self.channel_layer.group_discard(
-            'sos_global', self.channel_name
-        )
-        await self.channel_layer.group_discard(
             f'sos_user_{self.user.id}', self.channel_name
         )
+        
+        # Cleanup incident-specific groups
+        # Get all incident groups this user was part of and clean them up
+        if hasattr(self, 'incident_groups'):
+            for incident_id in self.incident_groups:
+                await self.channel_layer.group_discard(
+                    f'incident_{incident_id}', self.channel_name
+                )
+    
+    @database_sync_to_async
+    def can_join_incident_group(self, alert_id: int) -> bool:
+        """
+        Check if user can join incident-scoped group.
+        Only tourist, responders, standby responders, and admins can join.
+        """
+        from .models import SOSAlert, SOSResponse
+        from .services import IncidentSecurityService
+        
+        try:
+            alert = SOSAlert.objects.get(id=alert_id)
+            can_access, _ = IncidentSecurityService.can_access_timeline(alert, self.user)
+            return can_access
+        except SOSAlert.DoesNotExist:
+            return False
+    
+    async def join_incident_group(self, alert_id: int):
+        """Join incident-scoped group if user has access."""
+        can_join = await self.can_join_incident_group(alert_id)
+        if can_join:
+            await self.channel_layer.group_add(
+                f'incident_{alert_id}', self.channel_name
+            )
+            # Track incident groups for cleanup
+            if not hasattr(self, 'incident_groups'):
+                self.incident_groups = set()
+            self.incident_groups.add(alert_id)
+            logger.info(f"[SOSConsumer] User {self.user.id} joined incident_{alert_id} group")
+        else:
+            logger.warning(f"[SOSConsumer] User {self.user.id} denied access to incident_{alert_id} group")
 
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -140,7 +172,8 @@ class SOSConsumer(AsyncWebsocketConsumer):
         elif action == 'resolve_sos':
             alert_id = data.get('alert_id')
             await self.resolve_alert(alert_id)
-            await self.channel_layer.group_send('sos_global', {
+            # Broadcast to incident-scoped group
+            await self.channel_layer.group_send(f'incident_{alert_id}', {
                 'type': 'sos_resolved',
                 'alert_id': alert_id,
             })
@@ -148,11 +181,55 @@ class SOSConsumer(AsyncWebsocketConsumer):
         elif action == 'cancel_sos':
             alert_id = data.get('alert_id')
             await self.cancel_alert(alert_id)
+            # Broadcast to incident-scoped group
+            await self.channel_layer.group_send(f'incident_{alert_id}', {
+                'type': 'sos_cancelled',
+                'alert_id': alert_id,
+            })
         
         elif action == 'escalate_sos':
             alert_id = data.get('alert_id')
             reason = data.get('reason', 'User escalation')
             await self.escalate_alert(alert_id, reason)
+            # Broadcast to incident-scoped group
+            await self.channel_layer.group_send(f'incident_{alert_id}', {
+                'type': 'sos_escalated',
+                'alert_id': alert_id,
+                'reason': reason,
+            })
+
+        elif action == 'accept_assignment':
+            alert_id = data.get('alert_id')
+            response = await self.accept_assignment(alert_id)
+            if response:
+                alert = await self.get_alert(alert_id)
+                # Broadcast to incident-scoped group
+                await self.channel_layer.group_send(f'incident_{alert_id}', {
+                    'type': 'sos_assignment_accepted',
+                    'alert_id': alert_id,
+                    'responder_id': self.user.id,
+                    'responder_username': self.user.username,
+                })
+
+        elif action == 'update_guide_status':
+            alert_id = data.get('alert_id')
+            new_status = data.get('status')
+            response = await self.update_guide_status(alert_id, new_status)
+            if response:
+                alert = await self.get_alert(alert_id)
+                # Broadcast to incident-scoped group
+                await self.channel_layer.group_send(f'incident_{alert_id}', {
+                    'type': 'sos_guide_status_updated',
+                    'alert_id': alert_id,
+                    'responder_id': self.user.id,
+                    'responder_username': self.user.username,
+                    'status': new_status,
+                    'alert_status': alert.status,
+                })
+        
+        elif action == 'join_incident':
+            alert_id = data.get('alert_id')
+            await self.join_incident_group(alert_id)
 
     async def sos_new_alert(self, event):
         await self.send(text_data=json.dumps({
@@ -177,6 +254,30 @@ class SOSConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'sos_resolved',
             'alert_id': event['alert_id'],
+        }))
+
+    async def sos_assignment_accepted(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'assignment_accepted',
+            **event,
+        }))
+
+    async def sos_guide_status_updated(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'guide_status_updated',
+            **event,
+        }))
+    
+    async def sos_cancelled(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'sos_cancelled',
+            **event,
+        }))
+    
+    async def sos_escalated(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'sos_escalated',
+            **event,
         }))
 
     @database_sync_to_async
@@ -212,7 +313,7 @@ class SOSConsumer(AsyncWebsocketConsumer):
         from django.db import transaction
         from django.db.models import F
         from .models import SOSAlert, SOSResponse
-        from .services import SOSEventService
+        from .services import SOSEventService, SmartDispatchService, IncidentStateService
         from apps.messaging.models import ChatRoom
         try:
             with transaction.atomic():
@@ -231,18 +332,20 @@ class SOSConsumer(AsyncWebsocketConsumer):
                     eta_minutes=eta,
                 )
                 
-                # Atomic update of status and responder count
-                alert.status = 'RESPONDING'
+                # Use IncidentStateService for status change
+                IncidentStateService.set_responding_state(alert)
+                
+                # Atomic update of responder count
                 alert.responder_count = F('responder_count') + 1
-                alert.save(update_fields=['status', 'responder_count', 'chat_room'])
+                alert.save(update_fields=['responder_count', 'chat_room'])
                 
                 # Refresh to get the actual value after F() update
                 alert.refresh_from_db(fields=['responder_count'])
                 
-                # Create GUIDE_RESPONDED event
+                # Create GUIDE_INTERESTED event
                 SOSEventService.create_event(
                     alert=alert,
-                    event_type='GUIDE_RESPONDED',
+                    event_type='GUIDE_INTERESTED',
                     actor=self.user,
                     response=response,
                     data={
@@ -251,6 +354,9 @@ class SOSConsumer(AsyncWebsocketConsumer):
                         'chat_room_name': alert.chat_room.name if alert.chat_room else None,
                     }
                 )
+                
+                # Trigger smart dispatch to assign primary responder
+                SmartDispatchService.dispatch_primary(alert)
                 
                 logger.info(f"[SOSConsumer] Response created for SOS {alert_id}, responder count: {alert.responder_count}")
                 return response
@@ -269,14 +375,13 @@ class SOSConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def resolve_alert(self, alert_id):
         from .models import SOSAlert
-        from .services import SOSEventService
-        from django.utils import timezone
+        from .services import SOSEventService, IncidentStateService
         
         try:
-            alert = SOSAlert.objects.get(id=alert_id, user=self.user)
-            alert.status = 'RESOLVED'
-            alert.resolved_at = timezone.now()
-            alert.save(update_fields=['status', 'resolved_at'])
+            alert = SOSAlert.objects.select_for_update().get(id=alert_id, user=self.user)
+            
+            # Use IncidentStateService for state change
+            IncidentStateService.set_resolved_state(alert, actor=self.user)
             
             # Create SOS_RESOLVED event
             SOSEventService.create_event(
@@ -293,21 +398,20 @@ class SOSConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def cancel_alert(self, alert_id):
         from .models import SOSAlert
-        from .services import SOSEventService
-        from django.utils import timezone
+        from .services import SOSEventService, IncidentStateService
         
         try:
-            alert = SOSAlert.objects.get(id=alert_id, user=self.user)
-            alert.status = 'CANCELLED'
-            alert.cancelled_at = timezone.now()
-            alert.save(update_fields=['status', 'cancelled_at'])
+            alert = SOSAlert.objects.select_for_update().get(id=alert_id, user=self.user)
+            
+            # Use IncidentStateService for state change
+            IncidentStateService.set_cancelled_state(alert, actor=self.user)
             
             # Create SOS_CANCELLED event
             SOSEventService.create_event(
                 alert=alert,
                 event_type='SOS_CANCELLED',
                 actor=self.user,
-                data={
+ data={
                     'cancelled_at': alert.cancelled_at.isoformat(),
                 }
             )
@@ -317,10 +421,12 @@ class SOSConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def escalate_alert(self, alert_id, reason):
         from .models import SOSAlert
-        from .services import SOSEventService
+        from .services import SOSEventService, IncidentStateService
         try:
-            alert = SOSAlert.objects.get(id=alert_id, user=self.user)
-            alert.transition_to('ESCALATED', actor=self.user, reason=reason)
+            alert = SOSAlert.objects.select_for_update().get(id=alert_id, user=self.user)
+            
+            # Use IncidentStateService for state change
+            IncidentStateService.set_escalated_state(alert, actor=self.user, reason=reason)
             
             # Create SOS_ESCALATED event
             SOSEventService.create_event(
@@ -371,3 +477,136 @@ class SOSConsumer(AsyncWebsocketConsumer):
                         'distance_km': round(distance, 2),
                     })
         return guides
+
+    @database_sync_to_async
+    def accept_assignment(self, alert_id):
+        """Guide accepts assignment as primary responder."""
+        from .models import SOSAlert, SOSResponse
+        from .services import SOSEventService, IncidentStateService
+        try:
+            alert = SOSAlert.objects.select_for_update().get(id=alert_id)
+            response = SOSResponse.objects.filter(
+                alert=alert,
+                responder=self.user
+            ).first()
+            
+            if not response:
+                logger.warning(f"[SOSConsumer] No response found for guide {self.user.id} on alert {alert_id}")
+                return None
+            
+            # Security validation: only primary responder can accept
+            from .services import IncidentSecurityService
+            can_perform, error_msg = IncidentSecurityService.can_guide_perform_lifecycle_action(alert, self.user)
+            if not can_perform:
+                logger.warning(f"[SOSConsumer] {error_msg} for guide {self.user.id} on alert {alert_id}")
+                return None
+            
+            # Transition guide status to ACCEPTED
+            response.transition_guide_status('ACCEPTED')
+            
+            # Create GUIDE_ACCEPTED event
+            SOSEventService.create_event(
+                alert=alert,
+                event_type='GUIDE_ACCEPTED',
+                actor=self.user,
+                response=response,
+                data={
+                    'responder_id': self.user.id,
+                    'responder_username': self.user.username,
+                }
+            )
+            
+            # Update alert status using IncidentStateService
+            IncidentStateService.set_on_the_way_state(alert, actor=self.user)
+            
+            # Check if standby promotion is needed
+            from .services import StandbyPromotionService
+            StandbyPromotionService.check_and_promote_standby(alert)
+            
+            logger.info(f"[SOSConsumer] Guide {self.user.username} accepted assignment for alert {alert_id}")
+            return response
+        except SOSAlert.DoesNotExist:
+            logger.warning(f"[SOSConsumer] Alert {alert_id} not found")
+            return None
+        except Exception as e:
+            logger.error(f"[SOSConsumer] Error accepting assignment: {e}")
+            return None
+    
+    @database_sync_to_async
+    def update_guide_status(self, alert_id, new_status):
+        """Guide updates their status (on_the_way, arrived, completed)."""
+        from .models import SOSAlert, SOSResponse
+        from .services import SOSEventService, IncidentStateService
+        try:
+            alert = SOSAlert.objects.select_for_update().get(id=alert_id)
+            response = SOSResponse.objects.filter(
+                alert=alert,
+                responder=self.user
+            ).first()
+            
+            if not response:
+                logger.warning(f"[SOSConsumer] No response found for guide {self.user.id} on alert {alert_id}")
+                return None
+            
+            # Security validation: only primary responder can update status
+            from .services import IncidentSecurityService
+            can_perform, error_msg = IncidentSecurityService.can_guide_perform_lifecycle_action(alert, self.user)
+            if not can_perform:
+                logger.warning(f"[SOSConsumer] {error_msg} for guide {self.user.id} on alert {alert_id}")
+                return None
+            
+            # Map frontend status to model status
+            status_mapping = {
+                'on_the_way': 'ON_THE_WAY',
+                'arrived': 'ARRIVED',
+                'completed': 'COMPLETED',
+            }
+            
+            model_status = status_mapping.get(new_status)
+            if not model_status:
+                logger.warning(f"[SOSConsumer] Invalid guide status: {new_status}")
+                return None
+            
+            # Transition guide status
+            response.transition_guide_status(model_status)
+            
+            # Create appropriate event
+            event_type_mapping = {
+                'ON_THE_WAY': 'GUIDE_ON_THE_WAY',
+                'ARRIVED': 'GUIDE_ARRIVED',
+                'COMPLETED': 'GUIDE_COMPLETED',
+            }
+            
+            event_type = event_type_mapping.get(model_status)
+            if event_type:
+                SOSEventService.create_event(
+                    alert=alert,
+                    event_type=event_type,
+                    actor=self.user,
+                    response=response,
+                    data={
+                        'responder_id': self.user.id,
+                        'responder_username': self.user.username,
+                    }
+                )
+            
+            # Update alert status using IncidentStateService
+            if model_status == 'ON_THE_WAY':
+                IncidentStateService.set_on_the_way_state(alert, actor=self.user)
+            elif model_status == 'ARRIVED':
+                IncidentStateService.set_on_site_state(alert, actor=self.user)
+            elif model_status == 'COMPLETED':
+                IncidentStateService.set_completed_state(alert, actor=self.user)
+            
+            # Check if standby promotion is needed
+            from .services import StandbyPromotionService
+            StandbyPromotionService.check_and_promote_standby(alert)
+            
+            logger.info(f"[SOSConsumer] Guide {self.user.username} updated status to {model_status} for alert {alert_id}")
+            return response
+        except SOSAlert.DoesNotExist:
+            logger.warning(f"[SOSConsumer] Alert {alert_id} not found")
+            return None
+        except Exception as e:
+            logger.error(f"[SOSConsumer] Error updating guide status: {e}")
+            return None

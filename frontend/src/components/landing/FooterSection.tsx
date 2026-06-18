@@ -3,33 +3,33 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 
 const LINKS = {
-  'Bidhaa': [
-    { label: 'Feed ya Moments',  href: '/register' },
-    { label: 'AI Guide',          href: '/register' },
-    { label: 'SOS Salama',        href: '/register' },
-    { label: 'Booking System',    href: '/register' },
-    { label: 'KilicareBet',       href: '/register' },
-    { label: 'Virtual Showcase',  href: '/register' },
+  'Products': [
+    { label: 'Experience Feed',  href: '/register' },
+    { label: 'AI Companion',     href: '/register' },
+    { label: 'Safety Network',   href: '/register' },
+    { label: 'Booking System',   href: '/register' },
+    { label: 'Kilicare Play',    href: '/register' },
+    { label: 'Culture Gallery',  href: '/register' },
   ],
-  'Watumiaji': [
-    { label: 'Watalii',    href: '/register' },
-    { label: 'Local Guides', href: '/register' },
-    { label: 'B2B Partners', href: '/register' },
-    { label: 'Bei',          href: '/#pricing' },
+  'Users': [
+    { label: 'Travelers',     href: '/register' },
+    { label: 'Local Guides',  href: '/register' },
+    { label: 'B2B Partners',  href: '/register' },
+    { label: 'Pricing',       href: '/#pricing' },
   ],
-  'Kampuni': [
-    { label: 'Kuhusu Sisi',   href: '#' },
-    { label: 'Blog',           href: '#' },
-    { label: 'Fanya Kazi Nasi', href: '#' },
-    { label: 'Wasiliana',       href: 'mailto:info@kilicarego.com' },
+  'Company': [
+    { label: 'About Us',      href: '#' },
+    { label: 'Blog',          href: '#' },
+    { label: 'Careers',       href: '#' },
+    { label: 'Contact',       href: 'mailto:info@kilicarego.com' },
   ],
-  'Kisheria': [
-    { label: 'Sera ya Faragha', href: '#' },
-    { label: 'Masharti ya Matumizi', href: '#' },
-    { label: 'TBL Compliance',   href: '#' },
-    { label: 'Ulinzi wa Data',   href: '#' },
+  'Legal': [
+    { label: 'Privacy Policy',    href: '#' },
+    { label: 'Terms of Service',   href: '#' },
+    { label: 'TBL Compliance',     href: '#' },
+    { label: 'Data Protection',    href: '#' },
   ],
-}
+};
 
 const SOCIALS = [
   { label: 'Twitter/X', href: '#', emoji: '🐦' },
@@ -37,7 +37,7 @@ const SOCIALS = [
   { label: 'Facebook',  href: '#', emoji: '👤' },
   { label: 'YouTube',   href: '#', emoji: '▶️' },
   { label: 'WhatsApp',  href: '#', emoji: '💬' },
-]
+];
 
 export function FooterSection() {
   return (
@@ -66,7 +66,7 @@ export function FooterSection() {
               >
                 K
               </div>
-              <span className="text-white font-black text-lg">
+              <span className="text-white font-bold text-lg">
                 KilicareGO<span style={{ color: '#F5A623' }}>+</span>
               </span>
             </Link>
@@ -74,8 +74,7 @@ export function FooterSection() {
               className="text-sm leading-relaxed mb-5"
               style={{ color: 'rgba(255,255,255,0.45)' }}
             >
-              Tanzania's First Tourism Super-App. Tunaunganisha watalii na maeneo
-              ya kipekee ya Afrika Mashariki.
+              Tanzania Real-World Experience Network. Connecting people to real life Tanzania through locals, experiences, and safety.
             </p>
             {/* Socials */}
             <div className="flex gap-2 flex-wrap">
@@ -97,7 +96,7 @@ export function FooterSection() {
           {/* Links */}
           {Object.entries(LINKS).map(([section, links]) => (
             <div key={section}>
-              <p className="text-xs font-black uppercase tracking-widest mb-4 text-white">
+              <p className="font-inter text-xs font-semibold uppercase tracking-widest mb-4 text-white">
                 {section}
               </p>
               <div className="space-y-2.5">
@@ -105,7 +104,7 @@ export function FooterSection() {
                   <Link
                     key={link.label}
                     href={link.href}
-                    className="block text-sm transition-colors duration-200"
+                    className="font-inter block text-sm transition-colors duration-200"
                     style={{ color: 'rgba(255,255,255,0.45)' }}
                     onMouseEnter={(e) => (e.currentTarget.style.color = '#F5A623')}
                     onMouseLeave={(e) =>
@@ -126,7 +125,7 @@ export function FooterSection() {
             gap-4 pt-8 border-t"
           style={{ borderColor: 'rgba(255,255,255,0.06)' }}
         >
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <p className="font-inter text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
             © 2026 KilicareGO+ · Dar es Salaam, Tanzania 🇹🇿
           </p>
 
@@ -139,7 +138,7 @@ export function FooterSection() {
             ].map((b) => (
               <div
                 key={b.label}
-                className="flex items-center gap-1.5 text-xs"
+                className="font-inter flex items-center gap-1.5 text-xs"
                 style={{ color: 'rgba(255,255,255,0.5)' }}
               >
                 <span>{b.emoji}</span>
@@ -148,7 +147,7 @@ export function FooterSection() {
             ))}
           </div>
 
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
+          <p className="font-inter text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
             Built with 🇹🇿 in Tanzania
           </p>
         </div>

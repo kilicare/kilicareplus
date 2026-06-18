@@ -31,6 +31,7 @@ function OfflineWatcher() {
 
 function ServiceWorkerRegistrar() {
   useEffect(() => {
+    // Disabled in development to prevent stale cache issues
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       navigator.serviceWorker.register('/sw.js').catch((err) => {
         console.error('[SW]', err)
