@@ -1,9 +1,4 @@
 export function validateEnv() {
-  // Skip validation during production builds to prevent deployment failures
-  if (process.env.NODE_ENV === 'production') {
-    return
-  }
-
   const required = [
     'NEXT_PUBLIC_API_URL',
   ]
