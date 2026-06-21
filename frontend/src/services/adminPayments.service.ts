@@ -141,18 +141,21 @@ export const adminPaymentsService = {
   },
 
   // Get subscription plans
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getPlans(): Promise<any[]> {
     const { data } = await api.get('/api/subscriptions/plans/')
     return data
   },
 
   // Update plan
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async updatePlan(id: number, planData: any): Promise<any> {
     const { data } = await api.put(`/api/admin/subscriptions/plans/${id}/`, planData)
     return data
   },
 
   // Create plan
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async createPlan(planData: any): Promise<any> {
     const { data } = await api.post('/api/admin/subscriptions/plans/', planData)
     return data

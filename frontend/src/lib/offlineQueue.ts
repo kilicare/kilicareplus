@@ -4,6 +4,7 @@ export interface QueuedAction {
   id: string
   type: 'create' | 'update' | 'delete'
   endpoint: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any
   timestamp: number
   retries: number
@@ -47,7 +48,7 @@ class OfflineQueue {
         await this.executeAction(action)
         await offlineStorage.delete(STORES.QUEUE, action.id)
         this.queue.shift()
-      } catch (error) {
+      } catch {
         action.retries++
 
         if (action.retries >= action.maxRetries) {

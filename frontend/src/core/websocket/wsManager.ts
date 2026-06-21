@@ -182,7 +182,12 @@ class WebSocketManager {
         message: (e as ErrorEvent).message || 'WebSocket error',
         readyState: this.ws?.readyState,
         url: this.url,
+        timestamp: new Date().toISOString(),
       })
+      // Don't log empty object, provide context
+      if (this.ws?.readyState === WebSocket.CONNECTING) {
+        console.error('[WS] Connection failed - server may be down or URL incorrect')
+      }
     }
   }
 

@@ -124,9 +124,10 @@ export const aiService = {
 
 
     const runStream = async (token: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const body: any = { message, thread_id: threadId, lang }
       if (momentId) body.moment_id = momentId
-      
+
       return fetch(`${API_URL}/api/ai/chat/stream/`, {
         method: 'POST',
         headers: {
@@ -196,7 +197,7 @@ export const aiService = {
           }
         }
       }
-    } catch (streamError: any) {
+    } catch {
       // Handle streaming read errors (network disconnect, etc.)
       onError('Connection lost. Please try again.')
     } finally {
@@ -246,6 +247,7 @@ export const aiService = {
         { headers: { 'Content-Type': 'multipart/form-data' } }
       )
       return data.text
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       // Handle API errors with user-friendly messages
       const errorMessage = error?.response?.data?.message || error?.message || ''

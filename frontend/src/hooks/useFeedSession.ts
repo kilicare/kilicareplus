@@ -10,6 +10,7 @@ export function useFeedSession() {
       sid = crypto.randomUUID()
       localStorage.setItem('feed_session_id', sid)
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSessionId(sid)
   }, [])
 

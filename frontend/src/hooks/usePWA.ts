@@ -16,11 +16,16 @@ export function usePWA() {
   const [swRegistered,   setSwRegistered]   = useState(false)
   const [queueSize,      setQueueSize]      = useState(0)
 
+  const updateQueueSize = useCallback(() => {
+    setQueueSize(offlineQueue.getQueueSize())
+  }, [])
+
   useEffect(() => {
     // Initialize offline queue
     offlineQueue.init()
 
     // Online/offline detection
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsOnline(navigator.onLine)
     const handleOnline  = async () => {
       setIsOnline(true)
@@ -78,11 +83,7 @@ export function usePWA() {
       window.removeEventListener('beforeinstallprompt', handleInstallPrompt)
       clearInterval(interval)
     }
-  }, [])
-
-  const updateQueueSize = useCallback(() => {
-    setQueueSize(offlineQueue.getQueueSize())
-  }, [])
+  }, [updateQueueSize])
 
   const installApp = useCallback(async () => {
     if (!deferredPrompt) return false

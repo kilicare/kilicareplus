@@ -27,7 +27,7 @@ export const authService = {
   }) {
     // Runtime safeguard: Remove undefined/null fields
     const cleanData = Object.fromEntries(
-      Object.entries(data).filter(([_, v]) => v !== undefined && v !== null)
+      Object.entries(data).filter(([, v]) => v !== undefined && v !== null)
     ) as typeof data
 
     // Runtime safeguard: Ensure password fields exist
@@ -43,6 +43,7 @@ export const authService = {
     try {
       const { data: res } = await api.post('/auth/register/', cleanData)
       return res
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }
@@ -63,6 +64,7 @@ export const authService = {
       tokenManager.setTokens(data.access, data.refresh)
 
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       // On login failure, ensure tokens remain cleared
       tokenManager.clearTokens()
@@ -81,10 +83,11 @@ export const authService = {
       try {
         // Send refresh token to backend for blacklisting (optional)
         await api.post('/auth/logout/', { refresh: refreshToken })
-      } catch (error: any) {
+      } catch {
         // Log error but don't throw - tokens are already cleared
         // Silently ignore API errors
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }
@@ -97,6 +100,7 @@ export const authService = {
         purpose,
       })
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }
@@ -114,6 +118,7 @@ export const authService = {
         purpose,
       })
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }
@@ -123,6 +128,7 @@ export const authService = {
     try {
       const { data } = await api.post('/auth/password/reset/', { email })
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }
@@ -142,6 +148,7 @@ export const authService = {
         new_password2,
       })
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }
@@ -154,6 +161,7 @@ export const authService = {
         otp,
       })
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }
@@ -173,6 +181,7 @@ export const authService = {
         new_password_confirm,
       })
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }
@@ -180,9 +189,9 @@ export const authService = {
 
   /**
    * Get current authenticated user from backend
-   * 
+   *
    * CRITICAL: Called on app load to verify localStorage-based JWT tokens
-   * 
+   *
    * Flow:
    * 1. Check if tokens exist in localStorage
    * 2. If yes, send GET request to /auth/me/ with Authorization header
@@ -191,7 +200,7 @@ export const authService = {
    * 5. If 401 → tokens are invalid/expired, refresh will be attempted
    * 6. If refresh succeeds → user is authenticated
    * 7. If refresh fails → user must login again
-   * 
+   *
    * This endpoint is the SOURCE OF TRUTH for authentication state
    */
   async getMe(): Promise<User> {
@@ -204,6 +213,7 @@ export const authService = {
       const { data } = await api.get<User>('/auth/me/')
 
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }
@@ -218,6 +228,7 @@ export const authService = {
           : { 'Content-Type': 'application/json' },
       })
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.warn('[AuthService] Failed to update user profile:', error)
       throw error
@@ -230,6 +241,7 @@ export const authService = {
         params: { username },
       })
       return data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       throw error
     }

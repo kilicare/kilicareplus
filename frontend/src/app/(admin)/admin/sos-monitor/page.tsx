@@ -33,19 +33,22 @@ interface SosAlert {
   primary_responder_first_name?: string | null
   primary_responder_avatar?: string | null
   assigned_at?: string | null
-  responses?: Array<{
-    id: number
-    responder_id: number
-    responder_username: string
-    responder_first_name: string
-    responder_avatar: string | null
-    message: string
-    eta_minutes: number | null
-    guide_status: string
-    is_primary: boolean
-    created_at: string
-  }>
+  coverage_level?: string
+  responses?: SosResponse[]
   timeline?: TimelineEvent[]
+}
+
+interface SosResponse {
+  id: number
+  responder_id: number
+  responder_username: string
+  responder_first_name: string
+  responder_avatar: string | null
+  message: string
+  eta_minutes: number | null
+  guide_status: string
+  is_primary: boolean
+  created_at: string
 }
 
 interface TimelineEvent {
@@ -70,13 +73,6 @@ interface TimelineEvent {
 
 export default function SosMonitorPage() {
   const [liveAlerts, setLiveAlerts] = useState<SosAlert[]>([])
-  const [selectedAlert, setSelectedAlert] = useState<SosAlert | null>(null)
-  const [showActionModal, setShowActionModal] = useState(false)
-  const [actionType, setActionType] = useState<'reassign' | 'escalate' | 'resolve' | 'cancel' | null>(null)
-  const [actionReason, setActionReason] = useState('')
-  const [selectedResponderId, setSelectedResponderId] = useState<number | null>(null)
-  const [showTimeline, setShowTimeline] = useState(false)
-  const [selectedTimeline, setSelectedTimeline] = useState<TimelineEvent[]>([])
   const ws = createWsManager()
 
   const { data: alerts = [], isLoading } = useQuery({
@@ -87,21 +83,6 @@ export default function SosMonitorPage() {
     },
     staleTime: 1000 * 15,
     refetchInterval: 15000,
-  })
-
-  const { data: stats, error: statsError } = useQuery({
-    queryKey: ['admin-sos-stats'],
-    queryFn: async () => {
-      try {
-        const { data } = await api.get('/api/sos/statistics/')
-        return data
-      } catch (error) {
-        console.warn('[SOS Monitor] Failed to fetch statistics:', error)
-        return null
-      }
-    },
-    staleTime: 1000 * 30,
-    retry: 1,
   })
 
   useEffect(() => {
@@ -115,6 +96,17 @@ export default function SosMonitorPage() {
         const aid = (data as { alert_id: number }).alert_id
         setLiveAlerts((prev) => prev.filter((a) => a.id !== aid))
       }
+      // STEP 2: Handle responder interest updates
+      if (data.type === 'sos_responder_interest') {
+        const d = data as { alert_id: number; responder_count: number; responder: { id: number; username: string } }
+        setLiveAlerts((prev) =>
+          prev.map((alert) =>
+            alert.id === d.alert_id
+              ? { ...alert, responder_count: d.responder_count }
+              : alert
+          )
+        )
+      }
     })
     return () => { off(); ws.disconnect() }
   }, [])
@@ -127,145 +119,8 @@ export default function SosMonitorPage() {
     return (order[a.severity] ?? 4) - (order[b.severity] ?? 4)
   })
 
-  // Admin action handlers
-  const handleAdminAction = async (alertId: number, action: string, data: any = {}) => {
-    try {
-      const endpoint = `/api/sos/admin/${alertId}/${action}/`
-      const response = await api.put(endpoint, data)
-      if (response.status === 200) {
-        // Refresh alerts
-        setLiveAlerts(prev => prev.filter(a => a.id !== alertId))
-        setShowActionModal(false)
-        setActionReason('')
-        setSelectedResponderId(null)
-      }
-    } catch (error) {
-      console.error('Failed to perform admin action:', error)
-    }
-  }
-
-  const handleReassign = () => {
-    if (selectedAlert && selectedResponderId) {
-      handleAdminAction(selectedAlert.id, 'reassign', { responder_id: selectedResponderId, reason: actionReason })
-    }
-  }
-
-  const handleEscalate = () => {
-    if (selectedAlert) {
-      handleAdminAction(selectedAlert.id, 'escalate', { reason: actionReason })
-    }
-  }
-
-  const handleResolve = () => {
-    if (selectedAlert) {
-      handleAdminAction(selectedAlert.id, 'resolve', { reason: actionReason })
-    }
-  }
-
-  const handleCancel = () => {
-    if (selectedAlert) {
-      handleAdminAction(selectedAlert.id, 'cancel', { reason: actionReason })
-    }
-  }
-
-  const fetchTimeline = async (alertId: number) => {
-    try {
-      const { data } = await api.get(`/api/sos/${alertId}/timeline/`)
-      setSelectedTimeline(data.timeline)
-    } catch (error) {
-      console.error('Failed to fetch timeline:', error)
-    }
-  }
-
-  const getEventIcon = (eventType: string) => {
-    switch (eventType) {
-      case 'SOS_CREATED':
-        return <AlertCircle className="w-4 h-4" />
-      case 'GUIDE_INTERESTED':
-        return <UserCheck className="w-4 h-4" />
-      case 'GUIDE_ASSIGNED':
-        return <Shield className="w-4 h-4" />
-      case 'GUIDE_ACCEPTED':
-        return <CheckCircle className="w-4 h-4" />
-      case 'GUIDE_ON_THE_WAY':
-        return <Activity className="w-4 h-4" />
-      case 'GUIDE_ARRIVED':
-        return <MapPin className="w-4 h-4" />
-      case 'GUIDE_COMPLETED':
-        return <CheckCircle className="w-4 h-4" />
-      case 'CHAT_MESSAGE':
-        return <MessageSquare className="w-4 h-4" />
-      case 'SOS_RESOLVED':
-        return <CheckCircle className="w-4 h-4" />
-      case 'SOS_CANCELLED':
-        return <XCircle className="w-4 h-4" />
-      case 'SOS_ESCALATED':
-        return <ArrowUp className="w-4 h-4" />
-      case 'PRIMARY_REASSIGNED':
-        return <RefreshCw className="w-4 h-4" />
-      case 'ADMIN_INTERVENTION':
-        return <Shield className="w-4 h-4" />
-      default:
-        return <Activity className="w-4 h-4" />
-    }
-  }
-
-  const getEventColor = (eventType: string) => {
-    switch (eventType) {
-      case 'SOS_CREATED':
-        return 'text-kili-red'
-      case 'GUIDE_INTERESTED':
-        return 'text-gold'
-      case 'CHAT_MESSAGE':
-        return 'text-blue-400'
-      case 'SOS_RESOLVED':
-        return 'text-green-400'
-      case 'SOS_CANCELLED':
-        return 'text-gray-400'
-      case 'SOS_ESCALATED':
-        return 'text-orange-400'
-      case 'ADMIN_INTERVENTION':
-        return 'text-purple-400'
-      default:
-        return 'text-text-muted'
-    }
-  }
-
-  const getEventLabel = (event: TimelineEvent) => {
-    switch (event.event_type) {
-      case 'SOS_CREATED':
-        return 'SOS Created'
-      case 'GUIDE_INTERESTED':
-        return `${event.actor?.first_name || 'Guide'} Responded`
-      case 'GUIDE_ASSIGNED':
-        return `${event.actor?.first_name || 'Guide'} Assigned as Primary`
-      case 'GUIDE_ACCEPTED':
-        return `${event.actor?.first_name || 'Guide'} Accepted Mission`
-      case 'GUIDE_ON_THE_WAY':
-        return `${event.actor?.first_name || 'Guide'} Started Journey`
-      case 'GUIDE_ARRIVED':
-        return `${event.actor?.first_name || 'Guide'} Arrived`
-      case 'GUIDE_COMPLETED':
-        return `${event.actor?.first_name || 'Guide'} Completed Rescue`
-      case 'CHAT_MESSAGE':
-        return `${event.actor?.first_name || 'User'} sent message`
-      case 'SOS_RESOLVED':
-        return 'SOS Resolved'
-      case 'SOS_CANCELLED':
-        return 'SOS Cancelled'
-      case 'SOS_ESCALATED':
-        return 'SOS Escalated'
-      case 'PRIMARY_REASSIGNED':
-        return 'Primary Responder Reassigned'
-      case 'ADMIN_INTERVENTION':
-        return `Admin: ${event.data?.action || 'intervention'}`
-      default:
-        return event.event_type
-    }
-  }
-
   return (
-    <div className="min-h-dvh bg-bg-base pt-safe pb-safe overflow-y-auto no-scrollbar">
+    <div className="h-dvh flex flex-col bg-bg-base pt-safe pb-safe">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -281,529 +136,174 @@ export default function SosMonitorPage() {
               animate={{ scale: 1 }}
               className="px-3 py-1 bg-kili-red text-white text-xs font-bold rounded-full"
             >
-              {combined.length} Active
+              {combined.length}
             </motion.div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <motion.div
-            animate={{ scale: [1, 1.2, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="w-2 h-2 rounded-full bg-kili-red"
-          />
-          <p className="text-sm text-text-muted">Live monitoring</p>
-        </div>
+        <p className="text-sm text-text-muted">
+          New incidents requiring attention
+        </p>
       </motion.div>
 
-      {/* Stats */}
-      {stats && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-4 gap-3 px-5 mb-5">
-          {[
-            { label:'Active',    value: stats.active,          color:'#FF2D2D', icon: AlertTriangle },
-            { label:'Responding',value: stats.responding,      color:'#F5A623', icon: Shield },
-            { label:'Escalated', value: stats.escalated || 0, color:'#FF7700', icon: Users },
-            { label:'Leo',       value: stats.resolved_today,  color:'#10B981', icon: Clock },
-          ].map((s, i) => (
-            <motion.div key={s.label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.05, y: -4 }}
-              transition={{ delay: i * 0.1, type: 'spring', stiffness: 100 }}
-              className="rounded-2xl p-3 text-center relative overflow-hidden backdrop-blur-sm border"
-              style={{ background:`${s.color}15`, border:`1px solid ${s.color}30` }}>
-              <motion.div
-                animate={{
-                  boxShadow: `0 0 20px ${s.color}30`
-                }}
-                className="absolute top-0 right-0 w-16 h-16 rounded-full blur-2xl opacity-30"
-                style={{ background: `radial-gradient(circle, ${s.color}, transparent)` }}
-              />
-              <div className="relative z-10">
-                <motion.div
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, delay: i * 0.2 }}
-                >
-                  <s.icon size={18} className="mx-auto mb-1" style={{ color: s.color }} />
-                </motion.div>
-                <motion.p
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: i * 0.2 + 0.3, type: 'spring' }}
-                  className="text-2xl font-black"
-                  style={{ color: s.color }}>{s.value}</motion.p>
-                <p className="text-[10px] text-text-muted font-semibold">{s.label}</p>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-      )}
-
-      {/* Alerts */}
-      <div className="px-5 space-y-4 pb-8">
+      {/* Alerts - Phase 1 Only */}
+      <div className="flex-1 overflow-y-auto no-scrollbar px-5 space-y-4 pb-8">
         {isLoading ? (
-          [0,1,2].map((i) => <SkeletonCard key={i} className="h-52" rounded="xl" />)
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+          </div>
         ) : combined.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center justify-center py-20"
           >
-            <EmptyState icon="✅" title="Hakuna dharura sasa"
-              subtitle="Tanzania iko salama 🌍" />
+            <div className="text-center">
+              <div className="text-5xl mb-4">✅</div>
+              <p className="font-bold text-text-primary">No active incidents</p>
+              <p className="text-text-muted text-sm mt-1">Tanzania is safe 🌍</p>
+            </div>
           </motion.div>
         ) : (
           combined.map((alert, i) => {
             const sev = SEV[alert.severity] || SEV.LOW
             return (
-              <motion.div key={alert.id}
-                initial={{ opacity: 0, y: 20, rotateX: -10 }}
-                animate={{ opacity: 1, y: 0, rotateX: 0 }}
-                whileHover={{ y: -8, rotateX: 5 }}
-                transition={{ delay: i * 0.08, type: 'spring', stiffness: 100 }}
-                className="group relative h-full"
-                style={{ perspective: '1000px' }}>
-                {/* Glowing background effect */}
-                <motion.div
-                  animate={{
-                    boxShadow: alert.severity === 'CRITICAL'
-                      ? `0 0 30px ${sev.color}40`
-                      : '0 0 20px rgba(255, 45, 45, 0.2)'
-                  }}
-                  className="absolute inset-0 bg-gradient-to-br from-kili-red/20 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl"
-                />
-
-                {/* Main card */}
-                <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/80 backdrop-blur-xl border border-white/15 shadow-2xl p-5 h-full flex flex-col gap-4">
-                  {/* Severity bar with glow */}
-                  <motion.div
-                    animate={{
-                      boxShadow: alert.severity === 'CRITICAL'
-                        ? `0 0 15px ${sev.color}`
-                        : 'none'
-                    }}
-                    className="h-1.5 w-full"
-                    style={{ background: sev.color }}
-                  />
-
-                  {/* Top section: User info & severity */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <motion.div
-                        whileHover={{ scale: 1.1 }}
-                        className="relative"
-                      >
-                        <KiliAvatar
-                          src={alert.user.avatar}
-                          name={alert.user.first_name}
-                          size="md"
-                        />
-                        <motion.div
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                          className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900"
-                          style={{ background: sev.color }}
-                        />
-                      </motion.div>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <motion.span
-                            animate={{
-                              boxShadow: alert.severity === 'CRITICAL'
-                                ? `0 0 10px ${sev.color}`
-                                : 'none'
-                            }}
-                            className="text-xs font-bold px-2.5 py-1 rounded-lg backdrop-blur-sm border"
-                            style={{
-                              background: `${sev.color}20`,
-                              color: sev.color,
-                              borderColor: `${sev.color}40`
-                            }}
-                          >
-                            {sev.label}
-                          </motion.span>
-                          <span className="text-xs font-bold px-2 py-1 rounded-lg bg-white/10 text-text-muted border border-white/20">
-                            {alert.status}
-                          </span>
-                        </div>
-                        <p className="text-sm font-bold text-text-primary">
-                          {alert.user.first_name || alert.user.username}
-                        </p>
-                        <p className="text-xs text-text-muted">
-                          @{alert.user.username}
-                        </p>
-                      </div>
+              <motion.div
+                key={alert.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+                className="rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900/90 via-slate-800/70 to-slate-900/90 backdrop-blur-xl border-2 border-white/20 shadow-2xl p-5"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255, 45, 45, 0.15) 0%, rgba(255, 45, 45, 0.05) 100%)',
+                  borderColor: 'rgba(255, 45, 45, 0.4)'
+                }}
+              >
+                {/* Incident Header */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    <KiliAvatar
+                      src={alert.user.avatar}
+                      name={alert.user.first_name || alert.user.username}
+                      size="md"
+                    />
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-text-primary">
+                        {alert.user.first_name || alert.user.username}
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        Incident #{alert.id} • {timeAgo(alert.created_at)}
+                      </p>
                     </div>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-lg font-bold text-sm bg-kili-red/10 text-kili-red border border-kili-red/30">
+                    {sev.label}
+                  </div>
+                </div>
 
-                    {/* Responder count badge */}
-                    <motion.div
-                      animate={{
-                        boxShadow: alert.responder_count > 0
-                          ? '0 0 15px rgba(255, 45, 45, 0.5)'
-                          : 'none'
-                      }}
-                      className="px-3 py-1.5 rounded-lg font-bold text-sm backdrop-blur-sm border border-kili-red/30 bg-kili-red/10 text-kili-red"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Users size={12} />
-                        <span>{alert.responder_count}</span>
-                      </div>
-                    </motion.div>
+                {/* Status */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Shield size={12} className="text-gold" />
+                    <p className="text-xs font-semibold text-text-muted">
+                      Status
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-kili-red">
+                    {alert.status}
+                  </span>
+                </div>
+
+                {/* STEP 2: Interested Responders List */}
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10 mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Users size={12} className="text-text-muted" />
+                      <p className="text-xs font-semibold text-text-muted">
+                        Interested Responders
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-text-primary">
+                      {alert.responder_count}
+                    </span>
                   </div>
 
-                  {/* Message */}
-                  {alert.message && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-3 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
-                    >
-                      <p className="text-sm text-text-secondary leading-relaxed">
-                        "{alert.message}"
-                      </p>
-                    </motion.div>
-                  )}
-
-                  {/* Location */}
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    className="flex items-center gap-2 text-text-muted text-xs p-2 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm cursor-pointer"
-                  >
-                    <MapPin size={12} className="text-kili-red" />
-                    <span className="font-mono">{alert.latitude.toFixed(4)}, {alert.longitude.toFixed(4)}</span>
-                  </motion.div>
-
-                  {/* Primary Responder Section */}
-                  {alert.primary_responder_username && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-3 rounded-xl bg-gold/10 border border-gold/30 backdrop-blur-sm"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Shield size={12} className="text-gold" />
-                        <p className="text-xs font-semibold text-text-primary">
-                          ⭐ Primary Responder
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <KiliAvatar
-                          src={alert.primary_responder_avatar}
-                          name={alert.primary_responder_first_name}
-                          size="xs"
-                        />
-                        <div className="flex-1">
-                          <p className="text-xs font-bold text-gold">
-                            {alert.primary_responder_first_name}
+                  {/* STEP 2: Show actual responder names */}
+                  {alert.responses && alert.responses.length > 0 ? (
+                    <div className="space-y-2">
+                      {alert.responses.map((response: SosResponse) => (
+                        <div key={response.id} className="flex items-center gap-2">
+                          <KiliAvatar
+                            src={response.responder_avatar}
+                            name={response.responder_first_name || response.responder_username}
+                            size="sm"
+                          />
+                          <p className="text-xs text-text-primary">
+                            {response.responder_first_name || response.responder_username}
                           </p>
-                          {alert.assigned_at && (
-                            <div className="flex items-center gap-1 text-[10px] text-gold">
-                              <Clock size={10} />
-                              <span>Assigned: {timeAgo(alert.assigned_at)}</span>
-                            </div>
-                          )}
                         </div>
-                      </div>
-                    </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-text-muted">
+                      No responders yet
+                    </p>
                   )}
+                </div>
 
-                  {/* Standby Responders Section */}
-                  {alert.responses && alert.responses.filter((r: any) => !r.is_primary).length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-3 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Users size={12} className="text-text-muted" />
-                        <p className="text-xs font-semibold text-text-primary">
-                          Standby Responders ({alert.responses.filter((r: any) => !r.is_primary).length})
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        {alert.responses.filter((r: any) => !r.is_primary).map((responder: any) => (
-                          <div
-                            key={responder.id}
-                            className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10"
-                          >
-                            <KiliAvatar
-                              src={responder.responder_avatar}
-                              name={responder.responder_first_name}
-                              size="xs"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-text-muted truncate">
-                                {responder.responder_first_name}
-                              </p>
-                              {responder.eta_minutes && (
-                                <div className="flex items-center gap-1 text-[10px] text-text-muted">
-                                  <Clock size={10} />
-                                  <span>{responder.eta_minutes}min</span>
-                                </div>
-                              )}
-                              <p className="text-[9px] text-text-muted">
-                                {responder.guide_status}
-                              </p>
+                {/* STEP 2: Timeline Section */}
+                {alert.timeline && alert.timeline.length > 0 && (
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock size={12} className="text-gold" />
+                      <p className="text-xs font-semibold text-text-muted">
+                        Timeline
+                      </p>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {alert.timeline.map((event: TimelineEvent) => (
+                        <div
+                          key={event.id}
+                          className="flex items-start gap-2 p-2 rounded-lg bg-white/5"
+                        >
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-gold">
+                            {event.event_type === 'SOS_CREATED' && <AlertCircle className="w-4 h-4" />}
+                            {event.event_type === 'GUIDE_INTERESTED' && <UserCheck className="w-4 h-4" />}
+                            {event.event_type === 'CHAT_MESSAGE' && <MessageSquare className="w-4 h-4" />}
+                            {!['SOS_CREATED', 'GUIDE_INTERESTED', 'CHAT_MESSAGE'].includes(event.event_type) && <Activity className="w-4 h-4" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] font-semibold text-gold">
+                                {event.event_type === 'SOS_CREATED' && 'SOS Created'}
+                                {event.event_type === 'GUIDE_INTERESTED' && `${event.actor?.first_name || 'Guide'} Interested`}
+                                {event.event_type === 'CHAT_MESSAGE' && `${event.actor?.first_name || 'User'} Sent Message`}
+                                {!['SOS_CREATED', 'GUIDE_INTERESTED', 'CHAT_MESSAGE'].includes(event.event_type) && event.event_type}
+                              </span>
+                              <span className="text-[9px] text-text-muted">
+                                {timeAgo(event.created_at)}
+                              </span>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* Admin Action Buttons */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setSelectedAlert(alert)
-                        setActionType('reassign')
-                        setShowActionModal(true)
-                      }}
-                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 transition-all"
-                    >
-                      <RefreshCw size={12} />
-                      <span>Reassign</span>
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setSelectedAlert(alert)
-                        setActionType('escalate')
-                        setShowActionModal(true)
-                      }}
-                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30 hover:bg-orange-500/30 transition-all"
-                    >
-                      <ArrowUpRight size={12} />
-                      <span>Escalate</span>
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setSelectedAlert(alert)
-                        setActionType('resolve')
-                        setShowActionModal(true)
-                      }}
-                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30 transition-all"
-                    >
-                      <CheckCircle size={12} />
-                      <span>Resolve</span>
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setSelectedAlert(alert)
-                        setActionType('cancel')
-                        setShowActionModal(true)
-                      }}
-                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all"
-                    >
-                      <XCircle size={12} />
-                      <span>Cancel</span>
-                    </motion.button>
-                  </motion.div>
-
-                  {/* Time */}
-                  <div className="flex items-center gap-2 text-text-muted text-xs pt-2 border-t border-white/10">
-                    <Clock size={10} />
-                    <span>{timeAgo(alert.created_at)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+                )}
 
-                  {/* Timeline Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      setSelectedAlert(alert)
-                      fetchTimeline(alert.id)
-                      setShowTimeline(true)
-                    }}
-                    className="w-full py-2.5 rounded-xl text-xs font-bold bg-white/5 text-text-muted border border-white/20 hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Activity size={12} />
-                    <span>View Timeline</span>
-                  </motion.button>
-                </div>
+                {/* MONITOR Button - Phase 1 Only */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full py-3 rounded-xl text-sm font-bold bg-gold/20 text-gold border border-gold/40 hover:bg-gold/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <Shield size={14} />
+                  <span>MONITOR</span>
+                </motion.button>
               </motion.div>
             )
           })
         )}
       </div>
-
-      {/* Admin Action Modal */}
-      {showActionModal && selectedAlert && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setShowActionModal(false)}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-slate-900 border border-white/20 rounded-2xl p-6 w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-text-primary mb-4">
-              {actionType === 'reassign' && 'Reassign Primary Responder'}
-              {actionType === 'escalate' && 'Escalate Incident'}
-              {actionType === 'resolve' && 'Resolve Incident'}
-              {actionType === 'cancel' && 'Cancel Incident'}
-            </h3>
-
-            {actionType === 'reassign' && selectedAlert.responses && (
-              <div className="space-y-2 mb-4">
-                <p className="text-xs text-text-muted mb-2">Select new primary responder:</p>
-                {selectedAlert.responses.map((responder: any) => (
-                  <motion.button
-                    key={responder.id}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedResponderId(responder.responder_id)}
-                    className={`w-full flex items-center gap-2 p-3 rounded-xl border ${
-                      selectedResponderId === responder.responder_id
-                        ? 'bg-gold/20 border-gold/40 text-gold'
-                        : 'bg-white/5 border-white/20 text-text-muted'
-                    }`}
-                  >
-                    <KiliAvatar
-                      src={responder.responder_avatar}
-                      name={responder.responder_first_name}
-                      size="xs"
-                    />
-                    <div className="flex-1 text-left">
-                      <p className="text-xs font-semibold">{responder.responder_first_name}</p>
-                      {responder.eta_minutes && (
-                        <p className="text-[10px] text-text-muted">ETA: {responder.eta_minutes}min</p>
-                      )}
-                      <p className="text-[9px] text-text-muted">{responder.guide_status}</p>
-                    </div>
-                    {responder.is_primary && (
-                      <span className="text-[10px] font-bold text-gold">MKUU</span>
-                    )}
-                  </motion.button>
-                ))}
-              </div>
-            )}
-
-            <div className="mb-4">
-              <label className="text-xs text-text-muted mb-2 block">Reason (optional):</label>
-              <textarea
-                value={actionReason}
-                onChange={(e) => setActionReason(e.target.value)}
-                placeholder="Enter reason for this action..."
-                rows={3}
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm text-text-primary outline-none focus:border-gold focus:ring-2 focus:ring-gold/20 resize-none"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  setShowActionModal(false)
-                  setActionReason('')
-                  setSelectedResponderId(null)
-                }}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-white/10 text-text-muted border border-white/20 hover:bg-white/20 transition-all"
-              >
-                Cancel
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  if (actionType === 'reassign') handleReassign()
-                  else if (actionType === 'escalate') handleEscalate()
-                  else if (actionType === 'resolve') handleResolve()
-                  else if (actionType === 'cancel') handleCancel()
-                }}
-                disabled={actionType === 'reassign' && !selectedResponderId}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-gold text-black hover:bg-gold/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Confirm
-              </motion.button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-
-      {/* Timeline Modal */}
-      {showTimeline && selectedAlert && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setShowTimeline(false)}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-slate-900 border border-white/20 rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-text-primary">Incident Timeline</h3>
-              <button
-                onClick={() => setShowTimeline(false)}
-                className="text-text-muted hover:text-text-primary"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-3">
-              {selectedTimeline.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10"
-                >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getEventColor(event.event_type)}`}>
-                    {getEventIcon(event.event_type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs font-semibold ${getEventColor(event.event_type)}`}>
-                        {getEventLabel(event)}
-                      </span>
-                      <span className="text-xs text-text-muted">
-                        {timeAgo(event.created_at)}
-                      </span>
-                    </div>
-                    {event.response_data && (
-                      <p className="text-xs text-text-secondary">
-                        {event.response_data.message}
-                        {event.response_data.eta_minutes && (
-                          <span className="ml-2 text-gold">ETA: {event.response_data.eta_minutes} min</span>
-                        )}
-                      </p>
-                    )}
-                    {event.message_data && (
-                      <p className="text-xs text-text-secondary">
-                        {event.message_data.content}
-                      </p>
-                    )}
-                    {event.data?.reason && (
-                      <p className="text-xs text-text-secondary">
-                        Reason: {event.data.reason}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
     </div>
   )
 }

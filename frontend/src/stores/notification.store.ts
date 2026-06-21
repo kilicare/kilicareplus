@@ -99,6 +99,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     })
 
     // Store cleanup function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     set({ _cleanup: off } as any)
   },
 
@@ -106,6 +107,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     notificationsSocket.disconnect()
     set({ isConnected: false })
     // Cleanup event listener if exists
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const state = get() as any
     if (state._cleanup) {
       state._cleanup()

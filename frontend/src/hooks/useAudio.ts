@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 
 interface UseAudioOptions {
   /** URL of the audio file to play */
@@ -42,7 +42,7 @@ interface UseAudioReturn {
  */
 export const useAudio = (options: UseAudioOptions): UseAudioReturn => {
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const isPlayingRef = useRef(false)
+  const [isPlaying, setIsPlaying] = useState(false)
   const { audioUrl, loop = true, volume = 1, onPlay, onPause, onEnded, onError } = options
 
   // Create audio element
@@ -58,22 +58,22 @@ export const useAudio = (options: UseAudioOptions): UseAudioReturn => {
 
       // Event handlers
       const handlePlay = () => {
-        isPlayingRef.current = true
+        setIsPlaying(true)
         onPlay?.()
       }
 
       const handlePause = () => {
-        isPlayingRef.current = false
+        setIsPlaying(false)
         onPause?.()
       }
 
       const handleEnded = () => {
-        isPlayingRef.current = false
+        setIsPlaying(false)
         onEnded?.()
       }
 
       const handleError = () => {
-        isPlayingRef.current = false
+        setIsPlaying(false)
         const error = new Error(`Failed to load audio: ${audioUrl}`)
         onError?.(error)
       }
@@ -126,7 +126,7 @@ export const useAudio = (options: UseAudioOptions): UseAudioReturn => {
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.currentTime = 0
-      isPlayingRef.current = false
+      setIsPlaying(false)
     }
   }, [])
 
@@ -134,7 +134,7 @@ export const useAudio = (options: UseAudioOptions): UseAudioReturn => {
   const pause = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause()
-      isPlayingRef.current = false
+      setIsPlaying(false)
     }
   }, [])
 
@@ -150,7 +150,7 @@ export const useAudio = (options: UseAudioOptions): UseAudioReturn => {
     stop,
     pause,
     resume,
-    isPlaying: isPlayingRef.current,
+    isPlaying,
     preload,
   }
 }

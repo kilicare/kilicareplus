@@ -1,6 +1,5 @@
 'use client'
-import { useRef, useState } from 'react'
-import { useMoreGridStore } from '@/stores/moreGrid.store'
+import { useRef } from 'react'
 
 /**
  * Hook for detecting long press gestures

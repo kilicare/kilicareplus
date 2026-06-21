@@ -156,6 +156,7 @@ api.interceptors.response.use(
     
     // Handle 401 Unauthorized - attempt token refresh
     if (err.response?.status === 401) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const errorData = (err.response?.data as any) || {}
       const errorMessage = errorData.message || errorData.detail || 'Unauthorized'
       
@@ -268,11 +269,12 @@ api.interceptors.response.use(
         })
         
         return api(orig)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (refreshError: any) {
         const refreshErrorStatus = refreshError?.response?.status || 'unknown'
-        const refreshErrorMessage = 
-          refreshError?.response?.data?.message || 
-          refreshError?.message || 
+        const refreshErrorMessage =
+          refreshError?.response?.data?.message ||
+          refreshError?.message ||
           'Unknown error'
         
         console.error('[API Interceptor] ❌ Token refresh failed', {

@@ -44,12 +44,12 @@ def active_alerts_view(request):
     if request.user.role == 'ADMIN':
         # Admins see all active alerts without distance filtering
         alerts = SOSAlert.objects.filter(
-            status__in=('ACTIVE', 'ASSIGNED', 'ON_THE_WAY', 'ON_SITE', 'ESCALATED')
+            status__in=('WAITING_FOR_RESPONDER', 'ACTIVE', 'ASSIGNED', 'ON_THE_WAY', 'ARRIVED', 'ESCALATED')
         ).select_related('user', 'user__profile', 'chat_room', 'primary_responder').prefetch_related('responses__responder__profile').order_by('-created_at')
     else:
         # Guides see nearby alerts with distance filtering
         alerts = SOSAlert.objects.filter(
-            status__in=('ACTIVE', 'ASSIGNED', 'ON_THE_WAY', 'ON_SITE', 'ESCALATED')
+            status__in=('WAITING_FOR_RESPONDER', 'ACTIVE', 'ASSIGNED', 'ON_THE_WAY', 'ARRIVED', 'ESCALATED')
         ).select_related('user', 'user__profile', 'chat_room', 'primary_responder').prefetch_related('responses__responder__profile').order_by('-created_at')
 
     data = []
@@ -75,6 +75,31 @@ def active_alerts_view(request):
             if distance_km > 10:
                 continue
         
+        # Build responses array with responder details
+        responses_data = []
+        for response in a.responses.select_related('responder__profile').order_by('created_at'):
+            responder_profile = getattr(response.responder, 'profile', None)
+            responses_data.append({
+                'id': response.id,
+                'responder_id': response.responder.id,
+                'responder_username': response.responder.username,
+                'responder_first_name': response.responder.first_name,
+                'responder_avatar': (
+                    responder_profile.avatar.url
+                    if responder_profile and responder_profile.avatar
+                    else None
+                ),
+                'message': response.message,
+                'eta_minutes': response.eta_minutes,
+                'guide_status': response.guide_status,
+                'is_primary': a.primary_responder_id == response.responder.id,
+                'created_at': response.created_at.isoformat(),
+            })
+        
+        # Get timeline data
+        from .services import SOSEventService
+        timeline_data = SOSEventService.get_timeline(a.id)
+        
         data.append({
             'id': a.id,
             'user': {
@@ -98,6 +123,8 @@ def active_alerts_view(request):
             'created_at': a.created_at.isoformat(),
             'escalated_at': a.escalated_at.isoformat() if a.escalated_at else None,
             'chat_room_name': a.chat_room.name if a.chat_room else None,
+            'responses': responses_data,
+            'timeline': timeline_data,
         })
     return Response(data)
 
@@ -109,7 +136,7 @@ def statistics_view(request):
     today = timezone.now().date()
     return Response({
         'active': SOSAlert.objects.filter(status='ACTIVE').count(),
-        'responding': SOSAlert.objects.filter(status__in=['ASSIGNED', 'ON_THE_WAY', 'ON_SITE']).count(),
+        'responding': SOSAlert.objects.filter(status__in=['ASSIGNED', 'ON_THE_WAY', 'ARRIVED']).count(),
         'escalated': SOSAlert.objects.filter(status='ESCALATED').count(),
         'resolved_today': SOSAlert.objects.filter(
             status='RESOLVED',
@@ -521,8 +548,8 @@ def guide_create_response_view(request, alert_id):
                 eta_minutes=eta_minutes,
             )
             
-            # Update alert state
-            IncidentStateService.set_responding_state(alert)
+            # STEP 2: Do NOT change status - keep WAITING_FOR_RESPONDER
+            # STEP 2: Do NOT call IncidentStateService.set_responding_state - that's Step 3
             
             # Atomic update of responder count
             from django.db.models import F
@@ -543,9 +570,7 @@ def guide_create_response_view(request, alert_id):
                 }
             )
             
-            # Trigger smart dispatch
-            from .services import SmartDispatchService
-            SmartDispatchService.dispatch_primary(alert)
+            # STEP 2: Do NOT trigger smart dispatch - that's Step 3
         
         return Response({
             'success': True,
@@ -659,17 +684,16 @@ def guide_update_status_view(request, alert_id):
             response.guide_status = 'UNABLE_TO_CONTINUE'
             response.save(update_fields=['guide_status'])
             
-            # Create event for failure
+            # Create PRIMARY_FAILED event
             from .services import SOSEventService
             SOSEventService.create_event(
                 alert=alert,
-                event_type='ADMIN_INTERVENTION',
+                event_type='PRIMARY_FAILED',
                 actor=request.user,
                 response=response,
                 data={
-                    'action': 'guide_unable_to_continue',
-                    'responder_id': request.user.id,
-                    'responder_username': request.user.username,
+                    'primary_username': request.user.username,
+                    'reason': 'Unable to continue',
                 }
             )
             
@@ -714,9 +738,10 @@ def guide_update_status_view(request, alert_id):
             if model_status == 'ON_THE_WAY':
                 IncidentStateService.set_on_the_way_state(alert, actor=request.user)
             elif model_status == 'ARRIVED':
-                IncidentStateService.set_on_site_state(alert, actor=request.user)
+                IncidentStateService.set_arrived_state(alert, actor=request.user)
             elif model_status == 'COMPLETED':
-                IncidentStateService.set_completed_state(alert, actor=request.user)
+                # Guide completed the rescue - resolve the incident
+                IncidentStateService.set_resolved_state(alert, actor=request.user, reason='Guide completed rescue')
         
         return Response({
             'success': True,

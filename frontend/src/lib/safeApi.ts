@@ -6,13 +6,15 @@
  */
 
 interface SafeApiOptions {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fallback?: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onError?: (error: any) => void
 }
 
 /**
  * Safe API call wrapper
- * 
+ *
  * Wraps any async function with try/catch and safe fallback.
  * Never crashes the UI, always returns a result or fallback.
  */
@@ -24,6 +26,7 @@ export async function safeApiCall<T>(
 
   try {
     return await fn()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('[SafeAPI] Error in API call:', error)
 
@@ -44,12 +47,13 @@ export async function safeApiCall<T>(
 
 /**
  * Safe API call with default fallback
- * 
+ *
  * Similar to safeApiCall but always returns a value (never throws).
  */
 export async function safeApiCallWithFallback<T>(
   fn: () => Promise<T>,
   fallback: T,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onError?: (error: any) => void
 ): Promise<T> {
   return safeApiCall(fn, { fallback, onError })
@@ -57,11 +61,12 @@ export async function safeApiCallWithFallback<T>(
 
 /**
  * Safe API call with null fallback
- * 
+ *
  * Returns null on error instead of throwing.
  */
 export async function safeApiCallOrNull<T>(
   fn: () => Promise<T>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onError?: (error: any) => void
 ): Promise<T | null> {
   return safeApiCallWithFallback(fn, null, onError)
@@ -69,11 +74,12 @@ export async function safeApiCallOrNull<T>(
 
 /**
  * Safe API call with empty array fallback
- * 
+ *
  * Returns empty array on error instead of throwing.
  */
 export async function safeApiCallOrEmpty<T>(
   fn: () => Promise<T[]>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onError?: (error: any) => void
 ): Promise<T[]> {
   return safeApiCallWithFallback(fn, [], onError)

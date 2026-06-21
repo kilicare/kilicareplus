@@ -15,26 +15,24 @@ class SOSAlert(models.Model):
         ('CRITICAL', 'Critical'),
     ]
     STATUS = [
+        ('WAITING_FOR_RESPONDER', 'Waiting For Responder'),
         ('ACTIVE', 'Active'),
         ('ASSIGNED', 'Assigned'),
         ('ON_THE_WAY', 'On The Way'),
-        ('ON_SITE', 'On Site'),
-        ('COMPLETED', 'Completed'),
+        ('ARRIVED', 'Arrived'),
         ('ESCALATED', 'Escalated'),
         ('RESOLVED', 'Resolved'),
         ('CANCELLED', 'Cancelled'),
-        ('HANDOFF', 'Handoff'),
     ]
     
     # Valid state transitions
     VALID_TRANSITIONS = {
+        'WAITING_FOR_RESPONDER': ['ACTIVE', 'ESCALATED', 'RESOLVED', 'CANCELLED'],
         'ACTIVE': ['ASSIGNED', 'ESCALATED', 'RESOLVED', 'CANCELLED'],
-        'ASSIGNED': ['ON_THE_WAY', 'HANDOFF', 'ESCALATED', 'RESOLVED', 'CANCELLED'],
-        'ON_THE_WAY': ['ON_SITE', 'HANDOFF', 'ESCALATED', 'RESOLVED', 'CANCELLED'],
-        'ON_SITE': ['COMPLETED', 'HANDOFF', 'ESCALATED', 'RESOLVED', 'CANCELLED'],
-        'COMPLETED': ['RESOLVED'],  # COMPLETED leads to RESOLVED
-        'HANDOFF': ['ASSIGNED', 'ESCALATED', 'RESOLVED', 'CANCELLED'],
-        'ESCALATED': ['ASSIGNED', 'ON_THE_WAY', 'ON_SITE', 'RESOLVED', 'CANCELLED'],
+        'ASSIGNED': ['ON_THE_WAY', 'ESCALATED', 'RESOLVED', 'CANCELLED'],
+        'ON_THE_WAY': ['ARRIVED', 'ESCALATED', 'RESOLVED', 'CANCELLED'],
+        'ARRIVED': ['RESOLVED', 'ESCALATED', 'CANCELLED'],
+        'ESCALATED': ['ASSIGNED', 'ON_THE_WAY', 'ARRIVED', 'RESOLVED', 'CANCELLED'],
         'RESOLVED': [],  # Terminal state
         'CANCELLED': [],  # Terminal state
     }
@@ -53,7 +51,7 @@ class SOSAlert(models.Model):
         max_length=10, choices=SEVERITY, default='HIGH'
     )
     status = models.CharField(
-        max_length=15, choices=STATUS, default='ACTIVE'
+        max_length=25, choices=STATUS, default='WAITING_FOR_RESPONDER'
     )
     message = models.TextField(null=True, blank=True)
     responder_count = models.PositiveIntegerField(default=0)
@@ -125,7 +123,7 @@ class SOSAlert(models.Model):
             # Ensure that an incident can only have one active primary responder
             # This is enforced at the database level to prevent race conditions
             models.CheckConstraint(
-                check=models.Q(primary_responder__isnull=True) | models.Q(status__in=['ASSIGNED', 'ON_THE_WAY', 'ON_SITE', 'COMPLETED', 'HANDOFF']),
+                check=models.Q(primary_responder__isnull=True) | models.Q(status__in=['ASSIGNED', 'ON_THE_WAY', 'ARRIVED', 'ACTIVE']),
                 name='primary_responder_only_when_assigned',
                 violation_error_message='Primary responder can only be set when incident is in assigned state'
             )
@@ -158,18 +156,12 @@ class SOSAlert(models.Model):
             self.cancelled_at = timezone.now()
         elif new_status == 'ASSIGNED':
             self.assigned_at = timezone.now()
-        elif new_status == 'ON_SITE':
-            # Track when guide is on site (if primary responder exists)
+        elif new_status == 'ARRIVED':
+            # Track when guide arrives (if primary responder exists)
             if self.primary_responder:
                 primary_response = self.responses.filter(responder=self.primary_responder).first()
                 if primary_response:
                     primary_response.transition_guide_status('ARRIVED')
-        elif new_status == 'COMPLETED':
-            # Mark primary responder as completed
-            if self.primary_responder:
-                primary_response = self.responses.filter(responder=self.primary_responder).first()
-                if primary_response:
-                    primary_response.transition_guide_status('COMPLETED')
         
         # Track escalation
         if new_status == 'ESCALATED':
@@ -330,13 +322,15 @@ class SOSResponse(models.Model):
     def transition_guide_status(self, new_status, actor=None):
         """
         Transition guide status with timestamp updates.
+        UNABLE_TO_CONTINUE can be transitioned to from any state.
         """
         valid_transitions = {
-            'INTERESTED': ['ACCEPTED'],
-            'ACCEPTED': ['ON_THE_WAY'],
-            'ON_THE_WAY': ['ARRIVED'],
-            'ARRIVED': ['COMPLETED'],
+            'INTERESTED': ['ACCEPTED', 'UNABLE_TO_CONTINUE'],
+            'ACCEPTED': ['ON_THE_WAY', 'UNABLE_TO_CONTINUE'],
+            'ON_THE_WAY': ['ARRIVED', 'UNABLE_TO_CONTINUE'],
+            'ARRIVED': ['COMPLETED', 'UNABLE_TO_CONTINUE'],
             'COMPLETED': [],  # Terminal state
+            'UNABLE_TO_CONTINUE': [],  # Terminal state
         }
         
         if new_status not in valid_transitions.get(self.guide_status, []):
@@ -355,6 +349,9 @@ class SOSResponse(models.Model):
             self.onsite_at = timezone.now()
         elif new_status == 'COMPLETED':
             self.completed_at = timezone.now()
+        elif new_status == 'UNABLE_TO_CONTINUE':
+            # Track when guide became unable to continue
+            self.completed_at = timezone.now()  # Use completed_at as end timestamp
         
         self.save()
         return True
@@ -373,12 +370,16 @@ class SOSEvent(models.Model):
         ('GUIDE_ON_THE_WAY', 'Guide On The Way'),
         ('GUIDE_ARRIVED', 'Guide Arrived'),
         ('GUIDE_COMPLETED', 'Guide Completed'),
+        ('PRIMARY_FAILED', 'Primary Failed'),
+        ('STANDBY_PROMOTED', 'Standby Promoted'),
         ('CHAT_MESSAGE', 'Chat Message'),
+        ('MESSAGE_SENT', 'Message Sent'),
         ('STATUS_CHANGE', 'Status Changed'),
         ('SOS_RESOLVED', 'SOS Resolved'),
         ('SOS_CANCELLED', 'SOS Cancelled'),
         ('SOS_ESCALATED', 'SOS Escalated'),
         ('PRIMARY_REASSIGNED', 'Primary Reassigned'),
+        ('ADMIN_ACTION', 'Admin Action'),
         ('ADMIN_INTERVENTION', 'Admin Intervention'),
     ]
     

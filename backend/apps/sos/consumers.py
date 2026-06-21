@@ -112,6 +112,29 @@ class SOSConsumer(AsyncWebsocketConsumer):
                         },
                     }
                 )
+            # Notify admins via WebSocket for Phase 1
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            admins = await database_sync_to_async(list)(User.objects.filter(role='ADMIN'))
+            for admin in admins:
+                await self.channel_layer.group_send(
+                    f'sos_user_{admin.id}',
+                    {
+                        'type': 'sos_new_alert',
+                        'alert': {
+                            'id': alert.id,
+                            'user_id': self.user.id,
+                            'username': self.user.username,
+                            'latitude': alert.latitude,
+                            'longitude': alert.longitude,
+                            'severity': alert.severity,
+                            'message': alert.message or '',
+                            'status': alert.status,
+                            'created_at': alert.created_at.isoformat(),
+                        },
+                    }
+                )
+            logger.info(f"[SOSConsumer] Notified {len(admins)} admins")
             # Confirm to user
             await self.send(text_data=json.dumps({
                 'type': 'sos_created',
@@ -136,32 +159,55 @@ class SOSConsumer(AsyncWebsocketConsumer):
                 response_created = response.created_at.isoformat()
                 responder_id = self.user.id
                 responder_username = self.user.username
+                responder_count = alert.responder_count
                 
-                # Notify the tourist
-                await self.channel_layer.group_send(
-                    f'sos_user_{alert.user_id}',
-                    {
-                        'type': 'sos_response_received',
-                        'response': {
-                            'responder_id': responder_id,
-                            'responder_username': responder_username,
-                            'message': response_message,
-                            'eta_minutes': response_eta,
-                            'created_at': response_created,
-                            'chat_room_name': chat_room_name,
-                        },
-                    }
-                )
-                # Also notify the guide about the chat room
+                # STEP 2: Send interest registered message to guide
                 await self.channel_layer.group_send(
                     f'sos_user_{self.user.id}',
                     {
-                        'type': 'sos_chat_room_created',
+                        'type': 'sos_interest_registered',
                         'alert_id': alert.id,
-                        'chat_room_name': chat_room_name,
+                        'responder_id': responder_id,
                     }
                 )
-                logger.info(f"[SOSConsumer] Response sent to tourist {alert.user_id}, chat room: {chat_room_name or 'None'}")
+                
+                # STEP 2: Send responder interest update to tourist (for live confidence update)
+                await self.channel_layer.group_send(
+                    f'sos_user_{alert.user_id}',
+                    {
+                        'type': 'sos_responder_interest',
+                        'alert_id': alert.id,
+                        'responder_count': responder_count,
+                        'responder': {
+                            'id': responder_id,
+                            'username': responder_username,
+                        }
+                    }
+                )
+                
+                # STEP 2: Notify admins about new responder interest
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                admins = await database_sync_to_async(list)(User.objects.filter(role='ADMIN'))
+                for admin in admins:
+                    await self.channel_layer.group_send(
+                        f'sos_user_{admin.id}',
+                        {
+                            'type': 'sos_responder_interest',
+                            'alert_id': alert.id,
+                            'responder_count': responder_count,
+                            'responder': {
+                                'id': responder_id,
+                                'username': responder_username,
+                            }
+                        }
+                    )
+                
+                logger.info(f"[SOSConsumer] Interest registered for SOS {alert_id}, responder count: {responder_count}")
+                
+                # STEP 2: Create notifications based on responder count
+                await self.dispatch_step2_notifications(alert, responder_count, responder_username)
+                
                 # Dispatch event-driven notification
                 await self.dispatch_sos_response_notification(alert, response_message)
                 # Award points to responder
@@ -280,11 +326,80 @@ class SOSConsumer(AsyncWebsocketConsumer):
             **event,
         }))
 
+    async def sos_interest_registered(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'sos_interest_registered',
+            'alert_id': event['alert_id'],
+            'responder_id': event['responder_id'],
+        }))
+
+    async def sos_responder_interest(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'sos_responder_interest',
+            'alert_id': event['alert_id'],
+            'responder_count': event['responder_count'],
+            'responder': event['responder'],
+        }))
+
+    @database_sync_to_async
+    def dispatch_step2_notifications(self, alert, responder_count, responder_username):
+        from apps.notifications.models import Notification
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        # STEP 2: Create notifications based on responder count
+        if responder_count == 1:
+            # First interest - notify tourist
+            Notification.objects.create(
+                recipient=alert.user,
+                notification_type='SOS_INTEREST_REGISTERED',
+                title='👀 A responder has noticed your incident',
+                body=f'{responder_username} has expressed interest in helping you.',
+                data={'alert_id': alert.id, 'responder_username': responder_username}
+            )
+            logger.info(f"[SOSConsumer] Created first interest notification for tourist {alert.user.id}")
+        elif responder_count > 1:
+            # Additional responders - notify tourist about multiple responders
+            Notification.objects.create(
+                recipient=alert.user,
+                notification_type='SOS_MULTIPLE_RESPONDERS',
+                title=f'🚑 {responder_count} responders are now available nearby',
+                body=f'Multiple responders are available to help with your incident.',
+                data={'alert_id': alert.id, 'responder_count': responder_count}
+            )
+            logger.info(f"[SOSConsumer] Created multiple responders notification for tourist {alert.user.id}")
+        
+        # STEP 2: Notify guide that they are now a candidate
+        Notification.objects.create(
+            recipient=self.user,
+            notification_type='SOS_RESPONDER_CANDIDATE',
+            title='🟡 You are now a responder candidate',
+            body='Awaiting dispatch decision',
+            data={'alert_id': alert.id}
+        )
+        logger.info(f"[SOSConsumer] Created responder candidate notification for guide {self.user.id}")
+        
+        # STEP 2: Notify admins about new responder interest
+        admins = User.objects.filter(role='ADMIN')
+        for admin in admins:
+            Notification.objects.create(
+                recipient=admin,
+                notification_type='SOS_NEW_RESPONDER_INTEREST',
+                title='🚑 New responder interest registered',
+                body=f'{responder_username} has expressed interest in Incident #{alert.id}',
+                data={'alert_id': alert.id, 'responder_username': responder_username}
+            )
+        logger.info(f"[SOSConsumer] Created new responder interest notifications for {admins.count()} admins")
+
     @database_sync_to_async
     def create_alert(self, data):
         from .models import SOSAlert
         from .services import SOSEventService
-        
+
+        # Debug: Log received severity
+        logger.info(f"[SOSConsumer] Received severity from frontend: {data.get('severity')}")
+        logger.info(f"[SOSConsumer] Full data keys: {list(data.keys())}")
+
         alert = SOSAlert.objects.create(
             user=self.user,
             latitude=data['latitude'],
@@ -313,7 +428,7 @@ class SOSConsumer(AsyncWebsocketConsumer):
         from django.db import transaction
         from django.db.models import F
         from .models import SOSAlert, SOSResponse
-        from .services import SOSEventService, SmartDispatchService, IncidentStateService
+        from .services import SOSEventService, IncidentStateService
         from apps.messaging.models import ChatRoom
         try:
             with transaction.atomic():
@@ -332,8 +447,8 @@ class SOSConsumer(AsyncWebsocketConsumer):
                     eta_minutes=eta,
                 )
                 
-                # Use IncidentStateService for status change
-                IncidentStateService.set_responding_state(alert)
+                # STEP 2: Do NOT change status - keep WAITING_FOR_RESPONDER
+                # STEP 2: Do NOT call SmartDispatchService - that's STEP 3
                 
                 # Atomic update of responder count
                 alert.responder_count = F('responder_count') + 1
@@ -355,8 +470,7 @@ class SOSConsumer(AsyncWebsocketConsumer):
                     }
                 )
                 
-                # Trigger smart dispatch to assign primary responder
-                SmartDispatchService.dispatch_primary(alert)
+                # STEP 2: NO SmartDispatchService call - that's STEP 3
                 
                 logger.info(f"[SOSConsumer] Response created for SOS {alert_id}, responder count: {alert.responder_count}")
                 return response
@@ -370,7 +484,7 @@ class SOSConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_alert(self, alert_id):
         from .models import SOSAlert
-        return SOSAlert.objects.get(id=alert_id)
+        return SOSAlert.objects.select_related('chat_room').get(id=alert_id)
 
     @database_sync_to_async
     def resolve_alert(self, alert_id):
@@ -594,9 +708,10 @@ class SOSConsumer(AsyncWebsocketConsumer):
             if model_status == 'ON_THE_WAY':
                 IncidentStateService.set_on_the_way_state(alert, actor=self.user)
             elif model_status == 'ARRIVED':
-                IncidentStateService.set_on_site_state(alert, actor=self.user)
+                IncidentStateService.set_arrived_state(alert, actor=self.user)
             elif model_status == 'COMPLETED':
-                IncidentStateService.set_completed_state(alert, actor=self.user)
+                # Guide completed the rescue - resolve the incident
+                IncidentStateService.set_resolved_state(alert, actor=self.user, reason='Guide completed rescue')
             
             # Check if standby promotion is needed
             from .services import StandbyPromotionService

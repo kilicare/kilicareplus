@@ -11,6 +11,11 @@ class Notification(models.Model):
         ('SOS_RESOLVED',          'SOS Resolved'),
         ('SOS_CANCELLED',         'SOS Cancelled'),
         ('SOS_ESCALATED',         'SOS Escalated'),
+        # STEP 2: New notification types for responder interest
+        ('SOS_INTEREST_REGISTERED', 'SOS Interest Registered'),
+        ('SOS_MULTIPLE_RESPONDERS', 'SOS Multiple Responders'),
+        ('SOS_RESPONDER_CANDIDATE', 'SOS Responder Candidate'),
+        ('SOS_NEW_RESPONDER_INTEREST', 'SOS New Responder Interest'),
         ('BOOKING_REQUEST',       'Booking Request'),
         ('BOOKING_CONFIRMED',     'Booking Confirmed'),
         ('BOOKING_COMPLETED',     'Booking Completed'),

@@ -7,7 +7,7 @@
  * - Role-based UI branching happens INSIDE /feed page only
  */
 
-export function resolvePostLoginRoute(user?: { role?: string } | null): string {
+export function resolvePostLoginRoute(): string {
   // SINGLE DESTINATION FOR ALL ROLES
   // Role-based UI branching happens inside /feed page
   return '/feed'

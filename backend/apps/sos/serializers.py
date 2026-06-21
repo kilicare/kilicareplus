@@ -117,6 +117,7 @@ class SOSAlertSerializer(serializers.ModelSerializer):
     primary_responder_avatar = serializers.SerializerMethodField()
     standby_responders = serializers.SerializerMethodField()
     assigned_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    coverage_level = serializers.SerializerMethodField()
     
     class Meta:
         model = SOSAlert
@@ -153,6 +154,7 @@ class SOSAlertSerializer(serializers.ModelSerializer):
             'primary_responder_avatar',
             'standby_responders',
             'assigned_at',
+            'coverage_level',
         ]
     
     def get_user_avatar(self, obj):
@@ -242,6 +244,26 @@ class SOSAlertSerializer(serializers.ModelSerializer):
                 'guide_status': response.guide_status,
             })
         return standby
+    
+    def get_coverage_level(self, obj):
+        """Calculate rescue coverage level based on responders and status."""
+        responder_count = obj.responses.count()
+        has_primary = obj.primary_responder is not None
+        has_standby = responder_count > (1 if has_primary else 0)
+        
+        # Calculate coverage level
+        if has_primary and has_standby and responder_count >= 3:
+            return 'EXCELLENT'
+        elif has_primary and has_standby:
+            return 'GOOD'
+        elif has_primary:
+            return 'ADEQUATE'
+        elif responder_count >= 2:
+            return 'LIMITED'
+        elif responder_count == 1:
+            return 'MINIMAL'
+        else:
+            return 'NONE'
 
 
 class SOSAlertListSerializer(serializers.ModelSerializer):

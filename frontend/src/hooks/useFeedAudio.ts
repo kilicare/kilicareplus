@@ -48,7 +48,7 @@ export const useFeedAudio = () => {
         try {
           await audio.play()
           setActiveMomentId(momentId)
-        } catch (error) {
+        } catch {
           // Autoplay restriction - will need user interaction
           // Don't error, just track it
         }

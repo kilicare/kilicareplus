@@ -24,6 +24,7 @@ urlpatterns = [
     path('<int:alert_id>/timeline/', views.alert_timeline_view),
     
     # Guide Lifecycle
+    path('<int:alert_id>/guide/respond/', views.guide_create_response_view),
     path('<int:alert_id>/guide/accept/', views.guide_accept_assignment_view),
     path('<int:alert_id>/guide/update-status/', views.guide_update_status_view),
 ]

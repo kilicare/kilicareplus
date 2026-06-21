@@ -22,10 +22,12 @@ const createSafeStorage = (): PersistStorage<{ theme: Theme }> => ({
       return null
     }
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setItem: (name: string, value: any) => {
     try {
       if (typeof window === 'undefined') return
       localStorage.setItem(name, JSON.stringify(value))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       if (e.name === 'QuotaExceededError' || e.message?.includes('quota')) {
         console.warn('localStorage quota exceeded, clearing old data...')

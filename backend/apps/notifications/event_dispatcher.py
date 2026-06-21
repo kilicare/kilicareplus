@@ -14,6 +14,11 @@ class EventType:
     SOS_RESOLVED          = 'SOS_RESOLVED'
     SOS_CANCELLED         = 'SOS_CANCELLED'
     SOS_ESCALATED         = 'SOS_ESCALATED'
+    # STEP 2: New notification types for responder interest
+    SOS_INTEREST_REGISTERED = 'SOS_INTEREST_REGISTERED'
+    SOS_MULTIPLE_RESPONDERS = 'SOS_MULTIPLE_RESPONDERS'
+    SOS_RESPONDER_CANDIDATE = 'SOS_RESPONDER_CANDIDATE'
+    SOS_NEW_RESPONDER_INTEREST = 'SOS_NEW_RESPONDER_INTEREST'
     BOOKING_REQUEST       = 'BOOKING_REQUEST'
     BOOKING_CONFIRMED     = 'BOOKING_CONFIRMED'
     BOOKING_COMPLETED     = 'BOOKING_COMPLETED'
@@ -77,6 +82,23 @@ def _build_config(
         EventType.SOS_ESCALATED: (
             f'⚠️ SOS imepandishwa kiwango',
             payload.get('reason', 'SOS imepelekwa kwa admin')[:80],
+        ),
+        # STEP 2: Notification configs for responder interest
+        EventType.SOS_INTEREST_REGISTERED: (
+            f'👀 A responder has noticed your incident',
+            payload.get('responder_username', 'A guide') + ' has expressed interest in helping you.',
+        ),
+        EventType.SOS_MULTIPLE_RESPONDERS: (
+            f'🚑 Multiple responders are now available nearby',
+            f'{payload.get("responder_count", 0)} responders are available to help with your incident.',
+        ),
+        EventType.SOS_RESPONDER_CANDIDATE: (
+            f'🟡 You are now a responder candidate',
+            'Awaiting dispatch decision',
+        ),
+        EventType.SOS_NEW_RESPONDER_INTEREST: (
+            f'🚑 New responder interest registered',
+            payload.get('responder_username', 'A guide') + ' has expressed interest in Incident #' + str(payload.get('alert_id', '')),
         ),
         EventType.BOOKING_REQUEST: (
             f'📅 Ombi jipya la booking kutoka {name}',

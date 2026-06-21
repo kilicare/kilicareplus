@@ -38,6 +38,7 @@ export class ApiClient {
     return res.json()
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async post(path: string, body: any) {
     const res = await fetch(`${this.baseURL}${path}`, {
       method: 'POST',
@@ -52,6 +53,7 @@ export class ApiClient {
     return res.json()
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async put(path: string, body: any) {
     const res = await fetch(`${this.baseURL}${path}`, {
       method: 'PUT',

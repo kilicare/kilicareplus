@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { authService } from '@/services/auth.service'
 import { tokenManager } from '@/core/auth/TokenManager'
-import { queryClient } from '@/lib/queryClient'
 
 /**
  * AuthProvider - Session bootstrap ONLY
@@ -30,7 +29,7 @@ import { queryClient } from '@/lib/queryClient'
  * PUBLIC ROUTES: Skip loading state for /landing and other public routes
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setAuthenticated, setLoading, isLoading } = useAuthStore()
+  const { setUser, setAuthenticated, setLoading } = useAuthStore()
   const pathname = usePathname()
   const hasInitialized = useRef(false)
   
@@ -94,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Step 4: If success: update auth.store with user + isAuthenticated=true
         setUser(verifiedUser)
         setAuthenticated(true)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Clear timeout since we got an error response
         clearTimeout(timeoutId)
@@ -127,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       console.log('[AuthProvider] Component unmounting, clearing timeout')
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPublicRoute])  // Only re-run when route changes, NOT on auth state changes
 
   // While auth is being verified, nothing should render

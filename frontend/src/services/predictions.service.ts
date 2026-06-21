@@ -121,6 +121,7 @@ export async function generatePrediction(
       league: league,
     })
     return response.data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     if (error.response?.data) {
       return error.response.data
@@ -158,6 +159,7 @@ export async function getPredictionHistory(
 /**
  * Get prediction analytics
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getPredictionAnalytics(): Promise<any> {
   try {
     const response = await api.get('/api/predictions/analytics/')

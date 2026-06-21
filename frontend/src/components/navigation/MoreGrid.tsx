@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import {
   X,
   Calendar,
-  MessageSquare,
   MapPin,
   AlertTriangle,
   CreditCard,
@@ -44,6 +43,7 @@ export interface MoreFeature {
   id: string
   label: string
   description?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Icon: any
   href: string
   badge?: string
@@ -168,7 +168,7 @@ interface MoreGridProps {
   features?: MoreFeature[]
 }
 
-export function MoreGrid({ isOpen, onClose, features = FEATURES }: MoreGridProps) {
+export function MoreGrid({ isOpen, onClose }: MoreGridProps) {
   const router = useRouter()
   const { user } = useAuthStore()
   const isAdmin = user?.role === 'ADMIN'

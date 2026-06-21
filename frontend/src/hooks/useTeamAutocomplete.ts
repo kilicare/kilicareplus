@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import { getTeamSuggestions } from '@/services/predictions.service'
+// import { getTeamSuggestions } from '@/services/predictions.service'
 
 export interface AutocompleteSuggestion {
   name: string
@@ -30,21 +30,23 @@ export function useTeamAutocomplete({ league, debounceMs = 300 }: UseTeamAutocom
   // Debounced fetch
   useEffect(() => {
     if (!input.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuggestions([])
       return
     }
 
     const timer = setTimeout(async () => {
       setIsLoading(true)
-      
+
       // TODO: Call backend to get team suggestions
       // For now, this is a placeholder
       // In production, implement actual fuzzy matching API call
-      
+
       setIsLoading(false)
     }, debounceMs)
 
     return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, league, debounceMs])
 
   const selectSuggestion = useCallback((suggestion: AutocompleteSuggestion) => {

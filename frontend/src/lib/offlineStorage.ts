@@ -39,6 +39,7 @@ class OfflineStorage {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async add(storeName: string, data: any): Promise<void> {
     if (!this.db) await this.init()
     return new Promise((resolve, reject) => {
@@ -51,6 +52,7 @@ class OfflineStorage {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async get(storeName: string, id: string): Promise<any> {
     if (!this.db) await this.init()
     return new Promise((resolve, reject) => {
@@ -63,6 +65,7 @@ class OfflineStorage {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getAll(storeName: string): Promise<any[]> {
     if (!this.db) await this.init()
     return new Promise((resolve, reject) => {
@@ -75,6 +78,7 @@ class OfflineStorage {
     })
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async update(storeName: string, data: any): Promise<void> {
     if (!this.db) await this.init()
     return new Promise((resolve, reject) => {

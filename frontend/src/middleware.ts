@@ -24,6 +24,7 @@ const PROTECTED_PREFIXES = [
 ]
 
 // Routes ambazo hazihitaji auth (public)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PUBLIC_PATHS = [
   '/',
   '/login',

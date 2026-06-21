@@ -51,37 +51,21 @@ class IncidentStateService:
     
     @staticmethod
     @transaction.atomic
-    def set_on_site_state(alert: SOSAlert, actor=None) -> SOSAlert:
+    def set_arrived_state(alert: SOSAlert, actor=None) -> SOSAlert:
         """
-        Set alert to ON_SITE state when primary responder arrives.
-        This is the only way to transition to ON_SITE.
+        Set alert to ARRIVED state when primary responder arrives.
+        This is the only way to transition to ARRIVED.
         """
         alert = SOSAlert.objects.select_for_update().get(id=alert.id)
         
-        if not alert.can_transition_to('ON_SITE'):
-            raise ValueError(f"Cannot transition from {alert.status} to ON_SITE")
+        if not alert.can_transition_to('ARRIVED'):
+            raise ValueError(f"Cannot transition from {alert.status} to ARRIVED")
         
-        alert.transition_to('ON_SITE', actor=actor)
+        alert.transition_to('ARRIVED', actor=actor)
         
-        logger.info(f"[IncidentStateService] Alert {alert.id} set to ON_SITE by {actor}")
+        logger.info(f"[IncidentStateService] Alert {alert.id} set to ARRIVED by {actor}")
         return alert
     
-    @staticmethod
-    @transaction.atomic
-    def set_completed_state(alert: SOSAlert, actor=None) -> SOSAlert:
-        """
-        Set alert to COMPLETED state when primary responder completes rescue.
-        This is the only way to transition to COMPLETED.
-        """
-        alert = SOSAlert.objects.select_for_update().get(id=alert.id)
-        
-        if not alert.can_transition_to('COMPLETED'):
-            raise ValueError(f"Cannot transition from {alert.status} to COMPLETED")
-        
-        alert.transition_to('COMPLETED', actor=actor)
-        
-        logger.info(f"[IncidentStateService] Alert {alert.id} set to COMPLETED by {actor}")
-        return alert
     
     @staticmethod
     @transaction.atomic
@@ -329,9 +313,35 @@ class SOSEventService:
         payload = event.data.copy()
         
         if event_type == 'SOS_CREATED':
-            # Notify nearby guides (handled in consumer, but we log here)
+            # Notify tourist about SOS creation
             notification_type = 'SOS_CREATED'
-            # Tourist gets confirmation via WebSocket in consumer
+            target = alert.user
+            payload.update({
+                'alert_id': alert.id,
+                'severity': alert.severity,
+                'message': alert.message,
+            })
+            # Dispatch notification to tourist
+            if target and actor:
+                notify_event(
+                    notification_type,
+                    actor=actor,
+                    target=target,
+                    payload=payload,
+                )
+            # Also notify all admins about new SOS
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            admins = User.objects.filter(role='ADMIN')
+            for admin in admins:
+                if admin != actor:
+                    notify_event(
+                        notification_type,
+                        actor=actor,
+                        target=admin,
+                        payload=payload,
+                    )
+            return  # Already dispatched
             
         elif event_type == 'GUIDE_RESPONDED':
             # Notify the tourist
@@ -547,6 +557,126 @@ class SOSEventService:
                         )
                 except User.DoesNotExist:
                     pass
+            return  # Already dispatched
+        
+        elif event_type == 'PRIMARY_FAILED':
+            # Primary responder failed (UNABLE_TO_CONTINUE), notify all parties
+            notification_type = 'SOS_RESPONSE'
+            payload.update({
+                'alert_id': alert.id,
+                'primary_username': data.get('primary_username'),
+                'reason': data.get('reason', 'Unable to continue'),
+                'message': f'Msaidizi mkuu hajaweza kuendelea: {data.get("primary_username")}',
+            })
+            # Notify tourist
+            if alert.user != actor:
+                notify_event(
+                    notification_type,
+                    actor=actor,
+                    target=alert.user,
+                    payload=payload,
+                )
+            # Notify standby responders
+            for response in alert.responses.exclude(responder=actor):
+                notify_event(
+                    notification_type,
+                    actor=actor,
+                    target=response.responder,
+                    payload=payload,
+                )
+            return  # Already dispatched
+        
+        elif event_type == 'STANDBY_PROMOTED':
+            # Standby responder promoted to primary, notify all parties
+            notification_type = 'SOS_RESPONSE'
+            payload.update({
+                'alert_id': alert.id,
+                'new_primary_username': data.get('new_primary_username'),
+                'old_primary_username': data.get('old_primary_username'),
+                'reason': data.get('reason', 'Standby promotion'),
+                'message': f'Msaidizi mpya ameteuliwa: {data.get("new_primary_username")}',
+            })
+            # Notify tourist
+            if alert.user != actor:
+                notify_event(
+                    notification_type,
+                    actor=actor,
+                    target=alert.user,
+                    payload=payload,
+                )
+            # Notify new primary
+            new_primary_id = data.get('new_primary_id')
+            if new_primary_id:
+                from apps.accounts.models import User
+                try:
+                    new_primary = User.objects.get(id=new_primary_id)
+                    if new_primary != actor:
+                        notify_event(
+                            notification_type,
+                            actor=actor,
+                            target=new_primary,
+                            payload=payload,
+                        )
+                except User.DoesNotExist:
+                    pass
+            return  # Already dispatched
+        
+        elif event_type == 'ADMIN_ACTION':
+            # Admin performed an action on the incident
+            notification_type = 'SOS_RESPONSE'
+            payload.update({
+                'alert_id': alert.id,
+                'admin_username': actor.username if actor else 'System',
+                'action': data.get('action', 'Admin action'),
+                'reason': data.get('reason', ''),
+                'message': f'Admin action: {data.get("action")}',
+            })
+            # Notify tourist
+            if alert.user != actor:
+                notify_event(
+                    notification_type,
+                    actor=actor,
+                    target=alert.user,
+                    payload=payload,
+                )
+            # Notify primary responder if exists
+            if alert.primary_responder and alert.primary_responder != actor:
+                notify_event(
+                    notification_type,
+                    actor=actor,
+                    target=alert.primary_responder,
+                    payload=payload,
+                )
+            return  # Already dispatched
+        
+        elif event_type == 'MESSAGE_SENT':
+            # Message sent in SOS chat (separate from CHAT_MESSAGE for lifecycle events)
+            notification_type = 'NEW_MESSAGE'
+            payload.update({
+                'alert_id': alert.id,
+                'sender_username': actor.username if actor else 'System',
+                'message': data.get('message', ''),
+            })
+            # Notify the other participant
+            if actor and actor != alert.user:
+                # Guide sent message, notify tourist
+                target = alert.user
+            elif actor and actor == alert.user:
+                # Tourist sent message, notify the primary responder
+                if alert.primary_responder:
+                    target = alert.primary_responder
+                else:
+                    # No primary yet, notify first responder
+                    first_response = alert.responses.first()
+                    if first_response:
+                        target = first_response.responder
+            if target and target != actor:
+                notify_event(
+                    notification_type,
+                    actor=actor,
+                    target=target,
+                    payload=payload,
+                )
             return  # Already dispatched
         
         # Dispatch notification if target determined
@@ -815,10 +945,10 @@ class StandbyPromotionService:
         for response in alert.responses.exclude(responder=selected_responder):
             IncidentStateService.set_standby_status(response)
         
-        # Create reassignment event
+        # Create standby promotion event
         SOSEventService.create_event(
             alert=alert,
-            event_type='PRIMARY_REASSIGNED',
+            event_type='STANDBY_PROMOTED',
             actor=selected_responder,
             data={
                 'old_primary_id': old_primary.id if old_primary else None,
