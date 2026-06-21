@@ -22,7 +22,7 @@ export function TestimonialsSection() {
 
   return (
     <section
-      className="py-20 lg:py-28 px-4 relative overflow-hidden"
+      className="section-padding relative overflow-hidden"
       style={{
         background: testimonialsBackground 
           ? `url(${testimonialsBackground}) center/cover no-repeat` 
@@ -45,7 +45,7 @@ export function TestimonialsSection() {
           }}
         />
       )}
-      <div className="max-w-7xl mx-auto">
+      <div className="landing-container landing-container-2xl">
         {/* Header */}
         <motion.div
           className="text-center mb-14"
@@ -59,7 +59,7 @@ export function TestimonialsSection() {
           >
             {testimonialsData.section_label}
           </p>
-          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+          <h2 className="text-section font-bold text-white mb-4">
             {testimonialsData.title}
             <br />
             <span
@@ -75,14 +75,14 @@ export function TestimonialsSection() {
           </h2>
           <div className="flex items-center justify-center gap-2">
             {'★★★★★'.split('').map((s, i) => (
-              <span key={i} style={{ color: '#F5A623', fontSize: 24 }}>{s}</span>
+              <span key={i} style={{ color: '#F5A623', fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>{s}</span>
             ))}
-            <span className="text-white/60 text-sm ml-2">{testimonialsData.rating_display}</span>
+            <span className="text-white/60 text-sm sm:text-base ml-2">{testimonialsData.rating_display}</span>
           </div>
         </motion.div>
 
         {/* Testimonials grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:gap-6">
           {testimonials.map((t, i) => (
             <motion.div
               key={t.id}
@@ -112,14 +112,14 @@ export function TestimonialsSection() {
               {/* Rating */}
               <div className="flex gap-0.5 mb-4">
                 {Array.from({ length: t.rating }).map((_, i) => (
-                  <span key={i} style={{ color: '#F5A623' }}>★</span>
+                  <span key={i} style={{ color: '#F5A623', textShadow: '0 0 8px rgba(245,166,35,0.4)' }}>★</span>
                 ))}
               </div>
 
               {/* Text */}
               <p
-                className="text-base leading-relaxed mb-5 relative z-10 font-semibold"
-                style={{ color: 'rgba(255,255,255,0.95)' }}
+                className="text-base leading-relaxed mb-5 relative z-10 font-medium"
+                style={{ color: 'rgba(255,255,255,0.9)' }}
               >
                 "{t.text}"
               </p>
@@ -130,12 +130,12 @@ export function TestimonialsSection() {
                   <img
                     src={t.avatar}
                     alt={t.name}
-                    className="w-11 h-11 rounded-2xl object-cover flex-shrink-0"
+                    className="w-11 h-11 rounded-2xl object-cover flex-shrink-0 ring-2 ring-white/10"
                   />
                 ) : (
                   <div
                     className="w-11 h-11 rounded-2xl flex items-center justify-center
-                      text-base font-black text-black flex-shrink-0"
+                      text-base font-black text-black flex-shrink-0 ring-2 ring-white/10"
                     style={{ background: `linear-gradient(135deg,${t.color},${t.color}cc)` }}
                   >
                     {t.avatar}
@@ -145,7 +145,7 @@ export function TestimonialsSection() {
                   <p className="font-inter text-base font-semibold text-white">{t.name}</p>
                   <p
                     className="font-inter text-sm font-medium"
-                    style={{ color: 'rgba(255,255,255,0.85)' }}
+                    style={{ color: 'rgba(255,255,255,0.7)' }}
                   >
                     {t.role}
                   </p>

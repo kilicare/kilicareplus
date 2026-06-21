@@ -4,6 +4,10 @@ module.exports = {
 
   theme: {
     extend: {
+      screens: {
+        'xs': '475px',
+        '3xl': '1920px',
+      },
       colors: {
         gold: "#F5A623",
         "gold-dim": "#D4891A",
@@ -27,7 +31,7 @@ module.exports = {
         "kili-blue": "#3B82F6",
         "kili-purple": "#8B5CF6",
         "kili-orange": "#F97316",
-        
+
         // Premium accent colors for landing page
         "accent-emerald": "#10B981",
         "accent-emerald-light": "#A7F3D0",
@@ -40,6 +44,7 @@ module.exports = {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
+        display: ["Space Grotesk", "sans-serif"],
       },
 
       animation: {
@@ -224,6 +229,24 @@ module.exports = {
 
       minHeight: {
         dvh: "100dvh",
+      },
+
+      maxWidth: {
+        'landing-sm': '640px',
+        'landing-md': '768px',
+        'landing-lg': '1024px',
+        'landing-xl': '1280px',
+        'landing-2xl': '1536px',
+      },
+
+      spacing: {
+        '18': '4.5rem',
+        '22': '5.5rem',
+        '26': '6.5rem',
+        '30': '7.5rem',
+        '34': '8.5rem',
+        '38': '9.5rem',
+        '42': '10.5rem',
       },
     },
   },

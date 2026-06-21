@@ -15,7 +15,7 @@ export function HeroSection() {
     <>
       <section
         className="relative min-h-screen flex flex-col items-center justify-center
-          overflow-hidden pt-20 pb-12 px-4"
+          overflow-hidden pt-20 pb-12"
       >
       {/* Video background */}
       {heroVideo ? (
@@ -42,7 +42,7 @@ export function HeroSection() {
 
 
       <motion.div
-        className="relative z-10 max-w-5xl mx-auto text-center"
+        className="relative z-10 landing-container landing-container-2xl text-center"
         initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
@@ -66,7 +66,7 @@ export function HeroSection() {
 
         {/* Headline */}
         <motion.h1
-          className="text-5xl sm:text-6xl lg:text-8xl font-bold leading-none
+          className="text-hero font-bold leading-none
             tracking-tight mb-6"
           initial={false}
           animate={{ opacity: 1, y: 0 }}
@@ -91,12 +91,11 @@ export function HeroSection() {
 
         {/* Subheadline */}
         <motion.p
-          className="text-xl sm:text-2xl lg:text-3xl max-w-3xl mx-auto mb-8
-            leading-relaxed font-medium backdrop-blur-sm p-4 rounded-2xl"
+          className="text-subsection max-w-3xl mx-auto mb-8
+            leading-relaxed font-medium"
           style={{ 
-            color: 'rgba(255,255,255,0.95)',
-            background: 'rgba(0,0,0,0.3)',
-            backdropFilter: 'blur(10px)'
+            color: 'rgba(255,255,255,0.9)',
+            textShadow: '0 2px 8px rgba(0,0,0,0.5)'
           }}
           initial={false}
           animate={{ opacity: 1, y: 0 }}
@@ -114,12 +113,12 @@ export function HeroSection() {
         >
           <Link
             href={heroData.cta_primary.link}
-            className="group flex items-center gap-2 px-8 py-4 rounded-2xl
-              text-black font-semibold text-lg transition-all hover:scale-105
-              active:scale-95 shadow-2xl"
+            className="group flex items-center gap-2 px-6 sm:px-8 md:px-10 lg:px-12 py-3 sm:py-4 md:py-5 rounded-2xl
+              text-black font-semibold text-base sm:text-lg md:text-xl transition-all hover:scale-105
+              active:scale-95"
             style={{
               background: 'linear-gradient(135deg,#F5A623,#E8892A)',
-              boxShadow: '0 0 40px rgba(245,166,35,0.5), 0 0 80px rgba(245,166,35,0.3)',
+              boxShadow: '0 4px 14px 0 rgba(245,166,35,0.39), 0 0 20px rgba(245,166,35,0.2)',
             }}
           >
             {heroData.cta_primary.text}
@@ -130,8 +129,8 @@ export function HeroSection() {
           </Link>
           <Link
             href={heroData.cta_secondary.link}
-            className="flex items-center gap-2 px-8 py-4 rounded-2xl
-              text-white font-medium text-lg transition-all hover:scale-105
+            className="flex items-center gap-2 px-6 sm:px-8 md:px-10 lg:px-12 py-3 sm:py-4 md:py-5 rounded-2xl
+              text-white font-medium text-base sm:text-lg md:text-xl transition-all hover:scale-105
               active:scale-95"
             style={{
               background: 'rgba(255,255,255,0.08)',
@@ -144,7 +143,7 @@ export function HeroSection() {
 
         {/* Trust badges */}
         <motion.div
-          className="flex items-center justify-center gap-6 mb-12 flex-wrap"
+          className="flex items-center justify-center gap-4 sm:gap-6 mb-12 flex-wrap"
           initial={false}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
@@ -152,8 +151,11 @@ export function HeroSection() {
           {TRUST_BADGES.map((badge, i) => (
             <div
               key={i}
-              className="flex items-center gap-1.5 text-xs font-medium"
-              style={{ color: 'rgba(255,255,255,0.5)' }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all hover:bg-white/5"
+              style={{ 
+                color: 'rgba(255,255,255,0.7)',
+                border: '1px solid rgba(255,255,255,0.1)'
+              }}
             >
               <span style={{ color: '#F5A623' }}>{badge.icon}</span>
               {badge.label}
@@ -174,37 +176,49 @@ export function HeroSection() {
 
     {/* Experience Strip */}
     {EXPERIENCE_STRIP.length > 0 && (
-      <section className="relative py-8 px-4 overflow-hidden bg-bg-base">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+      <section className="relative py-8 overflow-hidden bg-bg-base">
+        <div className="landing-container landing-container-2xl relative">
+          <div className="flex gap-3 sm:gap-4 md:gap-5 lg:gap-6 overflow-x-auto pb-4 scrollbar-hide">
             {EXPERIENCE_STRIP.map((item, i) => (
               <motion.div
                 key={i}
                 className="flex-shrink-0 relative group cursor-pointer"
-                initial={false}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                whileHover={{ scale: 1.05 }}
+                transition={{ delay: i * 0.08, duration: 0.5 }}
+                whileHover={{ scale: 1.05, y: -4 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <div
-                  className="w-48 h-32 rounded-2xl overflow-hidden relative"
+                  className="w-36 h-24 sm:w-40 sm:h-28 md:w-44 md:h-32 lg:w-48 lg:h-32 xl:w-52 xl:h-36 rounded-2xl overflow-hidden relative ring-1 ring-white/10 group-hover:ring-gold/50 transition-all"
                   style={{
                     background: `url(${item.image}) center/cover no-repeat`
                   }}
                 >
                   <div
-                    className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"
+                    className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/20" />
+                  <div className="absolute top-2 right-2">
+                    <span className="text-xs">📍</span>
+                  </div>
                   <div className="absolute bottom-3 left-3 right-3">
-                    <p className="text-sm font-semibold text-white">
+                    <p className="text-xs sm:text-sm font-semibold text-white drop-shadow-lg">
                       {item.label}
                     </p>
                   </div>
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" style={{
+                    background: 'linear-gradient(135deg, rgba(245,166,35,0.1) 0%, transparent 50%)'
+                  }} />
                 </div>
               </motion.div>
             ))}
           </div>
+          {/* Subtle gradient fade indicator */}
+          <div className="absolute right-0 top-0 bottom-0 w-16 sm:hidden pointer-events-none" style={{
+            background: 'linear-gradient(to left, rgba(5,5,8,1) 0%, transparent 100%)'
+          }} />
         </div>
       </section>
     )}

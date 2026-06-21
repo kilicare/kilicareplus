@@ -12,7 +12,7 @@ export function PricingSection() {
   return (
     <section
       id="pricing"
-      className="py-20 lg:py-28 px-4 relative overflow-hidden"
+      className="section-padding relative overflow-hidden"
       style={{
         background: pricingBackground 
           ? `url(${pricingBackground}) center/cover no-repeat` 
@@ -35,7 +35,7 @@ export function PricingSection() {
           }}
         />
       )}
-      <div className="max-w-6xl mx-auto">
+      <div className="landing-container landing-container-2xl">
         {/* Header */}
         <motion.div
           className="text-center mb-14"
@@ -49,11 +49,11 @@ export function PricingSection() {
           >
             {pricingData.section_label}
           </p>
-          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+          <h2 className="text-section font-bold text-white mb-4">
             {pricingData.title}
           </h2>
           <p
-            className="text-xl max-w-xl mx-auto font-medium"
+            className="text-base sm:text-lg md:text-xl lg:text-2xl max-w-xl mx-auto font-medium"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             {pricingData.subtitle}
@@ -61,7 +61,7 @@ export function PricingSection() {
         </motion.div>
 
         {/* Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:gap-6">
           {PLANS.map((plan, i) => (
             <motion.div
               key={plan.name}
@@ -84,11 +84,11 @@ export function PricingSection() {
             >
               {plan.popular && (
                 <div
-                  className="font-inter absolute top-0 right-6 px-4 py-1.5 text-xs font-semibold
-                    text-black rounded-b-xl"
+                  className="font-inter absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 text-xs font-bold
+                    text-black rounded-full shadow-lg"
                   style={{ background: plan.color }}
                 >
-                  ⭐ POPULAR
+                  ⭐ MOST POPULAR
                 </div>
               )}
 

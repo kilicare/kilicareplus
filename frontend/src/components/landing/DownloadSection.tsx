@@ -10,7 +10,7 @@ export function DownloadSection() {
   return (
     <section
       id="download"
-      className="py-20 lg:py-28 px-4 relative overflow-hidden"
+      className="section-padding relative overflow-hidden"
       style={{
         background: downloadBackground 
           ? `url(${downloadBackground}) center/cover no-repeat` 
@@ -43,7 +43,7 @@ export function DownloadSection() {
         }}
       />
 
-      <div className="max-w-4xl mx-auto text-center relative">
+      <div className="landing-container landing-container-2xl text-center relative">
         <motion.div
           initial={false}
           whileInView={{ opacity: 1, y: 0 }}
@@ -61,7 +61,7 @@ export function DownloadSection() {
             {downloadData.badge}
           </div>
 
-          <h2 className="text-4xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+          <h2 className="text-hero font-bold text-white mb-6 leading-tight">
             {downloadData.title}
             <br />
             <span
@@ -77,14 +77,14 @@ export function DownloadSection() {
           </h2>
 
           <p
-            className="text-xl mb-12 max-w-2xl mx-auto font-medium"
+            className="text-base sm:text-lg md:text-xl lg:text-2xl mb-12 max-w-2xl mx-auto font-medium"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             {downloadData.subtitle}
           </p>
 
           {/* Options */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6 mb-10">
             {downloadData.options.map((opt, i) => (
               <motion.div
                 key={opt.label}

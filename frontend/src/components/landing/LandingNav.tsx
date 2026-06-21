@@ -16,8 +16,8 @@ export function LandingNav() {
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 landing-nav">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 lg:h-20">
+        <div className="landing-container landing-container-2xl">
+          <div className="flex items-center justify-between h-16 sm:h-18 md:h-20 lg:h-20 xl:h-22">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3">
               <div className="landing-nav-logo">
@@ -30,7 +30,7 @@ export function LandingNav() {
             </Link>
 
             {/* Desktop nav */}
-            <div className="hidden lg:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8">
               {NAV_LINKS.map((link) => (
                 <a
                   key={link.href}
@@ -43,7 +43,7 @@ export function LandingNav() {
             </div>
 
             {/* CTA buttons */}
-            <div className="hidden lg:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 lg:gap-3 xl:gap-4">
               <Link
                 href="/login"
                 className="landing-nav-signin"
@@ -61,7 +61,7 @@ export function LandingNav() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="lg:hidden landing-nav-menu-btn"
+              className="md:hidden landing-nav-menu-btn"
               aria-label="Menu"
             >
               {mobileOpen

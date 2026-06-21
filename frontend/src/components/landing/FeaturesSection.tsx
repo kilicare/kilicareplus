@@ -11,7 +11,7 @@ export function FeaturesSection() {
   return (
     <section
       id="features"
-      className="py-20 lg:py-28 px-4 relative"
+      className="section-padding relative"
       style={{
         background: featuresBackground 
           ? `url(${featuresBackground}) center/cover no-repeat` 
@@ -34,7 +34,7 @@ export function FeaturesSection() {
           }}
         />
       )}
-      <div className="max-w-7xl mx-auto">
+      <div className="landing-container landing-container-2xl">
         {/* Header */}
         <motion.div
           className="text-center mb-16"
@@ -48,7 +48,7 @@ export function FeaturesSection() {
           >
             {featuresData.section_label}
           </p>
-          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+          <h2 className="text-section font-bold text-white mb-4">
             {featuresData.title}
             <br />
             <span
@@ -63,7 +63,7 @@ export function FeaturesSection() {
             </span>
           </h2>
           <p
-            className="text-xl max-w-2xl mx-auto font-medium"
+            className="text-base sm:text-lg md:text-xl lg:text-2xl max-w-2xl mx-auto font-medium"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             {featuresData.subtitle}
@@ -71,7 +71,7 @@ export function FeaturesSection() {
         </motion.div>
 
         {/* Features grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
           {FEATURES.map((feat, i) => (
             <motion.div
               key={feat.title}
@@ -129,7 +129,7 @@ export function FeaturesSection() {
               <Link
                 href="/register"
                 className="text-xs font-bold flex items-center gap-1
-                  opacity-0 group-hover:opacity-100 transition-opacity"
+                  transition-all hover:gap-2"
                 style={{ color: feat.color }}
                 onClick={(e) => e.stopPropagation()}
               >

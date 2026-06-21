@@ -50,7 +50,7 @@ export function StatsSection() {
 
   return (
     <section
-      className="py-20 lg:py-28 px-4 relative overflow-hidden"
+      className="section-padding relative overflow-hidden"
       style={{
         background: statsBackground 
           ? `url(${statsBackground}) center/cover no-repeat` 
@@ -81,7 +81,7 @@ export function StatsSection() {
         }}
       />
 
-      <div className="max-w-7xl mx-auto">
+      <div className="landing-container landing-container-2xl">
         {/* Section label */}
         <motion.div
           className="text-center mb-12"
@@ -95,11 +95,11 @@ export function StatsSection() {
           >
             {statsData.section_label}
           </p>
-          <h2 className="text-3xl lg:text-4xl font-bold text-white">
+          <h2 className="text-section font-bold text-white">
             {statsData.title}
           </h2>
           <p
-            className="text-lg mt-3 max-w-xl mx-auto font-medium"
+            className="text-base sm:text-lg md:text-xl lg:text-2xl mt-3 max-w-xl mx-auto font-medium"
             style={{ color: 'rgba(255,255,255,0.9)' }}
           >
             {statsData.subtitle}
@@ -107,7 +107,7 @@ export function StatsSection() {
         </motion.div>
 
         {/* Stats grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
           {STATS.map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -128,15 +128,15 @@ export function StatsSection() {
             >
               <div className="text-2xl mb-2">{stat.icon}</div>
               <p
-                className="font-jetbrains-mono text-2xl lg:text-3xl font-bold mb-0.5"
-                style={{ color: stat.color }}
+                className="font-jetbrains-mono text-2xl sm:text-2xl md:text-3xl lg:text-3xl xl:text-4xl font-bold mb-1"
+                style={{ color: stat.color, textShadow: `0 0 20px ${stat.color}40` }}
               >
                 <AnimatedNumber value={stat.value} suffix={stat.suffix} />
               </p>
-              <p className="font-inter text-xs font-semibold text-white/95 leading-tight mb-0.5">
+              <p className="font-inter text-xs font-semibold text-white/95 leading-tight mb-1">
                 {stat.label}
               </p>
-              <p className="font-inter text-xs font-normal" style={{ color: 'rgba(255,255,255,0.8)' }}>
+              <p className="font-inter text-xs font-normal" style={{ color: 'rgba(255,255,255,0.7)' }}>
                 {stat.sublabel}
               </p>
             </motion.div>
