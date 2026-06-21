@@ -21,7 +21,7 @@ export default function OfflinePage() {
           Hakuna Mtandao
         </h1>
         <p style={{ color: '#8B8BA7', marginBottom: 24, maxWidth: 300 }}>
-          Tafadhali unganisha na mtandao ili kutumia KilicareGO+
+          Tafadhali unganisha na mtandao ili kutumia Kilicare+
         </p>
         <button
           onClick={() => window.location.reload()}

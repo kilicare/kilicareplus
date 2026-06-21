@@ -55,23 +55,20 @@ export function usePWA() {
       deferredPrompt = null
     })
 
-    // Register service worker
+    // Check if service worker is registered (handled by Providers.tsx)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .then((reg) => {
-          setSwRegistered(true)
-          console.log('[PWA] SW registered:', reg.scope)
+      navigator.serviceWorker.ready.then((reg) => {
+        setSwRegistered(true)
+        console.log('[PWA] SW ready:', reg.scope)
 
-          // Handle SW messages
-          navigator.serviceWorker.addEventListener('message', (e) => {
-            if (e.data?.type === 'SYNC_MESSAGES') {
-              offlineQueue.process()
-              updateQueueSize()
-            }
-          })
+        // Handle SW messages
+        navigator.serviceWorker.addEventListener('message', (e) => {
+          if (e.data?.type === 'SYNC_MESSAGES') {
+            offlineQueue.process()
+            updateQueueSize()
+          }
         })
-        .catch((err) => console.error('[PWA] SW registration failed:', err))
+      }).catch((err) => console.error('[PWA] SW ready check failed:', err))
     }
 
     // Update queue size periodically

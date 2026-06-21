@@ -205,7 +205,7 @@ export default function PassportPage() {
             🛂 Passport Yangu
           </h1>
           <p className="text-text-muted text-sm mt-0.5">
-            Hati yako ya KilicareGO+
+            Hati yako ya Kilicare+
           </p>
         </div>
         <motion.button

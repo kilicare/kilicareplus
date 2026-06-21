@@ -1,7 +1,9 @@
-// KilicareGO+ Service Worker v1.0
-const CACHE_NAME = 'kilicarego-v1'
-const STATIC_CACHE = 'kilicarego-static-v1'
-const DYNAMIC_CACHE = 'kilicarego-dynamic-v1'
+// Kilicare+ Service Worker v1.0
+// Cache version - increment this on each deployment to force cache invalidation
+const CACHE_VERSION = 'v1.0.0'
+const CACHE_NAME = `kilicarego-${CACHE_VERSION}`
+const STATIC_CACHE = `kilicarego-static-${CACHE_VERSION}`
+const DYNAMIC_CACHE = `kilicarego-dynamic-${CACHE_VERSION}`
 
 // Assets to cache immediately
 const STATIC_ASSETS = [
@@ -24,7 +26,7 @@ const CACHEABLE_APIS = [
 
 // ── Install ──────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing KilicareGO+ v1...')
+  console.log(`[SW] Installing Kilicare+ ${CACHE_VERSION}...`)
 
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
@@ -76,13 +78,19 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys
-          .filter((key) => key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
+          .filter((key) => {
+            // Delete all caches that don't match current version
+            return !key.includes(CACHE_VERSION)
+          })
           .map((key) => {
             console.log('[SW] Deleting old cache:', key)
             return caches.delete(key)
           })
       )
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('[SW] Claiming all clients')
+      return self.clients.claim()
+    })
   )
 })
 
@@ -275,7 +283,7 @@ function offlineResponse(request) {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width">
-        <title>KilicareGO+ — Bila Mtandao</title>
+        <title>Kilicare+ — Bila Mtandao</title>
         <style>
           body {
             background: #0A0A0F; color: #F0F0F5;
@@ -297,7 +305,7 @@ function offlineResponse(request) {
         <div>
           <div class="emoji">📡</div>
           <h1>Hakuna Mtandao</h1>
-          <p>Tafadhali unganisha na mtandao ili kutumia KilicareGO+</p>
+          <p>Tafadhali unganisha na mtandao ili kutumia Kilicare+</p>
           <button onclick="window.location.reload()">Jaribu Tena</button>
         </div>
       </body>
@@ -320,7 +328,7 @@ function offlineResponse(request) {
 // ── Push Notifications ────────────────────────────────────
 self.addEventListener('push', (event) => {
   const data = event.data?.json() || {}
-  const title  = data.title  || 'KilicareGO+'
+  const title  = data.title  || 'Kilicare+'
   const body   = data.body   || 'Una arifa mpya'
   const icon   = data.icon   || '/icon-192.png'
   const badge  = '/icons/icon-72x72.png'

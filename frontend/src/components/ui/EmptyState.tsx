@@ -111,7 +111,7 @@ export function EmptyNotifications() {
     <EmptyState
       icon="🔔"
       title="Hakuna Arifa Bado"
-      subtitle="Arifa zitaonekana hapa ukifanya shughuli kwenye KilicareGO+"
+      subtitle="Arifa zitaonekana hapa ukifanya shughuli kwenye Kilicare+"
     />
   )
 }

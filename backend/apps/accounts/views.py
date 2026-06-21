@@ -162,7 +162,7 @@ def _send_otp(user, purpose):
 
         send_mail(
 
-            subject=subjects.get(purpose, 'KilicareGO+ OTP'),
+            subject=subjects.get(purpose, 'Kilicare+ OTP'),
 
             message=bodies.get(purpose, f'OTP: {code}'),
 
@@ -336,7 +336,7 @@ def login_view(request):
 
         'success': True,
 
-        'message': 'Karibu KilicareGO+! 🎉',
+        'message': 'Karibu Kilicare+! 🎉',
 
         'access': access_token,        # ← Client stores in localStorage
 
@@ -625,7 +625,7 @@ def verify_otp_view(request):
 
                     balance_after=50,
 
-                    description='Karibu KilicareGO+! 🎉',
+                    description='Karibu Kilicare+! 🎉',
 
                 )
 

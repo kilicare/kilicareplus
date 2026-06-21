@@ -126,7 +126,7 @@ export function FooterSection() {
           style={{ borderColor: 'rgba(255,255,255,0.06)' }}
         >
           <p className="font-inter text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            © 2026 KilicareGO+ · Dar es Salaam, Tanzania 🇹🇿
+            © 2026 Kilicare+ · Dar es Salaam, Tanzania 🇹🇿
           </p>
 
           <div className="flex items-center gap-2 sm:gap-3 md:gap-4 lg:gap-5 flex-wrap justify-center">

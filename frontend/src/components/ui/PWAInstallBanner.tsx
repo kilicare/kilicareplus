@@ -48,7 +48,7 @@ export function PWAInstallBanner() {
 
         <div className="flex-1 min-w-0">
           <p className="text-sm font-black text-text-primary">
-            Sakinisha KilicareGO+
+            Sakinisha Kilicare+
           </p>
           <p className="text-[11px] text-text-muted">
             Tumia bila browser — faster, offline ready

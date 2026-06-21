@@ -13,7 +13,7 @@ import { useEffect } from 'react'
 
 export default function LandingPage() {
   useEffect(() => {
-    document.title = "KilicareGO+ — Tanzania Real-World Experience Network"
+    document.title = "Kilicare+ — Tanzania Real-World Experience Network"
   }, [])
 
   return (

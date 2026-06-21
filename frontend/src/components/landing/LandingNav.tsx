@@ -24,7 +24,7 @@ export function LandingNav() {
                 K
               </div>
               <span className="text-white font-bold text-lg tracking-tight">
-                KilicareGO
+                Kilicare
                 <span className="landing-nav-plus">+</span>
               </span>
             </Link>

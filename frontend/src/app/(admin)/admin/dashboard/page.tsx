@@ -51,7 +51,7 @@ export default function AdminDashboardPage() {
           ⚙️ Admin Dashboard
         </h1>
         <p className="text-text-muted text-sm mt-0.5">
-          KilicareGO+ Operations
+          Kilicare+ Operations
         </p>
       </div>
 

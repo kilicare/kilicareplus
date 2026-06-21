@@ -486,7 +486,7 @@ export default function SubscribePage() {
           <span className="text-gradient-gold">✨</span>
         </motion.h1>
         <p className="text-text-muted text-sm">
-          Panda kiwango chako na KilicareGO+
+          Panda kiwango chako na Kilicare+
         </p>
 
         {/* Billing toggle */}

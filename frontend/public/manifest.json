@@ -1,9 +1,9 @@
 {
-  "name": "KilicarePlus",
+  "name": "Kilicare+",
   "short_name": "Kilicare+",
   "description": "Tanzania Tourism, Travel, Safety and Social Super App",
 
-  "start_url": "/login",
+  "start_url": "/",
   "scope": "/",
 
   "display": "standalone",
@@ -76,7 +76,7 @@
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "KilicareGO+ Feed"
+      "label": "Kilicare+ Feed"
     }
   ],
   "related_applications": [],

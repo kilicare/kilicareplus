@@ -27,8 +27,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'KilicareGO+ — Tanzania Real-World Experience Network',
-    template: '%s | KilicareGO+',
+    default: 'Kilicare+ — Tanzania Real-World Experience Network',
+    template: '%s | Kilicare+',
   },
   description:
     'Discover Tanzania through real people, real moments, and real safety — powered by AI. Connect with locals, explore authentic experiences, and stay safe anywhere in Tanzania.',
@@ -39,9 +39,9 @@ export const metadata: Metadata = {
     'KilicareGO', 'kilicarego plus', 'Tanzania experiences',
     'Dar es Salaam', 'Arusha', 'Ngorongoro',
   ],
-  authors:   [{ name: 'KilicareGO+ Team', url: 'https://kilicarego.com' }],
-  creator:   'KilicareGO+',
-  publisher: 'KilicareGO+',
+  authors:   [{ name: 'Kilicare+ Team', url: 'https://kilicarego.com' }],
+  creator:   'Kilicare+',
+  publisher: 'Kilicare+',
   manifest:  '/manifest.json',
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
@@ -57,19 +57,19 @@ export const metadata: Metadata = {
     type:        'website',
     locale:      'sw_TZ',
     url:         '/',
-    title:       'KilicareGO+ — Tanzania\'s First Tourism Super-App',
+    title:       'Kilicare+ — Tanzania\'s Smart Tourism Platform',
     description: 'Explore Tanzania with 350+ verified guides. Safari, Beach, Culture, AI Guide, SOS Safety & more.',
-    siteName:    'KilicareGO+',
+    siteName:    'Kilicare+',
     images: [{
       url:    '/og-image.png',
       width:  1200,
       height: 630,
-      alt:    'KilicareGO+ — Tanzania Tourism Super-App',
+      alt:    'Kilicare+ — Tanzania Tourism Super-App',
     }],
   },
   twitter: {
     card:        'summary_large_image',
-    title:       'KilicareGO+ — Tanzania\'s First Tourism Super-App',
+    title:       'Kilicare+ — Tanzania\'s First Tourism Super-App',
     description: 'Explore Tanzania with AI-powered local guides. #Tanzania #Safari #Kilimanjaro',
     images:      ['/og-image.png'],
     creator:     '@kilicarego',
@@ -96,7 +96,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable:         true,
     statusBarStyle:  'black-translucent',
-    title:           'KilicareGO+',
+    title:           'Kilicare+',
   },
   verification: {
     google: process.env.GOOGLE_SITE_VERIFICATION || '',
@@ -122,7 +122,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable"            content="yes" />
         <meta name="apple-mobile-web-app-capable"      content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title"        content="KilicareGO+" />
+        <meta name="apple-mobile-web-app-title"        content="Kilicare+" />
         <link rel="apple-touch-icon"                   href="/icons/icon-192x192.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -141,7 +141,7 @@ export default function RootLayout({
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type':    'SoftwareApplication',
-              name:       'KilicareGO+',
+              name:       'Kilicare+',
               applicationCategory: 'TravelApplication',
               operatingSystem: 'Android, iOS, Web',
               description: "Tanzania Real-World Experience Network",
@@ -157,7 +157,7 @@ export default function RootLayout({
               },
               author: {
                 '@type': 'Organization',
-                name:    'KilicareGO+',
+                name:    'Kilicare+',
                 url:     'https://kilicarego.com',
               },
             }),

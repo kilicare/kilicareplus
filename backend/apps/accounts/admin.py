@@ -13,12 +13,12 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ['email', 'username', 'first_name', 'last_name']
     ordering = ['-date_joined']
     fieldsets = BaseUserAdmin.fieldsets + (
-        ('KilicareGO+', {
+        ('Kilicare+', {
             'fields': ('role', 'phone', 'is_verified', 'fcm_token'),
         }),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        ('KilicareGO+', {'fields': ('email', 'role', 'phone')}),
+        ('Kilicare+', {'fields': ('email', 'role', 'phone')}),
     )
 
 
