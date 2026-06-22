@@ -115,6 +115,13 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  // CRITICAL: Login and register pages must use network-first strategy
+  // to prevent stale cached HTML from interfering with form submission
+  if (url.pathname === '/login' || url.pathname === '/register') {
+    event.respondWith(networkFirstStrategy(request))
+    return
+  }
+
   // Static assets — Cache first
   if (
     url.pathname.startsWith('/icons/') ||

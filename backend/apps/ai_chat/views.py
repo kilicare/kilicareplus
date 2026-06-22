@@ -177,6 +177,11 @@ def chat_stream_view(request):
 @permission_classes([IsAuthenticated])
 def chat_regular_view(request):
     """Non-streaming for simple requests"""
+    
+    # SETTINGS GUARD: Check if AI Chat is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'ai_chat')
+    
     message = request.data.get('message', '').strip()
     thread_id = request.data.get('thread_id')
     lang = request.data.get('lang', 'sw')
@@ -261,6 +266,10 @@ def voice_to_text_view(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def threads_view(request):
+    # SETTINGS GUARD: Check if AI Chat is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'ai_chat')
+    
     threads = AIThread.objects.filter(
         user=request.user
     ).order_by('-updated_at')[:20]
@@ -280,6 +289,10 @@ def threads_view(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def thread_messages_view(request, thread_id):
+    # SETTINGS GUARD: Check if AI Chat is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'ai_chat')
+    
     try:
         thread = AIThread.objects.get(id=thread_id, user=request.user)
     except AIThread.DoesNotExist:

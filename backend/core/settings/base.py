@@ -49,6 +49,7 @@ LOCAL_APPS = [
     'apps.b2b',
     'apps.admin_ops',
     'apps.moderation',
+    'apps.settings',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -155,7 +156,7 @@ REST_FRAMEWORK = {
         'login': '5/minute',
         'register': '3/hour',
         'token_refresh': '10/minute',
-        'otp': '10/minute',
+        'otp': '3/minute',
         'password_reset': '3/hour',
     }
 }
@@ -186,7 +187,9 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
     
     # Rotation & Blacklist
-    'ROTATE_REFRESH_TOKENS': True,
+    # DISABLED: Custom refresh endpoint does not implement rotation
+    # Backend and frontend agree on static refresh tokens
+    'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
     
@@ -255,5 +258,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
         'OPTIONS': {'min_length': 8},
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]

@@ -42,6 +42,11 @@ export interface User {
   date_joined: string
   profile: UserProfile
   passport_info: PassportInfo | null
+  has_predictions?: boolean
+  has_ai_chat?: boolean
+  has_sos?: boolean
+  has_showcase?: boolean
+  has_moments?: boolean
 }
 
 export interface AuthResponse {

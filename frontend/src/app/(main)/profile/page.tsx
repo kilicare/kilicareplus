@@ -1,6 +1,10 @@
 'use client'
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+
+// Force dynamic rendering to prevent static pre-rendering during build
+// This ensures auth state is evaluated at runtime, not build time
+export const dynamic = 'force-dynamic'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'

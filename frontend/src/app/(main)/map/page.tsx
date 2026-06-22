@@ -1,8 +1,12 @@
 'use client'
+// Force dynamic rendering to prevent static pre-rendering during build
+// This ensures auth state is evaluated at runtime, not build time
+export const dynamic = 'force-dynamic'
+
 import DynamicMap from '@/components/map/DynamicMap'
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 import { Search, Layers, Crosshair, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { tipsService, type Tip } from '@/services/tips.service'

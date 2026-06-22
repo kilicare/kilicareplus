@@ -47,37 +47,41 @@ export default function RegisterPage() {
         phone: form.phone || undefined,
       }),
     onSuccess: () => {
-      toast.success('Akaunti imeundwa! Angalia email yako 📧')
-      router.push(
-        `/otp?email=${encodeURIComponent(form.email)}&purpose=EMAIL_VERIFY`
-      )
+      toast.success('Account created successfully! You can now log in 🎉')
+      router.push('/login')
     },
     onError: (e) => toast.error(parseApiError(e)),
   })
 
   const step1ok = () => {
     if (!form.role) {
-      toast.error('Chagua jukumu lako')
+      toast.error('Please select your role')
       return false
     }
-    if (!form.email.includes('@')) {
-      toast.error('Email si sahihi')
+    // Email validation with proper regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(form.email)) {
+      toast.error('Please enter a valid email address')
       return false
     }
-    if (form.username.length < 3) {
-      toast.error('Username lazima iwe herufi 3+')
+    // Username validation: min 3 chars, max 30 chars, alphanumeric + underscore only
+    const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/
+    if (!usernameRegex.test(form.username)) {
+      toast.error('Username must be 3-30 characters and contain only letters, numbers, and underscores')
       return false
     }
     return true
   }
 
   const step2ok = () => {
-    if (form.password.length < 8) {
-      toast.error('Password lazima iwe herufi 8+')
+    // Password complexity validation
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
+    if (!passwordRegex.test(form.password)) {
+      toast.error('Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character')
       return false
     }
     if (form.password !== form.password2) {
-      toast.error('Passwords hazilingani')
+      toast.error('Passwords do not match')
       return false
     }
     return true
@@ -100,9 +104,9 @@ export default function RegisterPage() {
             className="w-full h-full rounded-2xl object-cover"
           />
         </div>
-        <h1 className="text-2xl font-black text-text-primary">Jisajili</h1>
+        <h1 className="text-2xl font-black text-text-primary">Register</h1>
         <p className="text-text-muted text-sm mt-1">
-          Unda akaunti yako ya Kilicare+
+          Create your Kilicare+ account
         </p>
       </motion.div>
 
@@ -154,7 +158,7 @@ export default function RegisterPage() {
               className="space-y-4"
             >
               <p className="text-sm font-semibold text-text-secondary mb-4">
-                Wewe ni nani?
+                Who are you?
               </p>
               <div className="grid grid-cols-2 gap-3">
                 {(
@@ -162,14 +166,14 @@ export default function RegisterPage() {
                     {
                       role: 'TOURIST' as Role,
                       emoji: '🧳',
-                      label: 'Msafiri',
-                      sub: 'Ninataka kugundua Tanzania',
+                      label: 'Tourist',
+                      sub: 'I want to discover Tanzania',
                     },
                     {
                       role: 'LOCAL_GUIDE' as Role,
                       emoji: '⭐',
                       label: 'Local Guide',
-                      sub: 'Mimi ni mzawa wa Tanzania',
+                      sub: 'I am a local of Tanzania',
                     },
                   ]
                 ).map((opt) => (
@@ -258,22 +262,22 @@ export default function RegisterPage() {
                 label="Password"
                 value={form.password}
                 onChange={set('password')}
-                placeholder="Herufi 8 au zaidi"
+                placeholder="8 characters or more"
                 icon={<Lock size={16} />}
                 showPasswordToggle
-                hint="Angalau herufi 8"
+                hint="At least 8 characters"
               />
               <KiliInput
-                label="Thibitisha Password"
+                label="Confirm Password"
                 value={form.password2}
                 onChange={set('password2')}
-                placeholder="Rudia password"
+                placeholder="Repeat password"
                 icon={<Lock size={16} />}
                 showPasswordToggle
                 error={
                   form.password2 &&
                   form.password !== form.password2
-                    ? 'Passwords hazilingani'
+                    ? 'Passwords do not match'
                     : undefined
                 }
               />
@@ -303,7 +307,7 @@ export default function RegisterPage() {
             href="/login"
             className="text-gold font-semibold hover:underline"
           >
-            Ingia hapa →
+            Login here →
           </Link>
         </p>
       </div>

@@ -16,7 +16,7 @@ def custom_exception_handler(exc, context):
             elif first and isinstance(response.data[first], list):
                 error_data['message'] = str(response.data[first][0])
             else:
-                error_data['message'] = 'Hitilafu imetokea. Jaribu tena.'
+                error_data['message'] = 'An error occurred. Please try again.'
         else:
             error_data['message'] = str(response.data)
         response.data = error_data

@@ -23,6 +23,11 @@ env = environ.Env()
 @permission_classes([IsAuthenticated])
 def feed_view(request):
     """Paginated feed with diversity — 20 moments per page (cached, user-aware)"""
+    
+    # SETTINGS GUARD: Check if Moments is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'moments')
+    
     page = int(request.query_params.get('page', 1))
     page_size = 20
     offset = (page - 1) * page_size
@@ -135,6 +140,10 @@ def trending_view(request):
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def create_moment_view(request):
+    # SETTINGS GUARD: Check if Moments is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'moments')
+    
     serializer = MomentSerializer(
         data=request.data, context={'request': request}
     )

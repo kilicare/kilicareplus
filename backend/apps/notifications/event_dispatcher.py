@@ -169,6 +169,12 @@ def notify_event(type: str, actor, target, payload: dict = None) -> None:
         # Prevent self-notification
         return
 
+    # SETTINGS GUARD: Check if user has notifications enabled
+    from apps.settings.guards import check_notification_enabled
+    if not check_notification_enabled(target, 'push'):
+        # User has disabled push notifications, skip creation
+        return
+
     payload = payload or {}
     mapped_type = map_event_type(str(type))
 

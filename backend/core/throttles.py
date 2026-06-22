@@ -20,6 +20,7 @@ class MomentCreationThrottle(UserRateThrottle):
 # Authentication throttles - Protect against brute force attacks
 class LoginThrottle(AnonRateThrottle):
     scope = 'login'
+    throttle_message = 'Too many login attempts. Please try again in a few minutes.'
 
 
 class RegisterThrottle(AnonRateThrottle):

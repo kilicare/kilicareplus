@@ -18,6 +18,10 @@ from .serializers import (
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def showcases_list_view(request):
+    # SETTINGS GUARD: Check if Showcase is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'showcase')
+    
     category = request.query_params.get('category')
     showcases = VirtualShowcase.objects.filter(
         is_active=True
@@ -37,6 +41,10 @@ def showcases_list_view(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def showcase_detail_view(request, username):
+    # SETTINGS GUARD: Check if Showcase is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'showcase')
+    
     try:
         showcase = VirtualShowcase.objects.select_related(
             'owner', 'owner__profile', 'owner__passport'

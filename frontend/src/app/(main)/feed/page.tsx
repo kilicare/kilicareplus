@@ -1,6 +1,10 @@
 'use client'
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { memo } from 'react'
+
+// Force dynamic rendering to prevent static pre-rendering during build
+// This ensures auth state is evaluated at runtime, not build time
+export const dynamic = 'force-dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -23,7 +27,6 @@ import { useAudio } from '@/hooks/useAudio'
 import { useFeedAudio } from '@/hooks/useFeedAudio'
 import { useInViewport } from '@/hooks/useInViewport'
 import { useFeedSession } from '@/hooks/useFeedSession'
-import { tokenManager } from '@/core/auth/TokenManager'
 import Image from 'next/image'
 
 // ── Heart burst animation ───────────────────────────
@@ -525,9 +528,13 @@ const MomentCard = memo(function MomentCard({
         await feedAudio.playMoment(moment.id)
         setAudioPlaying(true)
       }
+      // Play video when moment enters viewport (if not muted)
+      if (moment.media_type === 'video' && !muted) {
+        await feedAudio.playMoment(moment.id)
+      }
     },
     onLeave: () => {
-      // Stop audio when moment leaves viewport
+      // Stop audio and video when moment leaves viewport
       feedAudio.stopMoment(moment.id)
       setAudioPlaying(false)
     },
@@ -543,6 +550,16 @@ const MomentCard = memo(function MomentCard({
       }
     }
   }, [moment.id, moment.audio_url, feedAudio])
+
+  // Register video element with feed audio manager
+  useEffect(() => {
+    if (videoRef.current && moment.media_type === 'video') {
+      feedAudio.registerVideo(moment.id, videoRef.current)
+      return () => {
+        feedAudio.registerVideo(moment.id, null)
+      }
+    }
+  }, [moment.id, moment.media_type, feedAudio])
 
   // Handle double tap to trigger audio play (for manual control)
   const handleDoubleTap = useCallback(
@@ -797,7 +814,25 @@ const MomentCard = memo(function MomentCard({
           {/* Mute toggle for video */}
           {moment.media_type === 'video' && (
             <motion.button
-              onClick={() => setMuted(!muted)}
+              onClick={async () => {
+                const newMuted = !muted
+                setMuted(newMuted)
+                if (newMuted) {
+                  // Mute - pause video
+                  if (videoRef.current) {
+                    videoRef.current.pause()
+                  }
+                } else {
+                  // Unmute - play video
+                  if (videoRef.current) {
+                    try {
+                      await videoRef.current.play()
+                    } catch (error) {
+                      // Autoplay restriction
+                    }
+                  }
+                }
+              }}
               whileTap={{ scale: 0.9 }}
               className="w-10 h-10 rounded-full glass flex items-center justify-center"
             >
@@ -951,7 +986,8 @@ function TouristFeedView({
   sessionId: string
 }) {
   const { isLoading: authLoading, isAuthenticated } = useAuthStore()
-  const { tokenManager } = require('@/core/auth/TokenManager')
+  
+  console.log('[Feed TouristFeedView] Auth state:', { authLoading, isAuthenticated })
   
   const {
     data,
@@ -966,10 +1002,38 @@ function TouristFeedView({
     initialPageParam: 1,
     getNextPageParam: (last) =>
       last.has_next ? last.page + 1 : undefined,
-    staleTime: 1000 * 15, // 15 seconds for more dynamic feed
-    // CRITICAL: Don't fetch until auth is loaded AND tokens are available
-    enabled: !authLoading && isAuthenticated && tokenManager.hasTokens(),
+    staleTime: 1000 * 60 * 5, // 5 minutes - increased from 15s to reduce refetch frequency
+    retry: (failureCount, error) => {
+      // CRITICAL ARCHITECTURE CHANGE:
+      // Do NOT retry on auth errors - let SessionManager handle logout
+      // Only retry on network errors and server errors
+      const isAuthError = (error as any)?.isAuthError
+      if (isAuthError) {
+        console.log('[Feed Query] Auth error detected, not retrying - delegating to SessionManager')
+        return false
+      }
+      // Retry up to 3 times for network/server errors
+      return failureCount < 3
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    // CRITICAL: Don't fetch until auth is loaded
+    // FIXED: Remove tokenManager.hasTokens() check - SessionManager handles this
+    // isAuthenticated is sufficient - SessionManager ensures token exists when authenticated
+    enabled: !authLoading && isAuthenticated,
   })
+
+  // CRITICAL ARCHITECTURE CHANGE:
+  // Handle auth errors by delegating to SessionManager
+  // Feed should NOT trigger logout logic directly
+  useEffect(() => {
+    if (error && (error as any)?.isAuthError) {
+      console.log('[Feed] Auth error detected, delegating to SessionManager')
+      // Import dynamically to avoid circular dependency
+      import('@/core/auth/logout').then(({ handleAuthError }) => {
+        handleAuthError()
+      })
+    }
+  }, [error])
 
   const moments = useMemo(
     () => data?.pages.flatMap((p) => p.results) ?? [],

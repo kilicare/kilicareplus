@@ -1,6 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+// Force dynamic rendering to prevent static pre-rendering during build
+// This ensures auth state is evaluated at runtime, not build time
+export const dynamic = 'force-dynamic'
+
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bell, Lock, Eye, Palette, Globe, LogOut, HelpCircle, Info,
@@ -11,6 +15,7 @@ import { performLogout } from '@/core/auth/logout'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
+import { settingsService, UserSettings } from '@/services/settings.service'
 
 interface SettingItem {
   id: string
@@ -29,25 +34,82 @@ export default function SettingsPage() {
   const { user } = useAuthStore()
   const router = useRouter()
 
-  const [settings, setSettings] = useState({
-    notifications: true,
-    emailNotifications: true,
-    pushNotifications: true,
-    soundEnabled: true,
-    darkMode: true,
-    betReminders: true,
-    twoFactor: false,
+  const [settings, setSettings] = useState<UserSettings>({
+    email_notifications: true,
+    push_notifications: true,
+    sms_notifications: false,
+    profile_visibility: 'PUBLIC',
+    show_location: true,
+    allow_follow_requests: true,
     language: 'sw',
+    theme: 'dark',
+    enable_ai_chat: true,
+    enable_predictions: true,
+    enable_sos: true,
+    enable_showcase: true,
+    enable_moments: true,
+    content_filter: 'MEDIUM',
+    auto_download_media: false,
+    low_data_mode: false,
   })
+
+  const [loading, setLoading] = useState(true)
 
   const [activeCategory, setActiveCategory] = useState('general')
 
-  const handleToggle = (key: keyof typeof settings) => {
+  // Fetch settings from API on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await settingsService.getMySettings()
+        setSettings(data)
+      } catch (error) {
+        console.error('Failed to fetch settings:', error)
+        toast.error('Failed to load settings')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (user) {
+      fetchSettings()
+    }
+  }, [user])
+
+  const handleToggle = async (key: keyof UserSettings) => {
+    const newValue = !settings[key]
     setSettings((prev) => ({
       ...prev,
-      [key]: !prev[key],
+      [key]: newValue,
     }))
-    toast.success('Setting updated')
+
+    try {
+      await settingsService.updateSettings({ [key]: newValue })
+      toast.success('Setting updated')
+    } catch (error) {
+      console.error('Failed to update setting:', error)
+      // Revert on error
+      setSettings((prev) => ({
+        ...prev,
+        [key]: !newValue,
+      }))
+      toast.error('Failed to update setting')
+    }
+  }
+
+  const handleSelectChange = async (key: keyof UserSettings, value: string) => {
+    setSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }))
+
+    try {
+      await settingsService.updateSettings({ [key]: value })
+      toast.success('Setting updated')
+    } catch (error) {
+      console.error('Failed to update setting:', error)
+      toast.error('Failed to update setting')
+    }
   }
 
   const handleLogout = async () => {
@@ -60,6 +122,8 @@ export default function SettingsPage() {
     { id: 'notifications', label: '🔔 Notifications', icon: Bell },
     { id: 'privacy', label: '🔒 Privacy & Security', icon: Lock },
     { id: 'appearance', label: '🎨 Appearance', icon: Palette },
+    { id: 'features', label: '🚀 Features', icon: Zap },
+    { id: 'content', label: '📱 Content & Data', icon: Smartphone },
     { id: 'account', label: '👤 Account', icon: Shield },
     { id: 'help', label: '❓ Help & Support', icon: HelpCircle },
   ]
@@ -76,59 +140,85 @@ export default function SettingsPage() {
         options: [
           { label: '🇹🇿 Swahili (Kiswahili)', value: 'sw' },
           { label: '🇬🇧 English', value: 'en' },
+          { label: '🇫🇷 Français', value: 'fr' },
+          { label: '🇪🇸 Español', value: 'es' },
+          { label: '🇩🇪 Deutsch', value: 'de' },
+          { label: '🇸🇦 العربية', value: 'ar' },
+          { label: '🇨🇳 中文', value: 'zh' },
         ],
       },
       {
-        id: 'betReminders',
-        label: 'Bet Reminders',
-        description: 'Get reminded about upcoming matches',
+        id: 'enable_predictions',
+        label: 'Sports Predictions',
+        description: 'Enable AI-powered sports predictions',
         icon: Zap,
         type: 'toggle' as const,
-        value: settings.betReminders,
+        value: settings.enable_predictions,
+      },
+      {
+        id: 'low_data_mode',
+        label: 'Low Data Mode',
+        description: 'Reduce data usage for slow connections',
+        icon: Smartphone,
+        type: 'toggle' as const,
+        value: settings.low_data_mode,
       },
     ],
     notifications: [
       {
-        id: 'notifications',
-        label: 'All Notifications',
-        description: 'Enable all notifications',
-        icon: Bell,
-        type: 'toggle' as const,
-        value: settings.notifications,
-      },
-      {
-        id: 'emailNotifications',
+        id: 'email_notifications',
         label: 'Email Notifications',
-        description: 'Receive emails about predictions',
+        description: 'Receive email notifications',
         icon: Mail,
         type: 'toggle' as const,
-        value: settings.emailNotifications,
+        value: settings.email_notifications,
       },
       {
-        id: 'pushNotifications',
+        id: 'push_notifications',
         label: 'Push Notifications',
         description: 'Mobile app notifications',
-        icon: Smartphone,
+        icon: Bell,
         type: 'toggle' as const,
-        value: settings.pushNotifications,
+        value: settings.push_notifications,
       },
       {
-        id: 'soundEnabled',
-        label: 'Sound Effects',
-        description: 'Play sound on notifications',
-        icon: Volume2,
+        id: 'sms_notifications',
+        label: 'SMS Notifications',
+        description: 'Receive SMS alerts',
+        icon: Smartphone,
         type: 'toggle' as const,
-        value: settings.soundEnabled,
+        value: settings.sms_notifications,
       },
     ],
     privacy: [
       {
-        id: 'twoFactor',
-        label: 'Two-Factor Authentication',
-        description: 'Extra security for your account',
+        id: 'profile_visibility',
+        label: 'Profile Visibility',
+        description: 'Who can view your profile',
+        icon: Eye,
+        type: 'select' as const,
+        value: settings.profile_visibility,
+        options: [
+          { label: 'Public - Everyone', value: 'PUBLIC' },
+          { label: 'Followers Only', value: 'FOLLOWERS' },
+          { label: 'Private - Hidden', value: 'PRIVATE' },
+        ],
+      },
+      {
+        id: 'show_location',
+        label: 'Show Location',
+        description: 'Display your location on map',
+        icon: Globe,
+        type: 'toggle' as const,
+        value: settings.show_location,
+      },
+      {
+        id: 'allow_follow_requests',
+        label: 'Allow Follow Requests',
+        description: 'Let others follow you',
         icon: Shield,
         type: 'toggle' as const,
-        value: settings.twoFactor,
+        value: settings.allow_follow_requests,
       },
       {
         id: 'privacy_info',
@@ -145,8 +235,71 @@ export default function SettingsPage() {
         label: 'Theme',
         description: 'Choose between light and dark modes',
         icon: Palette,
-        type: 'custom' as const,
-        component: ThemeToggle,
+        type: 'select' as const,
+        value: settings.theme,
+        options: [
+          { label: 'Dark', value: 'dark' },
+          { label: 'Light', value: 'light' },
+          { label: 'Auto (System)', value: 'auto' },
+        ],
+      },
+    ],
+    features: [
+      {
+        id: 'enable_ai_chat',
+        label: 'AI Chat',
+        description: 'Enable AI Chat assistant',
+        icon: Zap,
+        type: 'toggle' as const,
+        value: settings.enable_ai_chat,
+      },
+      {
+        id: 'enable_sos',
+        label: 'SOS Emergency',
+        description: 'Enable emergency SOS feature',
+        icon: Shield,
+        type: 'toggle' as const,
+        value: settings.enable_sos,
+      },
+      {
+        id: 'enable_showcase',
+        label: 'Virtual Showcase',
+        description: 'Enable marketplace feature',
+        icon: Palette,
+        type: 'toggle' as const,
+        value: settings.enable_showcase,
+      },
+      {
+        id: 'enable_moments',
+        label: 'Social Moments',
+        description: 'Enable social media feature',
+        icon: Bell,
+        type: 'toggle' as const,
+        value: settings.enable_moments,
+      },
+    ],
+    content: [
+      {
+        id: 'content_filter',
+        label: 'Content Filter',
+        description: 'Content filtering sensitivity',
+        icon: Shield,
+        type: 'select' as const,
+        value: settings.content_filter,
+        options: [
+          { label: 'No Filter', value: 'NONE' },
+          { label: 'Low Sensitivity', value: 'LOW' },
+          { label: 'Medium Sensitivity', value: 'MEDIUM' },
+          { label: 'High Sensitivity', value: 'HIGH' },
+        ],
+      },
+      {
+        id: 'auto_download_media',
+        label: 'Auto-Download Media',
+        description: 'Download media automatically',
+        icon: Smartphone,
+        type: 'toggle' as const,
+        value: settings.auto_download_media,
       },
     ],
     account: [
@@ -273,8 +426,8 @@ export default function SettingsPage() {
 
                   {setting.type === 'select' && (
                     <select
-                      value={settings[setting.id as keyof typeof settings] as string}
-                      onChange={(e) => setSettings(prev => ({ ...prev, [setting.id]: e.target.value }))}
+                      value={settings[setting.id as keyof UserSettings] as string}
+                      onChange={(e) => handleSelectChange(setting.id as keyof UserSettings, e.target.value)}
                       className="px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-xs font-semibold hover:border-white/30 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold/50"
                     >
                       {setting.options?.map((opt: { label: string; value: string }) => (

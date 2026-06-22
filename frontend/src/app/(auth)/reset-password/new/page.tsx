@@ -39,11 +39,11 @@ function ResetPasswordNewContent() {
       return data
     },
     onSuccess: (data) => {
-      toast.success('Password imebadilishwa kwa mafanikio! ✅')
+      toast.success('Password changed successfully! ✅')
       router.push('/login')
     },
     onError: (error) => {
-      toast.error(parseApiError(error) || 'Hitilafu katika kubadilisha password')
+      toast.error(parseApiError(error) || 'Error changing password')
     },
   })
 
@@ -57,13 +57,13 @@ function ResetPasswordNewContent() {
         >
           <div className="text-5xl mb-6">⚠️</div>
           <h1 className="text-xl font-black text-text-primary mb-2">
-            Data Sio Sahihi
+            Invalid Data
           </h1>
           <p className="text-text-muted text-sm mb-6">
-            Email au OTP haipo. Jaribu tena kutoka mwanzo.
+            Email or OTP is missing. Please try again from the beginning.
           </p>
           <Link href="/reset-password">
-            <KiliButton fullWidth>← Rudi Reset Password</KiliButton>
+            <KiliButton fullWidth>← Back to Reset Password</KiliButton>
           </Link>
         </motion.div>
       </div>
@@ -80,13 +80,13 @@ function ResetPasswordNewContent() {
         {/* Header */}
         <div className="text-4xl text-center mb-6">🔐</div>
         <h1 className="text-2xl font-black text-text-primary text-center mb-2">
-          Weka Password Mpya
+          Set New Password
         </h1>
         <p className="text-text-muted text-sm text-center mb-2">
           Email: <span className="text-gold font-semibold">{email}</span>
         </p>
         <p className="text-text-muted text-xs text-center mb-8 px-4">
-          OTP imethibitishwa ✓
+          OTP verified ✓
         </p>
 
         {/* Form */}
@@ -94,11 +94,11 @@ function ResetPasswordNewContent() {
           {/* New Password */}
           <div className="relative">
             <KiliInput
-              label="Password Mpya"
+              label="New Password"
               type={showPassword ? 'text' : 'password'}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Angalau herufi 8"
+              placeholder="At least 8 characters"
               icon={<Lock size={16} />}
             />
             <button
@@ -110,22 +110,22 @@ function ResetPasswordNewContent() {
             </button>
             {newPassword && !passwordValid && (
               <p className="text-xs text-red-500 mt-1">
-                Password lazima iwe herufi 8+
+                Password must be 8+ characters
               </p>
             )}
             {newPassword && passwordValid && (
-              <p className="text-xs text-green-500 mt-1">✓ Password sahihi</p>
+              <p className="text-xs text-green-500 mt-1">✓ Password valid</p>
             )}
           </div>
 
           {/* Confirm Password */}
           <div className="relative">
             <KiliInput
-              label="Thibitisha Password"
+              label="Confirm Password"
               type={showConfirm ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Rudia password"
+              placeholder="Repeat password"
               icon={<Lock size={16} />}
             />
             <button
@@ -137,11 +137,11 @@ function ResetPasswordNewContent() {
             </button>
             {confirmPassword && !passwordsMatch && (
               <p className="text-xs text-red-500 mt-1">
-                Passwords hazilingani
+                Passwords do not match
               </p>
             )}
             {confirmPassword && passwordsMatch && (
-              <p className="text-xs text-green-500 mt-1">✓ Zinaendana</p>
+              <p className="text-xs text-green-500 mt-1">✓ Match</p>
             )}
           </div>
 
@@ -164,7 +164,7 @@ function ResetPasswordNewContent() {
             onClick={() => resetMut.mutate()}
             className={!canSubmit ? 'opacity-50 cursor-not-allowed' : ''}
           >
-            {resetMut.isPending ? 'Inabadilisha...' : 'Badilisha Password'}
+            {resetMut.isPending ? 'Changing...' : 'Change Password'}
           </KiliButton>
 
           {/* Back Link */}
@@ -182,7 +182,7 @@ function ResetPasswordNewContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            {parseApiError(resetMut.error) || 'Hitilafu katika kubadilisha password'}
+            {parseApiError(resetMut.error) || 'Error changing password'}
           </motion.div>
         )}
       </motion.div>

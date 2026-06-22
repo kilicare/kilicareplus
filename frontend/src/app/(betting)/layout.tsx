@@ -13,14 +13,7 @@ export default function BettingLayout({
   children: React.ReactNode
 }) {
   const { isAuthenticated, isLoading } = useAuthStore()
-  const router = useRouter()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login')
-    }
-  }, [isAuthenticated, isLoading, router])
 
   // LOADING STATE
   if (isLoading) {
@@ -37,13 +30,15 @@ export default function BettingLayout({
   }
 
   // NOT AUTHENTICATED STATE
+  // REMOVED: Redirect logic that was causing race condition
+  // ProtectedRoute handles redirect logic - layout should only show loading state
   if (!isAuthenticated) {
     return (
       <div className="min-h-dvh flex items-center justify-center bg-bg-base">
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-8 rounded-full border-2 border-gold border-t-transparent animate-spin" />
           <p className="text-sm text-text-muted">
-            Redirecting to login...
+            Verifying authentication...
           </p>
         </div>
       </div>

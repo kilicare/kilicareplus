@@ -1,6 +1,11 @@
+import logging
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
+from django.core.validators import EmailValidator
+from django.core.exceptions import ValidationError
 from .models import User, UserProfile
+
+logger = logging.getLogger(__name__)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -55,7 +60,10 @@ class UserSerializer(serializers.ModelSerializer):
                 'level': p.level,
                 'trust_score': p.trust_score,
             }
-        except Exception:
+        except Exception as e:
+            # Defensive fallback: Return None if passport data is not available
+            # This should not happen after registration fix, but provides safety
+            logger.warning(f'[USER SERIALIZER] Passport data not available for user {obj.id}: {str(e)}')
             return None
 
 
@@ -81,6 +89,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
 
     def validate_email(self, value):
+        # Validate email format using Django's EmailValidator
+        validator = EmailValidator()
+        try:
+            validator(value)
+        except ValidationError:
+            raise serializers.ValidationError('Please enter a valid email address.')
+        
+        # Check for duplicate email
         if User.objects.filter(email=value.lower()).exists():
             raise serializers.ValidationError(
                 'This email is already registered. Please use a different email.'
@@ -88,6 +104,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value.lower()
 
     def validate_username(self, value):
+        # Validate username format: 3-30 chars, alphanumeric + underscore only
+        import re
+        if not re.match(r'^[a-zA-Z0-9_]{3,30}$', value):
+            raise serializers.ValidationError(
+                'Username must be 3-30 characters and contain only letters, numbers, and underscores.'
+            )
+        
+        # Check for duplicate username
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError(
                 'This username is already taken. Please choose a different username.'
@@ -95,10 +119,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        # Validate password match
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError(
                 {'password': 'Passwords do not match'}
             )
+        
+        # Validate phone format if provided
+        phone = attrs.get('phone')
+        if phone:
+            import re
+            # Allow international phone numbers (digits, spaces, +, -, parentheses)
+            if not re.match(r'^[\d\s+\-\(\)]{10,20}$', phone):
+                raise serializers.ValidationError(
+                    {'phone': 'Please enter a valid phone number.'}
+                )
+        
         return attrs
 
     def create(self, validated_data):
@@ -106,9 +142,17 @@ class RegisterSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         user = User(**validated_data)
         user.set_password(password)
-        user.is_active = False
+        user.is_active = True  # User is active immediately after registration (no OTP required)
+        user.is_verified = True  # User is verified immediately after registration (OTP verification removed)
         user.save()
+        
+        # Create UserProfile
         UserProfile.objects.create(user=user)
+        
+        # Create PassportProfile (required for complete user graph)
+        from apps.passport.models import PassportProfile
+        PassportProfile.objects.create(user=user)
+        
         return user
 
 
@@ -168,7 +212,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
     def validate_email(self, value):
         if not User.objects.filter(email=value.lower()).exists():
             raise serializers.ValidationError(
-                'Email hii haipatikani.'
+                'This email is not found.'
             )
         return value.lower()
 
@@ -184,7 +228,7 @@ class VerifyForgotOTPSerializer(serializers.Serializer):
     def validate_otp(self, value):
         if not value.isdigit():
             raise serializers.ValidationError(
-                'OTP lazima iwe namba tu.'
+                'OTP must be numeric only.'
             )
         return value
 
@@ -192,7 +236,7 @@ class VerifyForgotOTPSerializer(serializers.Serializer):
 class ResetPasswordSerializer(serializers.Serializer):
     """Step 3: Reset password after OTP verification"""
     email = serializers.EmailField()
-    otp = serializers.CharField(max_length=6, min_length=6)
+    otp = serializers.CharField(max_length=6, min_length=4)
     new_password = serializers.CharField(
         write_only=True,
         min_length=8,
@@ -206,14 +250,14 @@ class ResetPasswordSerializer(serializers.Serializer):
     def validate_otp(self, value):
         if not value.isdigit():
             raise serializers.ValidationError(
-                'OTP lazima iwe namba tu.'
+                'OTP must be numeric only.'
             )
         return value
 
     def validate(self, attrs):
         if attrs['new_password'] != attrs['new_password_confirm']:
             raise serializers.ValidationError(
-                {'new_password': 'Passwords hazilingani.'}
+                {'new_password': 'Passwords do not match.'}
             )
         
         # Check for common weak passwords
@@ -223,7 +267,7 @@ class ResetPasswordSerializer(serializers.Serializer):
         ]
         if attrs['new_password'].lower() in weak_passwords:
             raise serializers.ValidationError(
-                {'new_password': 'Password hii ni nyingi sana! Chagua nyingine.'}
+                {'new_password': 'This password is too common. Please choose a different password.'}
             )
         
         return attrs

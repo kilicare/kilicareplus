@@ -1,4 +1,7 @@
 'use client'
+// Force dynamic rendering to prevent static pre-rendering during build
+// This ensures auth state is evaluated at runtime, not build time
+export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -62,13 +65,12 @@ export default function TestimonialsAdmin() {
   })
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'ADMIN') {
-      router.push('/feed')
-      return
+    // REMOVED: Page-level auth redirect logic
+    // ProtectedRoute handles auth and role checks - pages should NOT make auth decisions
+    if (isAuthenticated && user?.role === 'ADMIN') {
+      fetchTestimonials()
     }
-
-    fetchTestimonials()
-  }, [isAuthenticated, user, router])
+  }, [isAuthenticated, user])
 
   async function fetchTestimonials() {
     try {
@@ -450,7 +452,10 @@ function AvatarUploader({ currentAvatar, onAvatarUpload }: { currentAvatar: stri
       const formData = new FormData()
       formData.append('file', file)
 
-      const accessToken = localStorage.getItem('kili_access_token')
+      // FIXED: Use tokenManager instead of direct localStorage access
+      // This ensures consistent token management across the app
+      const { tokenManager } = await import('@/core/auth/TokenManager')
+      const accessToken = tokenManager.getAccessToken()
       if (!accessToken) {
         alert('Authentication required')
         return

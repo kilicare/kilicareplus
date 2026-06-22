@@ -41,7 +41,7 @@ class ForgotPasswordFlowTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue(data['success'])
-        self.assertIn('OTP imetumwa', data['message'])
+        self.assertIn('OTP sent', data['message'])
         
         # Verify OTP was created in DB
         otp = OTPCode.objects.filter(
@@ -142,7 +142,7 @@ class ForgotPasswordFlowTestCase(TestCase):
         
         self.assertEqual(response.status_code, 400)
         data = response.json()
-        self.assertIn('imeisha', data['message'].lower())
+        self.assertIn('expired', data['message'].lower())
     
     def test_otp_single_use(self):
         """Test that OTP cannot be reused"""
@@ -169,7 +169,7 @@ class ForgotPasswordFlowTestCase(TestCase):
         
         self.assertEqual(response.status_code, 400)
         data = response.json()
-        self.assertIn('si sahihi', data['message'].lower())
+        self.assertIn('invalid', data['message'].lower())
     
     def test_step3_requires_verification(self):
         """Test that reset requires OTP to be verified in step 2"""

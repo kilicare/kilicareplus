@@ -60,8 +60,9 @@ export const authService = {
         password,
       })
 
-      // Store fresh tokens only after successful login
-      tokenManager.setTokens(data.access, data.refresh)
+      // NOTE: Tokens are NOT stored here
+      // SessionManager.login() is the SINGLE entry point for session state
+      // Call SessionManager.login() after receiving this response
 
       return data
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,14 +78,16 @@ export const authService = {
       // Get refresh token before clearing
       const refreshToken = tokenManager.getRefreshToken()
 
-      // Clear tokens from localStorage first (even if API call fails)
-      tokenManager.clearTokens()
+      // CRITICAL ARCHITECTURE CHANGE:
+      // DO NOT clear tokens here. SessionManager.logout() is the SINGLE entry point.
+      // This method only calls the backend blacklist API.
+      // Token clearing is handled by SessionManager.logout() in the caller.
 
       try {
         // Send refresh token to backend for blacklisting (optional)
         await api.post('/auth/logout/', { refresh: refreshToken })
       } catch {
-        // Log error but don't throw - tokens are already cleared
+        // Log error but don't throw - tokens will be cleared by SessionManager
         // Silently ignore API errors
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,7 +96,7 @@ export const authService = {
     }
   },
 
-  async sendOtp(email: string, purpose = 'EMAIL_VERIFY') {
+  async sendOtp(email: string, purpose = 'PASSWORD_RESET') {
     try {
       const { data } = await api.post('/auth/otp/send/', {
         email,
@@ -109,7 +112,7 @@ export const authService = {
   async verifyOtp(
     email: string,
     code: string,
-    purpose = 'EMAIL_VERIFY'
+    purpose = 'PASSWORD_RESET'
   ) {
     try {
       const { data } = await api.post('/auth/otp/verify/', {

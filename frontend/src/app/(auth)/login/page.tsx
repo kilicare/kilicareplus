@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { Mail, Lock, Home, X } from 'lucide-react'
-import { useAuthStore } from '@/stores/auth.store'
+import { sessionManager } from '@/core/auth/SessionManager'
 import { authService } from '@/services/auth.service'
 import { KiliInput } from '@/components/ui/KiliInput'
 import { KiliButton } from '@/components/ui/KiliButton'
@@ -14,7 +14,6 @@ import { parseApiError } from '@/lib/utils'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { setUser, setAuthenticated } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showHomeBtn, setShowHomeBtn] = useState(false)
@@ -22,8 +21,8 @@ export default function LoginPage() {
   const loginMut = useMutation({
     mutationFn: () => authService.login(email, password),
     onSuccess: (data) => {
-      setUser(data.user)
-      setAuthenticated(true)
+      // SINGLE ENTRY POINT: Use SessionManager.login() for all auth state mutation
+      sessionManager.login(data.user, data.access, data.refresh)
       toast.success(
         `Karibu ${data.user.first_name || data.user.username}! 🌍`
       )
@@ -32,12 +31,22 @@ export default function LoginPage() {
     onError: (e) => toast.error(parseApiError(e)),
   })
 
-  const submit = (e?: React.FormEvent) => {
-    e?.preventDefault()
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Client-side validation
     if (!email || !password) {
-      toast.error('Weka email na password')
+      toast.error('Email and password are required.')
       return
     }
+    
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address.')
+      return
+    }
+    
     loginMut.mutate()
   }
 
@@ -98,11 +107,8 @@ export default function LoginPage() {
       </motion.div>
 
       {/* Form - Glassmorphism Card */}
-      <motion.form
+      <form
         className="w-full max-w-sm space-y-4 bg-white/5 backdrop-blur-2xl border border-white/20 rounded-2xl p-6 shadow-2xl"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
         onSubmit={submit}
       >
         <KiliInput
@@ -121,7 +127,7 @@ export default function LoginPage() {
           label="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password yako"
+          placeholder="Your password"
           icon={<Lock size={16} />}
           showPasswordToggle
           autoComplete="current-password"
@@ -140,27 +146,27 @@ export default function LoginPage() {
         <KiliButton
           fullWidth size="lg"
           loading={loginMut.isPending}
-          onClick={submit}
+          type="submit"
         >
           Ingia / Login
         </KiliButton>
 
         <div className="flex items-center gap-4">
           <div className="flex-1 h-px bg-border-subtle" />
-          <span className="text-xs text-text-muted">au</span>
+          <span className="text-xs text-text-muted">or</span>
           <div className="flex-1 h-px bg-border-subtle" />
         </div>
 
         <p className="text-center text-sm text-text-muted">
-          Huna akaunti?{' '}
+          Don't have an account?{' '}
           <Link
             href="/register"
             className="text-gold font-semibold hover:underline"
           >
-            Jisajili hapa →
+            Register here →
           </Link>
         </p>
-      </motion.form>
+      </form>
     </div>
   )
 }

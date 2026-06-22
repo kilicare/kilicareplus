@@ -18,7 +18,7 @@ export default function ResetPasswordPage() {
   const mut = useMutation({
     mutationFn: () => authService.resetPassword(email),
     onSuccess: () => {
-      toast.success('OTP imetumwa kwa email yako!')
+      toast.success('OTP sent to your email!')
       router.push(
         `/otp?email=${encodeURIComponent(email)}&purpose=PASSWORD_RESET`
       )
@@ -57,11 +57,11 @@ export default function ResetPasswordPage() {
             disabled={!email.includes('@')}
             onClick={() => mut.mutate()}
           >
-            Tuma OTP
+            Send OTP
           </KiliButton>
           <p className="text-center text-sm text-text-muted">
             <Link href="/login" className="text-gold hover:underline">
-              ← Rudi Login
+              ← Back to Login
             </Link>
           </p>
         </div>

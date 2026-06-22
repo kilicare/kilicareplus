@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated, IsTourist])
 def my_alerts_view(request):
     """Get tourist's own SOS alerts with optional responses."""
+    
+    # SETTINGS GUARD: Check if SOS is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'sos')
+    
     include_responses = request.query_params.get('include_responses', 'false').lower() == 'true'
     
     # Get all alerts for this tourist, ordered by most recent
@@ -37,6 +42,11 @@ def my_alerts_view(request):
 @permission_classes([IsAuthenticated])
 def active_alerts_view(request):
     """For LOCAL_GUIDE and ADMIN — see all active SOS nearby (distance filtered for guides)"""
+    
+    # SETTINGS GUARD: Check if SOS is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'sos')
+    
     # Allow ADMIN and LOCAL_GUIDE to access this endpoint
     if request.user.role not in ('LOCAL_GUIDE', 'ADMIN'):
         return Response({'message': 'Permission denied'}, status=403)

@@ -39,6 +39,10 @@ def predictions_today_view(request):
     - Premium users: see all predictions
     - Free users: see 2 locked predictions per day
     """
+    # SETTINGS GUARD: Check if Predictions is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'predictions')
+    
     league = request.query_params.get('league', 'EPL')
     today = timezone.now().date()
 
@@ -90,6 +94,10 @@ def predictions_upcoming_view(request):
     
     Get system-wide upcoming match predictions (next 20 matches)
     """
+    # SETTINGS GUARD: Check if Predictions is enabled for this user
+    from apps.settings.guards import require_feature_enabled
+    require_feature_enabled(request.user, 'predictions')
+    
     league = request.query_params.get('league', 'EPL')
     today = timezone.now().date()
     is_premium = _is_premium(request.user)

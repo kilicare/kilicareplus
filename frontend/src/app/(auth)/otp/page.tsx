@@ -16,9 +16,9 @@ function OTPContent() {
   const { setUser, setAuthenticated } = useAuthStore()
   const params = useSearchParams()
   const email = params.get('email') || ''
-  const purpose = params.get('purpose') || 'EMAIL_VERIFY'
+  const purpose = params.get('purpose') || 'PASSWORD_RESET'
 
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otp, setOtp] = useState(['', '', '', ''])
   const refs = useRef<Array<HTMLInputElement | null>>([])
   const [countdown, setCountdown] = useState(60)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -43,33 +43,10 @@ function OTPContent() {
 
       // Wait for animation then proceed
       setTimeout(() => {
-        if (purpose === 'EMAIL_VERIFY') {
-          // ✅ AUTO-LOGIN AFTER EMAIL VERIFICATION
-          console.log('[OTP] Email verified. Auto-logging in...')
-          
-          // Store tokens and update auth state
-          if (data.access && data.refresh && data.user) {
-            tokenManager.setTokens(data.access, data.refresh)
-            setUser(data.user)
-            setAuthenticated(true)
-            
-            toast.success('Email imethibitishwa! Karibu! 🎉')
-            console.log('[OTP] ✅ Redirecting to /feed')
-            
-            // Redirect to feed (already authenticated)
-            router.push('/feed')
-          } else {
-            // Fallback: tokens not in response, redirect to login
-            console.warn('[OTP] ⚠️  Tokens not in response, redirecting to login')
-            toast.success('Email imethibitishwa! Ingia sasa 🎉')
-            router.push('/login')
-          }
-        } else {
-          // PASSWORD_RESET flow
-          router.push(
-            `/reset-password/new?email=${encodeURIComponent(email)}&code=${otp.join('')}`
-          )
-        }
+        // Only PASSWORD_RESET is supported (EMAIL_VERIFY removed from registration flow)
+        router.push(
+          `/reset-password/new?email=${encodeURIComponent(email)}&code=${otp.join('')}`
+        )
       }, 1000)
     },
     onError: (e) => toast.error(parseApiError(e)),
@@ -78,9 +55,9 @@ function OTPContent() {
   const resendMut = useMutation({
     mutationFn: () => authService.sendOtp(email, purpose),
     onSuccess: () => {
-      toast.success('OTP mpya imetumwa!')
+      toast.success('New OTP sent!')
       setCountdown(60)
-      setOtp(['', '', '', '', '', ''])
+      setOtp(['', '', '', ''])
       refs.current[0]?.focus()
     },
     onError: (e) => toast.error(parseApiError(e)),
@@ -91,7 +68,7 @@ function OTPContent() {
     const next = [...otp]
     next[i] = v.slice(-1)
     setOtp(next)
-    if (v && i < 5) refs.current[i + 1]?.focus()
+    if (v && i < 3) refs.current[i + 1]?.focus()
   }
 
   const onKeyDown = (i: number, e: React.KeyboardEvent) => {
@@ -103,10 +80,10 @@ function OTPContent() {
     const pasted = e.clipboardData
       .getData('text')
       .replace(/\D/g, '')
-      .slice(0, 6)
+      .slice(0, 4)
     if (pasted) {
-      setOtp(pasted.split('').concat(Array(6).fill('')).slice(0, 6))
-      refs.current[5]?.focus()
+      setOtp(pasted.split('').concat(Array(4).fill('')).slice(0, 4))
+      refs.current[3]?.focus()
     }
   }
 
@@ -203,10 +180,10 @@ function OTPContent() {
                   </motion.div>
 
                   <h1 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-text-primary via-gold to-text-primary bg-clip-text text-transparent mb-3">
-                    Thibitisha OTP
+                    Verify OTP
                   </h1>
                   <p className="text-text-secondary text-sm sm:text-base leading-relaxed mb-2">
-                    Tumekutumia code ya kulinganisha kwa email yako
+                    We sent a verification code to your email
                   </p>
                   <div className="inline-block px-4 py-2 bg-gold/10 border border-gold/30 rounded-full">
                     <p className="text-gold font-semibold text-sm break-all">
@@ -278,7 +255,7 @@ function OTPContent() {
                     className="group relative overflow-hidden text-lg font-bold shadow-lg hover:shadow-xl transition-all duration-300"
                   >
                     <span className="relative z-10">
-                      {verifyMut.isPending ? 'Inathibitisha...' : 'Thibitisha Sasa'}
+                      {verifyMut.isPending ? 'Verifying...' : 'Verify Now'}
                     </span>
                   </KiliButton>
                 </motion.div>
@@ -294,10 +271,10 @@ function OTPContent() {
                     {countdown > 0 ? (
                       <div className="space-y-3">
                         <p className="text-text-muted text-sm">
-                          Sijashindwa OTP?
+                          Didn't receive OTP?
                         </p>
                         <p className="text-text-secondary font-semibold">
-                          Tuma tena kwa{' '}
+                          Resend in{' '}
                           <span className="font-mono text-gold text-lg">
                             {countdown}s
                           </span>
@@ -316,7 +293,7 @@ function OTPContent() {
                           loading={resendMut.isPending}
                           className="text-gold hover:text-gold-dim font-semibold"
                         >
-                          📤 Tuma OTP Mpya
+                          📤 Resend OTP
                         </KiliButton>
                       </motion.div>
                     )}
@@ -337,7 +314,7 @@ function OTPContent() {
                     className="text-text-muted hover:text-blue-500 font-semibold"
                   >
                     <ChevronLeft size={16} className="mr-2" />
-                    Rudi Login
+                    Back to Login
                   </KiliButton>
                 </motion.div>
 
@@ -349,7 +326,7 @@ function OTPContent() {
                   className="mt-8 p-4 bg-gradient-to-r from-gold/5 to-kili-green/5 border border-gold/20 rounded-2xl"
                 >
                   <p className="text-xs sm:text-sm text-text-muted text-center leading-relaxed">
-                    🔒 Ujumbe huu ni salama. Code haitumwa kwa mahali pengine.
+                    🔒 This message is secure. The code is not sent anywhere else.
                   </p>
                 </motion.div>
               </div>
@@ -393,13 +370,13 @@ function OTPContent() {
                   transition={{ delay: 0.3, duration: 0.5 }}
                 >
                   <h2 className="text-2xl sm:text-3xl font-black text-kili-green mb-3">
-                    Karibu!
+                    Welcome!
                   </h2>
                   <p className="text-text-secondary text-sm sm:text-base mb-2">
-                    OTP imethibitishwa kwa mafaniko
+                    OTP verified successfully
                   </p>
                   <p className="text-text-muted text-xs sm:text-sm">
-                    Inakuandaa mahali mengine...
+                    Taking you to the next step...
                   </p>
                 </motion.div>
               </div>

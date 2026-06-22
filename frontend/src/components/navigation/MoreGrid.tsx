@@ -276,11 +276,6 @@ export function MoreGrid({ isOpen, onClose }: MoreGridProps) {
                       variants={itemVariants}
                       onClick={() => handleFeatureClick(feature.href)}
                       disabled={feature.disabled}
-                      whileHover={{ 
-                        y: -8,
-                        rotateX: -8,
-                        rotateY: 2,
-                      }}
                       whileTap={{ scale: 0.92 }}
                       className={cn(
                         'relative overflow-hidden rounded-2xl p-5 transition-all duration-300 group',
@@ -321,8 +316,7 @@ export function MoreGrid({ isOpen, onClose }: MoreGridProps) {
                       {/* Content */}
                       <div className="relative z-10 flex flex-col items-center gap-3 text-center">
                         {/* Icon container */}
-                        <motion.div
-                          whileHover={{ scale: 1.15, rotate: 5 }}
+                        <div
                           className="p-3 rounded-xl transition-all duration-300"
                           style={{
                             background: `linear-gradient(135deg, ${colors.glow}, transparent)`,
@@ -337,7 +331,7 @@ export function MoreGrid({ isOpen, onClose }: MoreGridProps) {
                               feature.disabled && 'text-text-disabled'
                             )}
                           />
-                        </motion.div>
+                        </div>
 
                         {/* Badge */}
                         {feature.badge && (

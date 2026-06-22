@@ -43,10 +43,36 @@ export function parseApiError(error: unknown): string {
   const err = error as {
     response?: { data?: { message?: string } }
     message?: string
+    isNetworkError?: boolean
+    isServerError?: boolean
+    isTimeout?: boolean
   }
-  if (err?.response?.data?.message) return err.response.data.message
-  if (err?.message) return err.message
-  return 'Hitilafu imetokea. Jaribu tena.'
+  
+  // Handle specific error types from axios interceptor
+  if (err?.isNetworkError) {
+    return 'Network error. Please check your connection.'
+  }
+  
+  if (err?.isServerError) {
+    return 'Server error. Please try again later.'
+  }
+  
+  if (err?.isTimeout) {
+    return 'Request timeout. Please try again.'
+  }
+  
+  // Extract backend message if available
+  if (err?.response?.data?.message) {
+    return err.response.data.message
+  }
+  
+  // Fallback to error message if available
+  if (err?.message) {
+    return err.message
+  }
+  
+  // Final fallback - English only
+  return 'An error occurred. Please try again.'
 }
 
 export function getInitials(name: string): string {

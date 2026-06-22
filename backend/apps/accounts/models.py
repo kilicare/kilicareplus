@@ -63,7 +63,7 @@ class OTPCode(models.Model):
         ('PHONE_VERIFY', 'Phone Verification'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    code = models.CharField(max_length=6)
+    code = models.CharField(max_length=4)
     purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
     expires_at = models.DateTimeField()
     is_verified = models.BooleanField(default=False)  # Marked as verified in step 2

@@ -80,7 +80,8 @@ class TokenManager {
 
   /**
    * Check if access token is valid (not expired)
-   * Returns true if token exists and has more than 60 seconds remaining
+   * Returns true if token exists and has more than 10 seconds remaining
+   * Reduced from 60s to 10s to reduce unnecessary refresh attempts
    */
   isTokenValid(): boolean {
     const token = this.getAccessToken()
@@ -90,8 +91,8 @@ class TokenManager {
       // Decode JWT payload (base64)
       const payload = JSON.parse(atob(token.split('.')[1]))
       const now = Math.floor(Date.now() / 1000)
-      // Consider token valid if it has at least 60 seconds remaining
-      return payload.exp > now + 60
+      // Consider token valid if it has at least 10 seconds remaining
+      return payload.exp > now + 10
     } catch {
       // If token is malformed, consider it invalid
       return false
@@ -102,22 +103,24 @@ class TokenManager {
    * Refresh token if possible
    * This performs actual token refresh by calling the refresh endpoint
    * Returns true if refresh was successful, false otherwise
+   * 
+   * SAFETY: Silently returns false on missing token or errors
+   * Does NOT throw errors or trigger UI side effects
    */
   async refreshIfPossible(): Promise<boolean> {
     const refreshToken = this.getRefreshToken()
     if (!refreshToken) {
-      console.warn('[TokenManager] No refresh token available')
+      // Silently return false - no console warnings to avoid UI interference
       return false
     }
 
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL
       if (!API_URL) {
-        console.error('[TokenManager] NEXT_PUBLIC_API_URL not set')
+        // Silently return false - no console errors
         return false
       }
 
-      console.log('[TokenManager] Attempting token refresh...')
       const response = await fetch(`${API_URL}/auth/refresh/`, {
         method: 'POST',
         headers: {
@@ -127,21 +130,20 @@ class TokenManager {
       })
 
       if (!response.ok) {
-        console.error('[TokenManager] Token refresh failed', response.status)
+        // Silently return false - no console errors
         return false
       }
 
       const data = await response.json()
       if (data.access) {
         this.updateAccessToken(data.access)
-        console.log('[TokenManager] Token refreshed successfully')
         return true
       }
 
-      console.error('[TokenManager] No access token in refresh response')
+      // Silently return false - no console errors
       return false
     } catch (error) {
-      console.error('[TokenManager] Token refresh error:', error)
+      // Silently return false - no console errors to avoid UI interference
       return false
     }
   }

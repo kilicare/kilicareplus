@@ -29,23 +29,37 @@ export function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuthStore()
 
   useEffect(() => {
+    console.log('[ProtectedRoute] 🚀 PROTECTED ROUTE MOUNT')
+    console.log('[ProtectedRoute] STEP 0: Auth state check', { isAuthenticated, isLoading })
+    
     // Only check auth status after initial loading is complete
     if (!isLoading && !isAuthenticated) {
+      console.log('[ProtectedRoute] 🚨 REDIRECT TRIGGERED - !isLoading && !isAuthenticated')
+      console.log('[ProtectedRoute] Redirecting to /login')
       router.push('/login')
+    } else {
+      console.log('[ProtectedRoute] No redirect - conditions:', {
+        isLoading,
+        isAuthenticated,
+        reason: isLoading ? 'Still loading' : 'User is authenticated'
+      })
     }
   }, [isAuthenticated, isLoading, router])
 
   // Show loading state while auth check is in progress
   if (isLoading) {
+    console.log('[ProtectedRoute] Showing loading spinner (isLoading=true)')
     return fallback || <LoadingSpinner />
   }
 
   // Not authenticated - will redirect, but show fallback until redirect completes
   if (!isAuthenticated) {
+    console.log('[ProtectedRoute] Showing loading spinner (!isAuthenticated=true)')
     return fallback || <LoadingSpinner />
   }
 
   // Authenticated - render protected content
+  console.log('[ProtectedRoute] Rendering protected content (authenticated=true)')
   return <>{children}</>
 }
 

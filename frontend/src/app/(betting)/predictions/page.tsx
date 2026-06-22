@@ -881,15 +881,10 @@ export default function PredictionsPage() {
   const [mode, setMode] = useState<Mode>('today')
   const [showWelcome, setShowWelcome] = useState(true)
 
-  const { data: userInfo } = useQuery({
-    queryKey: ['user-predictions-info'],
-    queryFn: async () => {
-      const { data } = await api.get('/auth/me/')
-      return data
-    },
-  })
-
-  const isPremium = userInfo?.has_predictions === true
+  // FIXED: Use user from useAuthStore instead of calling /auth/me directly
+  // SessionManager populates user via background /me enrichment
+  // This prevents blocking UI on /auth/me failure
+  const isPremium = user?.has_predictions === true
 
   return (
     <div className="min-h-dvh bg-bg-base overflow-y-auto no-scrollbar pb-safe">

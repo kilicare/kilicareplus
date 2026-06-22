@@ -1,4 +1,5 @@
 import logging
+import re
 
 import random
 
@@ -9,6 +10,10 @@ from django.utils import timezone
 from django.contrib.auth import authenticate
 
 from django.core.mail import send_mail
+
+from django.core.exceptions import ValidationError
+
+from django.core.validators import EmailValidator
 
 from django.conf import settings as django_settings
 
@@ -23,6 +28,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core.throttles import LoginThrottle, RegisterThrottle, TokenRefreshThrottle, OTPThrottle, PasswordResetThrottle
+
+from django.db import transaction
 
 from .models import User, OTPCode
 
@@ -48,7 +55,20 @@ logger = logging.getLogger(__name__)
 
 def _generate_otp():
 
-    return ''.join([str(random.randint(0, 9)) for _ in range(6)])
+    return ''.join([str(random.randint(0, 9)) for _ in range(4)])
+
+
+def _is_valid_email(email):
+    """
+    Validate email format using Django's EmailValidator.
+    Returns True if valid, False otherwise.
+    """
+    validator = EmailValidator()
+    try:
+        validator(email)
+        return True
+    except ValidationError:
+        return False
 
 
 
@@ -176,11 +196,13 @@ def _send_otp(user, purpose):
 
     except Exception as e:
 
-        # Silently log exception - do not expose to user
-
-        # Email is sent via SMTP directly (no console output)
-
-        pass
+        # CRITICAL: Email failure must NOT be silent
+        # Raise ValidationError to trigger transaction rollback
+        # This ensures User, Profile, and OTP are all rolled back if email fails
+        logger.error(f'[SEND OTP] Email sending failed for {user.email}: {str(e)}')
+        raise ValidationError(
+            'Unable to send verification email. Please try again.'
+        )
 
     return code
 
@@ -196,22 +218,32 @@ def register_view(request):
         serializer = RegisterSerializer(data=request.data)
 
         if not serializer.is_valid():
-            return Response(
-                serializer.errors, status=status.HTTP_400_BAD_REQUEST
-            )
+            # Extract first error message for user-friendly display
+            # serializer.errors format: {"field": ["error message"]}
+            first_error = list(serializer.errors.values())[0]
+            error_message = first_error[0] if isinstance(first_error, list) else str(first_error)
+            
+            return Response({
+                'success': False,
+                'message': error_message,
+                'errors': serializer.errors,
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        user = serializer.save()
-        _send_otp(user, 'EMAIL_VERIFY')
+        # CRITICAL: Wrap entire registration in transaction.atomic()
+        # This ensures that if any step fails (User creation, Profile creation),
+        # everything rolls back and no orphaned records remain in the database.
+        with transaction.atomic():
+            user = serializer.save()  # Creates User + Profile (now active, no OTP required)
 
         return Response({
             'success': True,
-            'message': 'Akaunti imeundwa! Angalia email yako kwa OTP.',
+            'message': 'Account created successfully! You can now log in.',
             'email': user.email,
         }, status=status.HTTP_201_CREATED)
     except Exception as e:
         logger.error(f'[REGISTER] Unexpected error: {str(e)}')
         return Response(
-            {'message': 'An unexpected error occurred. Please try again.'},
+            {'success': False, 'message': 'An unexpected error occurred. Please try again.'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -232,13 +264,15 @@ def login_view(request):
 
     FLOW:
 
-    1. Authenticate user (email + password)
+    1. Validate input (email format, required fields)
 
-    2. Generate JWT tokens (access + refresh)
+    2. Authenticate user (email + password)
 
-    3. Return tokens + user data in JSON response
+    3. Generate JWT tokens (access + refresh)
 
-    4. Frontend stores tokens in localStorage
+    4. Return tokens + user data in JSON response
+
+    5. Frontend stores tokens in localStorage
 
     
 
@@ -262,97 +296,137 @@ def login_view(request):
 
     """
 
-    email = request.data.get('email', '').lower().strip()
+    try:
 
-    password = request.data.get('password', '')
+        email = request.data.get('email', '').lower().strip()
+
+        password = request.data.get('password', '')
+
+        
+
+        logger.info(f'[LOGIN] Attempt from email: {email}')
+
+        
+
+        # Validate required fields
+
+        if not email or not password:
+
+            logger.warning(f'[LOGIN] Missing email or password')
+
+            return Response(
+
+                {'message': 'Email and password are required.'},
+
+                status=status.HTTP_400_BAD_REQUEST
+
+            )
+
+        
+
+        # Validate email format before authentication
+
+        if not _is_valid_email(email):
+
+            logger.warning(f'[LOGIN] Invalid email format: {email}')
+
+            return Response(
+
+                {'message': 'Please enter a valid email address.'},
+
+                status=status.HTTP_400_BAD_REQUEST
+
+            )
+
+        
+
+        # Authenticate user
+
+        user = authenticate(request, username=email, password=password)
+
+        if not user:
+
+            logger.warning(f'[LOGIN] Authentication failed for email: {email}')
+
+            return Response(
+
+                {'message': 'Invalid email or password.'},
+
+                status=status.HTTP_401_UNAUTHORIZED
+
+            )
+
+        
+
+        # Check if account is active
+        # Note: New registrations are now active by default (no OTP required)
+        # This check only blocks manually deactivated accounts
+        if not user.is_active:
+            logger.warning(f'[LOGIN] Account not active for email: {email}')
+            return Response(
+                {'message': 'This account has been deactivated. Please contact support.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        
+
+        # Generate tokens
+
+        refresh = RefreshToken.for_user(user)
+
+        access_token = str(refresh.access_token)
+
+        refresh_token = str(refresh)
+
+        
+
+        logger.info(f'[LOGIN] ✅ Tokens generated for user: {user.id} ({email})')
+
+        
+
+        # Return tokens in response body (localStorage-based auth)
+
+        response = Response({
+
+            'success': True,
+
+            'message': 'Welcome to Kilicare+! 🎉',
+
+            'access': access_token,        # ← Client stores in localStorage
+
+            'refresh': refresh_token,      # ← Client stores in localStorage
+
+            'user': UserSerializer(user, context={'request': request}).data,
+
+        }, status=status.HTTP_200_OK)
+
+        
+
+        logger.info(f'[LOGIN] ✅ Login successful for user: {user.id} ({email})')
+
+        
+
+        return response
 
     
 
-    logger.info(f'[LOGIN] Attempt from email: {email}')
+    except Exception as e:
 
-    
+        # Log the full error for debugging
 
-    if not email or not password:
+        logger.error(f'[LOGIN] Unexpected error: {str(e)}', exc_info=True)
 
-        logger.warning(f'[LOGIN] Missing email or password')
+        
+
+        # Return safe user-friendly message
 
         return Response(
 
-            {'message': 'Email na password zinahitajika.'},
+            {'message': 'An error occurred. Please try again later.'},
 
-            status=status.HTTP_400_BAD_REQUEST
-
-        )
-
-    
-
-    user = authenticate(request, username=email, password=password)
-
-    if not user:
-
-        logger.warning(f'[LOGIN] Authentication failed for email: {email}')
-
-        return Response(
-
-            {'message': 'Email au password si sahihi.'},
-
-            status=status.HTTP_401_UNAUTHORIZED
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
 
         )
-
-    
-
-    if not user.is_active:
-
-        logger.warning(f'[LOGIN] Account not active for email: {email}')
-
-        return Response(
-
-            {'message': 'Akaunti haijathibitishwa. Angalia email yako kwa OTP.'},
-
-            status=status.HTTP_403_FORBIDDEN
-
-        )
-
-    
-
-    # Generate tokens
-
-    refresh = RefreshToken.for_user(user)
-
-    access_token = str(refresh.access_token)
-
-    refresh_token = str(refresh)
-
-    
-
-    logger.info(f'[LOGIN] ✅ Tokens generated for user: {user.id} ({email})')
-
-    
-
-    # Return tokens in response body (localStorage-based auth)
-
-    response = Response({
-
-        'success': True,
-
-        'message': 'Karibu Kilicare+! 🎉',
-
-        'access': access_token,        # ← Client stores in localStorage
-
-        'refresh': refresh_token,      # ← Client stores in localStorage
-
-        'user': UserSerializer(user, context={'request': request}).data,
-
-    }, status=status.HTTP_200_OK)
-
-    
-
-    logger.info(f'[LOGIN] ✅ Login successful for user: {user.id} ({email})')
-
-    
-
-    return response
 
 
 
@@ -492,16 +566,14 @@ def send_otp_view(request):
 
     email = request.data.get('email', '').lower().strip()
 
-    purpose = request.data.get('purpose', 'EMAIL_VERIFY')
+    purpose = request.data.get('purpose', 'PASSWORD_RESET')
 
-    if purpose not in ('EMAIL_VERIFY', 'PASSWORD_RESET'):
+    # Only PASSWORD_RESET is supported (EMAIL_VERIFY removed from registration flow)
+    if purpose != 'PASSWORD_RESET':
 
         return Response(
-
-            {'message': 'Purpose si sahihi.'},
-
+            {'message': 'Invalid purpose. Only PASSWORD_RESET is supported.'},
             status=status.HTTP_400_BAD_REQUEST
-
         )
 
     try:
@@ -512,7 +584,7 @@ def send_otp_view(request):
 
         return Response(
 
-            {'message': 'Email haipatikani.'},
+            {'message': 'Email not found.'},
 
             status=status.HTTP_404_NOT_FOUND
 
@@ -524,7 +596,7 @@ def send_otp_view(request):
 
         'success': True,
 
-        'message': f'OTP imetumwa kwa {email}',
+        'message': f'OTP sent to {email}',
 
     })
 
@@ -541,7 +613,14 @@ def verify_otp_view(request):
 
     code = request.data.get('code', '').strip()
 
-    purpose = request.data.get('purpose', 'EMAIL_VERIFY')
+    purpose = request.data.get('purpose', 'PASSWORD_RESET')
+
+    # Only PASSWORD_RESET is supported (EMAIL_VERIFY removed from registration flow)
+    if purpose != 'PASSWORD_RESET':
+        return Response(
+            {'message': 'Invalid purpose. Only PASSWORD_RESET is supported.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     try:
 
@@ -551,7 +630,7 @@ def verify_otp_view(request):
 
         return Response(
 
-            {'message': 'Email haipatikani.'},
+            {'message': 'Email not found.'},
 
             status=status.HTTP_404_NOT_FOUND
 
@@ -571,7 +650,7 @@ def verify_otp_view(request):
 
         return Response(
 
-            {'message': 'OTP si sahihi au imeisha.'},
+            {'message': 'Invalid or expired OTP.'},
 
             status=status.HTTP_400_BAD_REQUEST
 
@@ -580,126 +659,22 @@ def verify_otp_view(request):
     
 
     # DEBUG: Log OTP state before verify
-
     logger.debug(f'[OTP VERIFY] Before: purpose={purpose}, is_verified={otp.is_verified}, is_used={otp.is_used}')
 
-    
-
-    if purpose == 'EMAIL_VERIFY':
-
-        # EMAIL_VERIFY: Mark as used immediately (complete flow in one step)
-
-        otp.is_used = True
-
-        otp.save()
-
-        logger.debug(f'[OTP VERIFY] EMAIL_VERIFY: Set is_used=True')
-
-        
-
-        user.is_active = True
-
-        user.is_verified = True
-
-        user.save()
-
-        try:
-
-            from apps.passport.models import PassportProfile, PointsTransaction
-
-            passport, created = PassportProfile.objects.get_or_create(
-
-                user=user
-
-            )
-
-            if created:
-
-                PointsTransaction.objects.create(
-
-                    user=user,
-
-                    action_type='REGISTER',
-
-                    points_change=50,
-
-                    balance_after=50,
-
-                    description='Karibu Kilicare+! 🎉',
-
-                )
-
-        except Exception as e:
-
-            pass
-
-    elif purpose == 'PASSWORD_RESET':
-
-        # PASSWORD_RESET: Mark as verified only (will be marked used in step 3)
-
-        otp.is_verified = True
-
-        otp.save()
-
-        logger.debug(f'[OTP VERIFY] PASSWORD_RESET: Set is_verified=True, is_used stays False for step 3')
-
-    
+    # PASSWORD_RESET: Mark as verified only (will be marked used in step 3)
+    otp.is_verified = True
+    otp.save()
+    logger.debug(f'[OTP VERIFY] PASSWORD_RESET: Set is_verified=True, is_used stays False for step 3')
 
     # DEBUG: Log OTP state after verify
-
     otp.refresh_from_db()
-
     logger.debug(f'[OTP VERIFY] After: is_verified={otp.is_verified}, is_used={otp.is_used}')
 
-    
-
-    # For EMAIL_VERIFY: Issue JWT tokens for auto-login
-
-    if purpose == 'EMAIL_VERIFY':
-
-        logger.info(f'[OTP VERIFY] Generating JWT tokens for auto-login: user={user.id}')
-
-        
-
-        # Generate JWT tokens
-
-        refresh = RefreshToken.for_user(user)
-
-        access_token = str(refresh.access_token)
-
-        refresh_token = str(refresh)
-
-        
-
-        logger.info(f'[OTP VERIFY] ✅ Tokens generated successfully for user: {user.id}')
-
-        
-
-        return Response({
-
-            'success': True,
-
-            'message': 'Email imethibitishwa kwa mafanikio! Karibu!',
-
-            'purpose': purpose,
-
-            'access': access_token,
-
-            'refresh': refresh_token,
-
-            'user': UserSerializer(user, context={'request': request}).data,
-
-        }, status=status.HTTP_200_OK)
-
-    
-
     # For PASSWORD_RESET: Just confirm OTP verification (tokens will be issued after password reset)
-
     return Response({
-
         'success': True,
 
-        'message': 'OTP imethibitishwa!',
+        'message': 'OTP verified!',
 
         'purpose': purpose,
 
@@ -752,8 +727,10 @@ def forgot_password_view(request):
         _send_otp(user, 'PASSWORD_RESET')
 
     except User.DoesNotExist:
-
-        pass
+        # CRITICAL: Silent failure removed
+        # If email doesn't exist, we should NOT send OTP (security measure)
+        # But we return success to prevent email enumeration attacks
+        logger.debug(f'[FORGOT PASSWORD] Email not found: {email}')
 
     
 
@@ -761,7 +738,7 @@ def forgot_password_view(request):
 
         'success': True,
 
-        'message': 'Kama email inapatikana, OTP imetumwa.',
+        'message': 'If email exists, OTP has been sent.',
 
     })
 
@@ -808,7 +785,7 @@ def verify_forgot_otp_view(request):
 
         return Response(
 
-            {'message': 'Email haipatikani.'},
+            {'message': 'Email not found.'},
 
             status=status.HTTP_404_NOT_FOUND
 
@@ -836,7 +813,7 @@ def verify_forgot_otp_view(request):
 
         return Response(
 
-            {'message': 'OTP si sahihi au imeisha.'},
+            {'message': 'Invalid or expired OTP.'},
 
             status=status.HTTP_400_BAD_REQUEST
 
@@ -856,7 +833,7 @@ def verify_forgot_otp_view(request):
 
         'success': True,
 
-        'message': 'OTP imethibitishwa!',
+        'message': 'OTP verified!',
 
     })
 
@@ -881,11 +858,9 @@ def reset_password_view(request):
     serializer = ResetPasswordSerializer(data=request.data)
 
     if not serializer.is_valid():
-
+        logger.error(f'[RESET PASSWORD] Validation failed: {serializer.errors}')
         return Response(
-
             serializer.errors, status=status.HTTP_400_BAD_REQUEST
-
         )
 
     
@@ -906,7 +881,7 @@ def reset_password_view(request):
 
         return Response(
 
-            {'message': 'Email haipatikani.'},
+            {'message': 'Email not found.'},
 
             status=status.HTTP_404_NOT_FOUND
 
@@ -956,7 +931,7 @@ def reset_password_view(request):
 
         return Response(
 
-            {'message': 'OTP si sahihi, imeisha, au haijathibitishwa.'},
+            {'message': 'Invalid, expired, or unverified OTP.'},
 
             status=status.HTTP_400_BAD_REQUEST
 
@@ -988,7 +963,7 @@ def reset_password_view(request):
 
         'success': True,
 
-        'message': 'Password imebadilishwa kwa mafanikio! Ingia sasa.',
+        'message': 'Password changed successfully! Please login.',
 
     })
 
@@ -1010,14 +985,16 @@ def password_reset_view(request):
         _send_otp(user, 'PASSWORD_RESET')
 
     except User.DoesNotExist:
-
-        pass
+        # CRITICAL: Silent failure removed
+        # If email doesn't exist, we should NOT send OTP (security measure)
+        # But we return success to prevent email enumeration attacks
+        logger.debug(f'[FORGOT PASSWORD] Email not found: {email}')
 
     return Response({
 
         'success': True,
 
-        'message': 'Kama email ipo, OTP imetumwa.',
+        'message': 'If email exists, OTP has been sent.',
 
     })
 
@@ -1042,7 +1019,7 @@ def password_confirm_view(request):
 
         return Response(
 
-            {'message': 'Passwords hazilingani.'},
+            {'message': 'Passwords do not match.'},
 
             status=status.HTTP_400_BAD_REQUEST
 
@@ -1052,7 +1029,7 @@ def password_confirm_view(request):
 
         return Response(
 
-            {'message': 'Password lazima iwe herufi 8+.'},
+            {'message': 'Password must be at least 8 characters.'},
 
             status=status.HTTP_400_BAD_REQUEST
 
@@ -1066,7 +1043,7 @@ def password_confirm_view(request):
 
         return Response(
 
-            {'message': 'Email haipatikani.'},
+            {'message': 'Email not found.'},
 
             status=status.HTTP_404_NOT_FOUND
 
@@ -1086,7 +1063,7 @@ def password_confirm_view(request):
 
         return Response(
 
-            {'message': 'OTP si sahihi au imeisha.'},
+            {'message': 'Invalid or expired OTP.'},
 
             status=status.HTTP_400_BAD_REQUEST
 
@@ -1104,7 +1081,7 @@ def password_confirm_view(request):
 
         'success': True,
 
-        'message': 'Password imebadilishwa! Ingia sasa.',
+        'message': 'Password changed! Please login.',
 
     })
 
@@ -1308,7 +1285,7 @@ def logout_view(request):
 
         'success': True,
 
-        'message': 'Umaloged out kwa mafanikio. Karibu tena!',
+        'message': 'Logged out successfully. See you again!',
 
     }, status=status.HTTP_200_OK)
 
@@ -1329,7 +1306,6 @@ def logout_view(request):
 @permission_classes([IsAuthenticated])
 
 def public_profile_view(request, username):
-
     # Try finding target by either username or integer user ID
 
     try:
@@ -1344,7 +1320,7 @@ def public_profile_view(request, username):
 
     except User.DoesNotExist:
 
-        return Response({'message': 'Mtumiaji haukupatikana.'}, status=404)
+        return Response({'message': 'User not found.'}, status=404)
 
 
 
@@ -1386,9 +1362,10 @@ def public_profile_view(request, username):
 
         moments_count = Moment.objects.filter(posted_by=target).count()
 
-    except Exception:
-
-        pass
+    except Exception as e:
+        # CRITICAL: Silent failure removed
+        # If moments app is not available or query fails, log the error
+        logger.error(f'[PUBLIC PROFILE] Failed to fetch moments count for user {target.id}: {str(e)}')
 
     try:
 
@@ -1396,9 +1373,10 @@ def public_profile_view(request, username):
 
         tips_count = Tip.objects.filter(created_by=target).count()
 
-    except Exception:
-
-        pass
+    except Exception as e:
+        # CRITICAL: Silent failure removed
+        # If map_tips app is not available or query fails, log the error
+        logger.error(f'[PUBLIC PROFILE] Failed to fetch tips count for user {target.id}: {str(e)}')
 
 
 
