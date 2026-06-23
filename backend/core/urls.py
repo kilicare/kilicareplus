@@ -3,8 +3,16 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+
+def health(request):
+    return JsonResponse({
+        "status": "ok",
+        "service": "kilicareplus"
+    })
 
 urlpatterns = [
+    path('', health),
     path('django-admin/', admin.site.urls),
     path('auth/', include('apps.accounts.urls')),
     path('api/moments/', include('apps.moments.urls')),
