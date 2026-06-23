@@ -386,6 +386,7 @@ def login_view(request):
 
         # Return access token in response body (memory-based auth - Phase 2)
         # Refresh token is ONLY in HttpOnly cookie (never in response body)
+        # HOTFIX: Use minimal user data to avoid PassportProfile dependency crashes
 
         response = Response({
 
@@ -395,7 +396,15 @@ def login_view(request):
 
             'access': access_token,        # ← Client stores in memory only (Phase 2)
 
-            'user': UserSerializer(user, context={'request': request}).data,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role,
+                'is_verified': user.is_verified,
+            },
 
         }, status=status.HTTP_200_OK)
 
@@ -431,13 +440,16 @@ def login_view(request):
         
 
         # Return safe user-friendly message
-
+        # In development, return actual error for easier debugging
+        if django_settings.DEBUG:
+            return Response(
+                {'message': f'Login error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        # In production, return generic message
         return Response(
-
             {'message': 'An error occurred. Please try again later.'},
-
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
-
         )
 
 

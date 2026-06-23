@@ -54,16 +54,21 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_passport_info(self, obj):
         try:
-            p = obj.passport
-            return {
-                'points': p.points,
-                'level': p.level,
-                'trust_score': p.trust_score,
-            }
+            # Use hasattr to safely check if passport exists
+            if hasattr(obj, 'passport') and obj.passport:
+                p = obj.passport
+                return {
+                    'points': p.points,
+                    'level': p.level,
+                    'trust_score': p.trust_score,
+                }
+            else:
+                # User exists but has no passport (legacy data or migration issue)
+                logger.warning(f'[USER SERIALIZER] User {obj.id} has no passport profile')
+                return None
         except Exception as e:
-            # Defensive fallback: Return None if passport data is not available
-            # This should not happen after registration fix, but provides safety
-            logger.warning(f'[USER SERIALIZER] Passport data not available for user {obj.id}: {str(e)}')
+            # Defensive fallback for any unexpected errors
+            logger.error(f'[USER SERIALIZER] Passport data error for user {obj.id}: {str(e)}', exc_info=True)
             return None
 
 

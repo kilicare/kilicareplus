@@ -139,6 +139,11 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 AUTH_USER_MODEL = 'accounts.User'
 
+# CRITICAL: Explicitly configure Django to use email as username field
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'core.authentication.PublicEndpointAwareJWTAuthentication',
