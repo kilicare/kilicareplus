@@ -448,7 +448,7 @@ function ProfileContent() {
               <motion.div
                 className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full"
                 style={{ background: '#F5A623' }}
-                layoutId="activeTab"
+                layoutId="user-profile-activeTab"
               />
             )}
           </motion.button>

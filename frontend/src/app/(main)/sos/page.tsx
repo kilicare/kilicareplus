@@ -547,8 +547,8 @@ function RescueProgressTracker() {
         </p>
       </div>
       <div className="space-y-2">
-        {steps.map((step, index) => (
-          <div key={index} className="flex items-center gap-2">
+        {steps.map((step) => (
+          <div key={step.label} className="flex items-center gap-2">
             <span className="text-sm">
               {step.completed ? '✅' : '⏳'}
             </span>

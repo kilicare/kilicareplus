@@ -221,9 +221,8 @@ export function BottomNav({ className }: { className?: string }) {
                 <AnimatePresence>
                   {active && (
                     <motion.div
-                      layoutId="nav-indicator"
                       className="absolute -bottom-1.5 h-1 rounded-full"
-                      style={{ 
+                      style={{
                         background: `linear-gradient(90deg, transparent, ${colors.active}, transparent)`,
                         width: '24px',
                       }}
@@ -302,9 +301,8 @@ export function BottomNav({ className }: { className?: string }) {
               <AnimatePresence>
                 {active && (
                   <motion.div
-                    layoutId="nav-indicator"
                     className="absolute -bottom-1.5 h-1 rounded-full"
-                    style={{ 
+                    style={{
                       background: `linear-gradient(90deg, transparent, ${colors.active}, transparent)`,
                       width: '24px',
                     }}

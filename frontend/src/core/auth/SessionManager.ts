@@ -153,6 +153,14 @@ class SessionManager {
       
       if (!refreshSuccess) {
         console.log('[SessionManager] ❌ Token refresh failed - no valid session')
+        // PHASE 1 TELEMETRY: Log preservation trigger
+        const loginAge = this.freshLoginTimestamp ? Date.now() - this.freshLoginTimestamp : null
+        console.log('[SessionManager] TELEMETRY: Preservation Trigger', {
+          trigger: 'refresh_failure',
+          hadExistingUser,
+          loginAge: loginAge ? `${Math.floor(loginAge / 1000)}s` : null,
+          timestamp: new Date().toISOString(),
+        })
         // CRITICAL FIX: If we had a user from login, preserve it even if refresh fails
         // This prevents blank feed after login due to refresh failure
         if (hadExistingUser) {
@@ -196,6 +204,14 @@ class SessionManager {
         return true
       } else {
         console.log('[SessionManager] ❌ Session validation failed')
+        // PHASE 1 TELEMETRY: Log preservation trigger
+        const loginAge = this.freshLoginTimestamp ? Date.now() - this.freshLoginTimestamp : null
+        console.log('[SessionManager] TELEMETRY: Preservation Trigger', {
+          trigger: 'auth_me_failure',
+          hadExistingUser,
+          loginAge: loginAge ? `${Math.floor(loginAge / 1000)}s` : null,
+          timestamp: new Date().toISOString(),
+        })
         // CRITICAL FIX: If we had a user from login, preserve it even if /auth/me/ fails
         // This prevents blank feed after login due to /auth/me/ failure
         if (hadExistingUser) {
@@ -218,6 +234,15 @@ class SessionManager {
       }
     } catch (error) {
       console.error('[SessionManager] ❌ Session rehydration error:', error)
+      // PHASE 1 TELEMETRY: Log preservation trigger
+      const loginAge = this.freshLoginTimestamp ? Date.now() - this.freshLoginTimestamp : null
+      console.log('[SessionManager] TELEMETRY: Preservation Trigger', {
+        trigger: 'network_error',
+        hadExistingUser,
+        loginAge: loginAge ? `${Math.floor(loginAge / 1000)}s` : null,
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : String(error),
+      })
       // CRITICAL FIX: If we had a user from login, preserve it even on error
       // This prevents blank feed after login due to network errors
       if (hadExistingUser) {

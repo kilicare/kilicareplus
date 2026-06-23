@@ -373,9 +373,9 @@ export default function B2BPortalPage() {
                   { title: 'Marketing Materials', desc: 'Download logos and banners', icon: Download },
                   { title: 'Integration Guide', desc: 'Step-by-step setup guide', icon: Book },
                   { title: 'Support Portal', desc: 'Get help from our team', icon: ExternalLink },
-                ].map((resource, index) => (
+                ].map((resource) => (
                   <motion.button
-                    key={index}
+                    key={resource.title}
                     whileHover={{ scale: 1.01 }}
                     onClick={() => toast.info(`${resource.title} coming soon`)}
                     className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-all"
@@ -514,9 +514,9 @@ export default function B2BPortalPage() {
                 <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                   <p className="text-xs text-white/50 mb-2">Monthly Revenue Trend</p>
                   <div className="h-32 flex items-end gap-2">
-                    {[40, 65, 45, 80, 55, 70, 90].map((height, index) => (
+                    {[40, 65, 45, 80, 55, 70, 90].map((height) => (
                       <div
-                        key={index}
+                        key={`bar-${height}`}
                         className="flex-1 bg-gold/50 rounded-t"
                         style={{ height: `${height}%` }}
                       />

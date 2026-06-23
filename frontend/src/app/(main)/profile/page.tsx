@@ -449,7 +449,7 @@ function ProfileContent() {
             {activeTab === tab.key && (
               <motion.div
                 className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-gold-dim to-gold rounded-full"
-                layoutId="activeTab"
+                layoutId="profile-activeTab"
               />
             )}
           </button>

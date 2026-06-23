@@ -1,6 +1,7 @@
 'use client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { useMemo } from 'react'
 import {
   X,
   Calendar,
@@ -193,8 +194,11 @@ export function MoreGrid({ isOpen, onClose }: MoreGridProps) {
   const { notificationCount, chatCount } = useUIStore()
   const isAdmin = sessionValid && user?.role === 'ADMIN'
 
-  // Combine features with admin features if user is admin
-  const allFeatures = isAdmin ? [...FEATURES, ...ADMIN_FEATURES] : FEATURES
+  // Combine features with admin features if user is admin (memoized for stability)
+  const allFeatures = useMemo(() =>
+    isAdmin ? [...FEATURES, ...ADMIN_FEATURES] : FEATURES,
+    [isAdmin]
+  )
 
   // Add notification badge to notifications feature
   const featuresWithBadges = allFeatures.map(feature => {
