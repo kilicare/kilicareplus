@@ -15,7 +15,8 @@ export default function B2BPortalPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
 
-  // Mock data - replace with API calls
+  // Mock data - replace with API calls later
+  
   const [stats, setStats] = useState({
     totalBookings: 1247,
     activeUsers: 342,
