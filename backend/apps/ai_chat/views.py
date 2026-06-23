@@ -59,10 +59,13 @@ def chat_stream_view(request):
         try:
             from apps.moments.models import Moment
             moment = Moment.objects.get(id=moment_id)
+            # Extract media_type from media_items
+            primary_media = moment.media_items.filter(media_type__in=['image', 'video']).first()
+            media_type = primary_media.media_type if primary_media else 'image'
             moment_context = {
                 'caption': moment.caption or '',
                 'location': moment.location or 'Tanzania',
-                'media_type': moment.media_type,
+                'media_type': media_type,
                 'posted_by': moment.posted_by.username,
             }
         except Moment.DoesNotExist:

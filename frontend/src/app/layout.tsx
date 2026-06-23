@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   openGraph: {
     type:        'website',
     locale:      'sw_TZ',
-    url:         '/',
+    url:         `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/`,
     title:       'Kilicare+ — Tanzania\'s Smart Tourism Platform',
     description: 'Explore Tanzania with 350+ verified guides. Safari, Beach, Culture, AI Guide, SOS Safety & more.',
     siteName:    'Kilicare+',

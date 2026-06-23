@@ -1,10 +1,8 @@
 from django.db import models
 from django.conf import settings
-from cloudinary.models import CloudinaryField
 
 
 class Moment(models.Model):
-    MEDIA_CHOICES = [('image', 'Image'), ('video', 'Video')]
     VISIBILITY = [
         ('PUBLIC', 'Public'),
         ('FOLLOWERS', 'Followers'),
@@ -15,17 +13,6 @@ class Moment(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='moments',
-    )
-    media = CloudinaryField(resource_type="auto")
-    media_type = models.CharField(
-        max_length=10, choices=MEDIA_CHOICES, default='image'
-    )
-    thumbnail = CloudinaryField(
-        resource_type="image", null=True, blank=True
-    )
-    audio = CloudinaryField(
-        resource_type="video", null=True, blank=True,
-        help_text="Background music for this moment"
     )
     caption = models.TextField(max_length=500, null=True, blank=True)
     location = models.CharField(max_length=200, null=True, blank=True)
@@ -49,6 +36,37 @@ class Moment(models.Model):
 
     def like_count(self):
         return self.likes.count()
+
+
+class MomentMedia(models.Model):
+    MEDIA_TYPE_CHOICES = [
+        ('image', 'Image'),
+        ('video', 'Video'),
+        ('audio', 'Audio'),
+    ]
+
+    moment = models.ForeignKey(
+        Moment,
+        on_delete=models.CASCADE,
+        related_name='media_items',
+    )
+    media_type = models.CharField(
+        max_length=10,
+        choices=MEDIA_TYPE_CHOICES,
+    )
+    url = models.URLField(max_length=500)
+    public_id = models.CharField(max_length=255)
+    duration = models.FloatField(null=True, blank=True, help_text="Duration in seconds for audio/video")
+    width = models.IntegerField(null=True, blank=True, help_text="Width in pixels for image/video")
+    height = models.IntegerField(null=True, blank=True, help_text="Height in pixels for image/video")
+    file_size = models.BigIntegerField(null=True, blank=True, help_text="File size in bytes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.media_type} — {self.public_id}'
 
 
 class MomentLike(models.Model):

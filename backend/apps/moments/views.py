@@ -10,7 +10,7 @@ from datetime import timedelta
 import random
 import environ
 
-from .models import Moment, MomentLike, MomentSave
+from .models import Moment, MomentMedia, MomentLike, MomentSave
 from .serializers import MomentSerializer
 from core.throttles import LikeSpamThrottle, NotificationSpamThrottle
 from core.cache_utils import invalidate_feed_cache
@@ -43,7 +43,7 @@ def feed_view(request):
     seen_posts_key = f"seen_posts_{user_id}_{session_id}"
     seen_posts = cache.get(seen_posts_key, [])
 
-    base_queryset = Moment.objects.filter(visibility='PUBLIC').select_related('posted_by', 'posted_by__profile')
+    base_queryset = Moment.objects.filter(visibility='PUBLIC').select_related('posted_by', 'posted_by__profile').prefetch_related('media_items')
     
     if seen_posts:
         base_queryset = base_queryset.exclude(id__in=seen_posts)
@@ -138,7 +138,7 @@ def trending_view(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def create_moment_view(request):
     # SETTINGS GUARD: Check if Moments is enabled for this user
     from apps.settings.guards import require_feature_enabled

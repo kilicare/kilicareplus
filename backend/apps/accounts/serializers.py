@@ -180,7 +180,7 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'first_name', 'last_name', 'username', 'phone',
+            'first_name', 'last_name', 'username', 'email', 'phone',
             'bio', 'location', 'avatar', 'cover_photo',
             'gender', 'date_of_birth',
         ]

@@ -9,6 +9,14 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=False)
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
 
+# Validate BASE_URL in production mode
+BASE_URL = env('BASE_URL', default='http://localhost:8000')
+if not DEBUG and BASE_URL.startswith('http://localhost'):
+    raise ValueError(
+        'BASE_URL is set to localhost in production mode. '
+        'Please set BASE_URL to your production backend URL (e.g., https://your-app.onrender.com)'
+    )
+
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -200,6 +208,8 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://kilicareplus.vercel.app',
 ])
 
 # Phase 1: Enable credentials support for cookie-based refresh tokens
@@ -208,6 +218,8 @@ CORS_ALLOW_CREDENTIALS = True
 # Add CSRF trusted origins for cookie-based requests
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
     'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://kilicareplus.vercel.app',
 ])
 
 CLOUDINARY_STORAGE = {

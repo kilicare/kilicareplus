@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { momentsService, type Moment } from '@/services/moments.service'
 import { aiService } from '@/services/ai.service'
+import { uploadToCloudinary, validateFileForUpload, getResourceType, type UploadProgress } from '@/lib/cloudinary'
 import { KiliAvatar } from '@/components/ui/KiliAvatar'
 import { KiliBadge } from '@/components/ui/KiliBadge'
 import { TrustScoreRing } from '@/components/ui/TrustScoreRing'
@@ -304,19 +305,54 @@ function CreateMomentSheet({
   const [audioPreview, setAudioPreview] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLInputElement>(null)
   const qc = useQueryClient()
 
   const createMut = useMutation({
-    mutationFn: () => {
-      const form = new FormData()
-      form.append('media', file!)
-      form.append('media_type', file!.type.startsWith('video') ? 'video' : 'image')
-      if (caption) form.append('caption', caption)
-      if (location) form.append('location', location)
-      if (audio) form.append('audio', audio)
-      return momentsService.create(form)
+    mutationFn: async () => {
+      if (!file) throw new Error('No file selected')
+
+      // Build media items array
+      const mediaItemsData = []
+
+      // Step 1: Upload media to Cloudinary directly
+      const mediaResult = await uploadToCloudinary(file, (progress) => {
+        setUploadProgress(progress)
+      })
+
+      mediaItemsData.push({
+        media_type: (file.type.startsWith('video') ? 'video' : 'image') as 'image' | 'video' | 'audio',
+        url: mediaResult.secure_url,
+        public_id: mediaResult.public_id,
+        duration: mediaResult.duration,
+        width: mediaResult.width,
+        height: mediaResult.height,
+        file_size: mediaResult.bytes,
+      })
+
+      // Step 2: Upload audio to Cloudinary if provided
+      if (audio) {
+        const audioResult = await uploadToCloudinary(audio, (progress) => {
+          setUploadProgress({ ...progress, percentage: Math.round(progress.percentage * 0.3 + 70) }) // 70-100% range
+        })
+
+        mediaItemsData.push({
+          media_type: 'audio' as 'image' | 'video' | 'audio',
+          url: audioResult.secure_url,
+          public_id: audioResult.public_id,
+          duration: audioResult.duration,
+          file_size: audioResult.bytes,
+        })
+      }
+
+      // Step 3: Send metadata to Django
+      return momentsService.createWithMetadata({
+        media_items_data: mediaItemsData,
+        caption: caption || undefined,
+        location: location || undefined,
+      })
     },
     onMutate: async () => {
       // Cancel ongoing feed queries to avoid overwriting optimistic update
@@ -325,17 +361,45 @@ function CreateMomentSheet({
       // Snapshot previous feed data for rollback
       const previousFeed = qc.getQueryData(['feed'])
       
+      // Build media items array for optimistic update
+      const mediaItems = []
+      
+      // Add primary media (image or video)
+      if (file && preview) {
+        mediaItems.push({
+          id: Date.now() + 1,
+          media_type: (file.type.startsWith('video') ? 'video' : 'image') as 'image' | 'video' | 'audio',
+          url: URL.createObjectURL(file),
+          public_id: 'temp-' + Date.now(),
+          duration: undefined,
+          width: undefined,
+          height: undefined,
+          file_size: file.size,
+          created_at: new Date().toISOString(),
+        })
+      }
+      
+      // Add audio if provided
+      if (audio && audioPreview) {
+        mediaItems.push({
+          id: Date.now() + 2,
+          media_type: 'audio' as 'image' | 'video' | 'audio',
+          url: URL.createObjectURL(audio),
+          public_id: 'temp-audio-' + Date.now(),
+          duration: undefined,
+          file_size: audio.size,
+          created_at: new Date().toISOString(),
+        })
+      }
+      
       // Create temporary moment for optimistic update
       const tempMoment = {
-        id: Date.now(), // Use number instead of string
+        id: Date.now(),
         posted_by_username: user?.username || '',
         posted_by_avatar_url: user?.profile?.avatar_url || null,
         posted_by_role: user?.role || 'TOURIST',
         posted_by_verified: user?.is_verified || false,
-        media_url: preview ? URL.createObjectURL(file!) : null,
-        thumbnail_url: preview ? URL.createObjectURL(file!) : null,
-        audio_url: audioPreview ? URL.createObjectURL(audio!) : null,
-        media_type: file!.type.startsWith('video') ? 'video' : 'image',
+        media_items: mediaItems,
         caption: caption || null,
         location: location || null,
         latitude: null,
@@ -349,7 +413,7 @@ function CreateMomentSheet({
         trust_score: 0,
         visibility: 'PUBLIC',
         created_at: new Date().toISOString(),
-        is_optimistic: true, // Flag for optimistic update
+        is_optimistic: true,
       }
       
       // Optimistically add new moment to feed cache
@@ -388,21 +452,26 @@ function CreateMomentSheet({
       setAudioPreview(null)
       setCaption('')
       setLocation('')
+      setUploadProgress(null)
       onClose()
     },
     onSettled: () => {
       // Always refetch to ensure cache is in sync
       qc.invalidateQueries({ queryKey: ['feed'] })
+      setUploadProgress(null)
     },
   })
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (f.size > 50 * 1024 * 1024) {
-      toast.error('Faili lazima iwe chini ya 50MB')
+    
+    const validation = validateFileForUpload(f, 'media')
+    if (!validation.valid) {
+      toast.error(validation.error)
       return
     }
+    
     setFile(f)
     setPreview(URL.createObjectURL(f))
   }
@@ -410,14 +479,13 @@ function CreateMomentSheet({
   const handleAudio = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
-    if (f.size > 10 * 1024 * 1024) {
-      toast.error('Faili la sauti lazima iwe chini ya 10MB')
+    
+    const validation = validateFileForUpload(f, 'audio')
+    if (!validation.valid) {
+      toast.error(validation.error)
       return
     }
-    if (!f.type.startsWith('audio')) {
-      toast.error('Chagua faili la sauti (MP3, WAV, M4A, etc)')
-      return
-    }
+    
     setAudio(f)
     setAudioPreview(f.name)
   }
@@ -581,17 +649,37 @@ function CreateMomentSheet({
           </div>
         </div>
 
+        {/* Upload Progress */}
+        {uploadProgress && (
+          <div className="px-6 py-4 bg-bg-elevated border-t border-border-subtle">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-5 h-5 rounded-full border-2 border-gold border-t-transparent animate-spin" />
+              <span className="text-sm text-text-primary font-medium">
+               Please wait, uploading….. {uploadProgress.percentage}%
+              </span>
+            </div>
+            <div className="w-full h-2 bg-bg-base rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-gold-dim to-gold"
+                initial={{ width: 0 }}
+                animate={{ width: `${uploadProgress.percentage}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border-subtle bg-bg-elevated">
           <KiliButton
             fullWidth
             size="lg"
             loading={createMut.isPending}
-            disabled={!file}
+            disabled={!file || uploadProgress !== null}
             onClick={() => createMut.mutate()}
             className="!rounded-2xl"
           >
-            {createMut.isPending ? 'Posting...' : 'Post Moment'}
+            {createMut.isPending ? 'Creating moment...' : uploadProgress ? 'Uploading...' : 'Post Moment'}
           </KiliButton>
         </div>
       </div>
@@ -627,16 +715,31 @@ const MomentCard = memo(function MomentCard({
     [moment.id]
   )
 
+  // Helper functions to extract media from media_items array
+  const getPrimaryMedia = () => {
+    if (!moment.media_items || moment.media_items.length === 0) return null
+    // Return first non-audio item (image or video)
+    return moment.media_items.find(item => item.media_type !== 'audio') || moment.media_items[0]
+  }
+
+  const getAudioMedia = () => {
+    if (!moment.media_items || moment.media_items.length === 0) return null
+    return moment.media_items.find(item => item.media_type === 'audio')
+  }
+
+  const primaryMedia = getPrimaryMedia()
+  const audioMedia = getAudioMedia()
+
   // Detect when moment is in viewport
   const { elementRef, isVisible } = useInViewport({
     onEnter: async () => {
       // Play audio when moment enters viewport
-      if (moment.audio_url) {
+      if (audioMedia?.url) {
         await feedAudio.playMoment(moment.id)
         setAudioPlaying(true)
       }
       // Play video when moment enters viewport (if not muted)
-      if (moment.media_type === 'video' && !muted) {
+      if (primaryMedia?.media_type === 'video' && !muted) {
         await feedAudio.playMoment(moment.id)
       }
     },
@@ -650,23 +753,23 @@ const MomentCard = memo(function MomentCard({
 
   // Register audio element with feed audio manager
   useEffect(() => {
-    if (audioRef.current && moment.audio_url) {
+    if (audioRef.current && audioMedia?.url) {
       feedAudio.registerAudio(moment.id, audioRef.current)
       return () => {
         feedAudio.registerAudio(moment.id, null)
       }
     }
-  }, [moment.id, moment.audio_url, feedAudio])
+  }, [moment.id, audioMedia?.url, feedAudio])
 
   // Register video element with feed audio manager
   useEffect(() => {
-    if (videoRef.current && moment.media_type === 'video') {
+    if (videoRef.current && primaryMedia?.media_type === 'video') {
       feedAudio.registerVideo(moment.id, videoRef.current)
       return () => {
         feedAudio.registerVideo(moment.id, null)
       }
     }
-  }, [moment.id, moment.media_type, feedAudio])
+  }, [moment.id, primaryMedia?.media_type, feedAudio])
 
   // Handle double tap to trigger audio play (for manual control)
   const handleDoubleTap = useCallback(
@@ -684,7 +787,7 @@ const MomentCard = memo(function MomentCard({
         if (!localLiked) likeMut.mutate()
 
         // Also trigger audio play on double tap
-        if (moment.audio_url && audioRef.current && !audioPlaying) {
+        if (audioMedia?.url && audioRef.current && !audioPlaying) {
           try {
             await audioRef.current.play()
             await feedAudio.playMoment(moment.id)
@@ -696,7 +799,7 @@ const MomentCard = memo(function MomentCard({
       }
       lastTap.current = now
     },
-    [localLiked, audioPlaying, moment, feedAudio]
+    [localLiked, audioPlaying, moment, feedAudio, audioMedia?.url]
   )
 
   const likeMut = useMutation({
@@ -748,10 +851,10 @@ const MomentCard = memo(function MomentCard({
       style={{ height: '100dvh', width: '100%' }}
     >
       {/* Hidden audio element for background music */}
-      {moment.audio_url && (
+      {audioMedia?.url && (
         <audio
           ref={audioRef}
-          src={moment.audio_url}
+          src={audioMedia.url}
           loop
           crossOrigin="anonymous"
           onPlay={() => setAudioPlaying(true)}
@@ -764,10 +867,10 @@ const MomentCard = memo(function MomentCard({
         className="absolute inset-0 bg-black"
         onClick={handleDoubleTap}
       >
-        {moment.media_type === 'video' ? (
+        {primaryMedia?.media_type === 'video' ? (
           <video
             ref={videoRef}
-            src={moment.media_url || '/placeholder-video.mp4'}
+            src={primaryMedia.url || '/placeholder-video.mp4'}
             className="w-full h-full object-cover"
             loop
             muted={muted}
@@ -776,7 +879,7 @@ const MomentCard = memo(function MomentCard({
           />
         ) : (
           <Image
-            src={moment.media_url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%231a1a2e"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-size="24"%3ENo Image%3C/text%3E%3C/svg%3E'}
+            src={primaryMedia?.url || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect width="400" height="400" fill="%231a1a2e"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23666" font-size="24"%3ENo Image%3C/text%3E%3C/svg%3E'}
             alt={moment.caption || 'Moment'}
             fill
             className="object-cover"
@@ -894,7 +997,7 @@ const MomentCard = memo(function MomentCard({
         {/* Audio and video controls */}
         <div className="flex items-center gap-2">
           {/* Audio indicator */}
-          {moment.audio_url && (
+          {audioMedia?.url && (
             <motion.button
               onClick={() => {
                 if (audioRef.current) {
@@ -919,7 +1022,7 @@ const MomentCard = memo(function MomentCard({
           )}
 
           {/* Mute toggle for video */}
-          {moment.media_type === 'video' && (
+          {primaryMedia?.media_type === 'video' && (
             <motion.button
               onClick={async () => {
                 const newMuted = !muted

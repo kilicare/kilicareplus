@@ -48,6 +48,8 @@ function EditProfileSheet({
   const [form, setForm] = useState({
     first_name: user.first_name || '',
     last_name: user.last_name || '',
+    username: user.username || '',
+    email: user.email || '',
     bio: user.profile?.bio || '',
     location: user.profile?.location || '',
   })
@@ -60,6 +62,8 @@ function EditProfileSheet({
       const fd = new FormData()
       fd.append('first_name', form.first_name)
       fd.append('last_name', form.last_name)
+      fd.append('username', form.username)
+      fd.append('email', form.email)
       fd.append('bio', form.bio)
       fd.append('location', form.location)
       if (avatarFile) fd.append('avatar', avatarFile)
@@ -78,98 +82,149 @@ function EditProfileSheet({
     <KiliBottomSheet
       isOpen={isOpen}
       onClose={onClose}
-      title="✏️ Hariri Profile"
-      height="90"
+      title=""
+      height="full"
     >
-      <div className="p-5 space-y-4">
-        {/* Avatar picker */}
-        <div className="flex justify-center">
-          <div className="relative">
-            <KiliAvatar
-              src={avatarPreview || user.profile?.avatar_url}
-              name={`${user.first_name} ${user.last_name}`}
-              role={user.role}
-              isVerified={user.is_verified}
-              size="xl"
-            />
-            <motion.button
-              onClick={() => fileRef.current?.click()}
-              whileTap={{ scale: 0.9 }}
-              className="absolute bottom-0 right-0 w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: 'var(--gradient-gold)' }}
-            >
-              <Camera size={16} className="text-black" />
-            </motion.button>
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
+          <h2 className="text-xl font-bold text-text-primary">Edit Profile</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-bg-elevated flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Avatar picker */}
+          <div className="flex justify-center">
+            <div className="relative">
+              {avatarPreview ? (
+                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gold/30">
+                  <img
+                    src={avatarPreview}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <KiliAvatar
+                  src={user.profile?.avatar_url}
+                  name={`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'User'}
+                  role={user.role}
+                  isVerified={user.is_verified}
+                  size="xl"
+                />
+              )}
+              <motion.button
+                onClick={() => fileRef.current?.click()}
+                whileTap={{ scale: 0.9 }}
+                className="absolute bottom-0 right-0 w-10 h-10 rounded-xl bg-gradient-to-br from-gold-dim to-gold flex items-center justify-center shadow-lg shadow-gold/30"
+              >
+                <Camera size={18} className="text-black" />
+              </motion.button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) {
+                    setAvatarFile(f)
+                    setAvatarPreview(URL.createObjectURL(f))
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">Username</label>
             <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) {
-                  setAvatarFile(f)
-                  setAvatarPreview(URL.createObjectURL(f))
-                }
-              }}
+              value={form.username}
+              onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+              placeholder="Your username"
+              className="w-full bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 text-sm text-text-primary outline-none focus:border-gold focus:ring-2 focus:ring-gold/20 transition-all"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="your@email.com"
+              className="w-full bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 text-sm text-text-primary outline-none focus:border-gold focus:ring-2 focus:ring-gold/20 transition-all"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">First Name</label>
+            <input
+              value={form.first_name}
+              onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+              placeholder="Your first name"
+              className="w-full bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 text-sm text-text-primary outline-none focus:border-gold focus:ring-2 focus:ring-gold/20 transition-all"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">Last Name</label>
+            <input
+              value={form.last_name}
+              onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+              placeholder="Your last name"
+              className="w-full bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 text-sm text-text-primary outline-none focus:border-gold focus:ring-2 focus:ring-gold/20 transition-all"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">Bio</label>
+            <textarea
+              value={form.bio}
+              onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+              placeholder="Tell us about yourself..."
+              rows={4}
+              maxLength={300}
+              className="w-full bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 text-sm text-text-primary outline-none focus:border-gold focus:ring-2 focus:ring-gold/20 resize-none transition-all"
+            />
+            <div className="flex justify-between text-xs text-text-muted">
+              <span>Share your story</span>
+              <span>{form.bio.length}/300</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">Location</label>
+            <div className="flex items-center gap-3 bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 focus-within:border-gold focus-within:ring-2 focus-within:ring-gold/20 transition-all">
+              <MapPin size={18} className="text-gold flex-shrink-0" />
+              <input
+                value={form.location}
+                onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+                placeholder="e.g. Dar es Salaam, Tanzania"
+                className="flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
+              />
+            </div>
           </div>
         </div>
 
-        <KiliInput
-          label="Jina la Kwanza"
-          value={form.first_name}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, first_name: e.target.value }))
-          }
-          placeholder="Jina lako"
-        />
-
-        <KiliInput
-          label="Jina la Mwisho"
-          value={form.last_name}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, last_name: e.target.value }))
-          }
-          placeholder="Jina la ukoo"
-        />
-
-        <div>
-          <label className="text-sm font-medium text-text-secondary block mb-1.5">
-            Bio
-          </label>
-          <textarea
-            value={form.bio}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, bio: e.target.value }))
-            }
-            placeholder="Jiambie kidogo..."
-            rows={3}
-            maxLength={300}
-            className="w-full bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 text-sm text-text-primary outline-none focus:border-gold resize-none"
-          />
-          <p className="text-[10px] text-text-muted text-right mt-1">
-            {form.bio.length}/300
-          </p>
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border-subtle bg-bg-elevated">
+          <KiliButton
+            fullWidth
+            size="lg"
+            loading={mut.isPending}
+            onClick={() => mut.mutate()}
+            className="!rounded-2xl"
+          >
+            {mut.isPending ? 'Saving...' : 'Save Changes'}
+          </KiliButton>
         </div>
-
-        <KiliInput
-          label="Eneo"
-          value={form.location}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, location: e.target.value }))
-          }
-          placeholder="Mf. Dar es Salaam, Tanzania"
-          icon={<MapPin size={16} />}
-        />
-
-        <KiliButton
-          fullWidth size="lg"
-          loading={mut.isPending}
-          onClick={() => mut.mutate()}
-        >
-          Hifadhi Mabadiliko
-        </KiliButton>
       </div>
     </KiliBottomSheet>
   )
@@ -198,16 +253,16 @@ function FollowStats({
   })
 
   return (
-    <div className="flex items-center gap-6 justify-center py-4 border-y border-border-subtle">
+    <div className="flex items-center gap-4 justify-center py-4">
       {[
         { label: 'Moments', value: momentsCount },
         {
-          label: 'Wafuasi',
+          label: 'Followers',
           value: followData?.followers_count ?? 0,
           onClick: () => setShowFollowers(true),
         },
         {
-          label: 'Wanaofuata',
+          label: 'Following',
           value: followData?.following_count ?? 0,
           onClick: () => setShowFollowing(true),
         },
@@ -215,14 +270,14 @@ function FollowStats({
       ].map((stat) => (
         <motion.div
           key={stat.label}
-          className="text-center cursor-pointer"
+          className="text-center cursor-pointer group"
           whileTap={{ scale: 0.97 }}
           onClick={stat.onClick}
         >
-          <p className="text-xl font-black text-text-primary">
+          <p className="text-2xl font-black text-text-primary group-hover:text-gold transition-colors">
             {stat.value}
           </p>
-          <p className="text-xs text-text-muted">{stat.label}</p>
+          <p className="text-xs text-text-muted group-hover:text-text-primary transition-colors">{stat.label}</p>
         </motion.div>
       ))}
     </div>
@@ -272,14 +327,8 @@ function ProfileContent() {
   return (
     <div className="min-h-dvh bg-bg-base overflow-y-auto no-scrollbar">
       {/* Cover */}
-      <div
-        className="relative h-40"
-        style={{
-          background: user.profile?.cover_photo_url
-            ? undefined
-            : 'linear-gradient(135deg, rgba(245,166,35,0.15), rgba(10,10,15,0.9))',
-        }}
-      >
+      <div className="relative h-48">
+        <div className="absolute inset-0 bg-gradient-to-br from-gold/20 via-bg-base to-bg-base" />
         {user.profile?.cover_photo_url && (
           <Image
             src={mediaUrl(user.profile.cover_photo_url)}
@@ -289,46 +338,43 @@ function ProfileContent() {
             unoptimized
           />
         )}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(to bottom, transparent 50%, #0A0A0F 100%)',
-          }}
-        />
-        <div
-          className="absolute top-0 right-0 flex gap-2 p-4"
-          style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
-        >
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg-base" />
+        <div className="absolute top-0 right-0 flex gap-2 p-4" style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}>
           <motion.button
             onClick={() => setShowEdit(true)}
             whileTap={{ scale: 0.9 }}
-            className="w-9 h-9 glass rounded-xl flex items-center justify-center"
+            className="w-10 h-10 rounded-xl bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
           >
-            <Edit2 size={15} className="text-white" />
+            <Edit2 size={18} />
           </motion.button>
           <motion.button
             onClick={() => {
               navigator.clipboard.writeText(window.location.href)
-              toast.success('Link imekopwa!')
+              toast.success('Link copied!')
             }}
             whileTap={{ scale: 0.9 }}
-            className="w-9 h-9 glass rounded-xl flex items-center justify-center"
+            className="w-10 h-10 rounded-xl bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
           >
-            <Share2 size={15} className="text-white" />
+            <Share2 size={18} />
           </motion.button>
         </div>
       </div>
 
       {/* Avatar + Info */}
-      <div className="px-5 -mt-10 relative z-10 pb-4">
+      <div className="px-5 -mt-16 relative z-10 pb-4">
         <div className="flex items-end justify-between mb-4">
-          <KiliAvatar
-            src={user.profile?.avatar_url}
-            name={`${user.first_name} ${user.last_name}`}
-            role={user.role}
-            isVerified={user.is_verified}
-            size="xl"
-          />
+          <div className="relative">
+            <KiliAvatar
+              src={user.profile?.avatar_url}
+              name={`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'User'}
+              role={user.role}
+              isVerified={user.is_verified}
+              size="xl"
+            />
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-br from-gold-dim to-gold flex items-center justify-center shadow-lg shadow-gold/30">
+              <div className="w-4 h-4 rounded-full bg-white" />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             {passport && (
               <TrustScoreRing score={passport.trust_score} size="md" />
@@ -337,10 +383,10 @@ function ProfileContent() {
         </div>
 
         {/* Name + badges */}
-        <h1 className="text-xl font-black text-text-primary">
+        <h1 className="text-2xl font-black text-text-primary mb-1">
           {user.first_name} {user.last_name}
         </h1>
-        <p className="text-text-muted text-sm mb-2">
+        <p className="text-gold text-sm font-medium mb-3">
           @{user.username}
         </p>
         <div className="flex flex-wrap gap-2 mb-3">
@@ -358,24 +404,26 @@ function ProfileContent() {
 
         {/* Bio */}
         {user.profile?.bio && (
-          <p className="text-text-secondary text-sm leading-relaxed mb-2">
+          <p className="text-text-secondary text-sm leading-relaxed mb-3">
             {user.profile.bio}
           </p>
         )}
 
         {/* Location + joined */}
-        <div className="flex flex-wrap gap-4 text-xs text-text-muted mb-2">
+        <div className="flex flex-wrap gap-4 text-xs text-text-muted">
           {user.profile?.location && (
-            <div className="flex items-center gap-1">
-              <MapPin size={11} />
-              {user.profile.location}
+            <div className="flex items-center gap-1.5">
+              <MapPin size={12} className="text-gold" />
+              <span className="text-text-primary">{user.profile.location}</span>
             </div>
           )}
-          <div className="flex items-center gap-1">
-            <Calendar size={11} />
-            {new Date(user.date_joined).toLocaleDateString('sw-TZ', {
-              month: 'long', year: 'numeric',
-            })}
+          <div className="flex items-center gap-1.5">
+            <Calendar size={12} className="text-gold" />
+            <span className="text-text-primary">
+              Joined {new Date(user.date_joined).toLocaleDateString('en-US', {
+                month: 'short', year: 'numeric',
+              })}
+            </span>
           </div>
         </div>
       </div>
@@ -388,22 +436,22 @@ function ProfileContent() {
       />
 
       {/* Tabs */}
-      <div className="flex border-b border-border-subtle">
+      <div className="flex border-b border-border-subtle bg-bg-elevated/50">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key as typeof activeTab)}
-            className="flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors"
-            style={{
-              color: activeTab === tab.key ? 'var(--gold)' : 'var(--text-muted)',
-              borderBottom: activeTab === tab.key
-                ? '2px solid var(--gold)'
-                : '2px solid transparent',
-            }}
+            className="flex-1 flex flex-col items-center gap-1.5 py-4 text-sm font-medium transition-all relative"
           >
-            <tab.icon size={16} />
-            {tab.label}
-            <span className="text-[10px]">({tab.count})</span>
+            <tab.icon size={18} className={activeTab === tab.key ? 'text-gold' : 'text-text-muted'} />
+            <span className={activeTab === tab.key ? 'text-text-primary' : 'text-text-muted'}>{tab.label}</span>
+            <span className={`text-xs ${activeTab === tab.key ? 'text-gold font-bold' : 'text-text-muted'}`}>({tab.count})</span>
+            {activeTab === tab.key && (
+              <motion.div
+                className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-gradient-to-r from-gold-dim to-gold rounded-full"
+                layoutId="activeTab"
+              />
+            )}
           </button>
         ))}
       </div>
@@ -414,75 +462,84 @@ function ProfileContent() {
           {activeTab === 'moments' && (
             <motion.div
               key="moments"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="grid grid-cols-3 gap-1"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="grid grid-cols-3 gap-2"
             >
               {momentsLoading
                 ? [0,1,2,3,4,5].map((i) => (
-                    <SkeletonCard key={i} className="aspect-square" rounded="sm" />
+                    <SkeletonCard key={i} className="aspect-square" rounded="xl" />
                   ))
                 : myMoments.length === 0
-                ? <EmptyState icon="📸" title="Hakuna moments bado" className="col-span-3" />
-                : myMoments.map((m) => (
-                    <motion.div
-                      key={m.id}
-                      className="aspect-square rounded-lg overflow-hidden relative bg-bg-elevated"
-                      whileTap={{ scale: 0.97 }}
-                    >
-                      {m.media_url && (
-                        <Image
-                          src={m.media_url}
-                          alt={m.caption || ''}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      )}
-                    </motion.div>
-                  ))}
+                ? <EmptyState icon="📸" title="No moments yet" className="col-span-3" />
+                : myMoments.map((m) => {
+                    const primaryMedia = m.media_items?.find((item: any) => item.media_type !== 'audio') || m.media_items?.[0]
+                    const mediaUrl = primaryMedia?.url
+                    const isVideo = primaryMedia?.media_type === 'video'
+                    return (
+                      <motion.div
+                        key={m.id}
+                        className="aspect-square rounded-2xl overflow-hidden relative bg-bg-elevated"
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        {mediaUrl && isVideo ? (
+                          <video
+                            src={mediaUrl}
+                            className="w-full h-full object-cover"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                          />
+                        ) : mediaUrl ? (
+                          <Image
+                            src={mediaUrl}
+                            alt={m.caption || ''}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : null}
+                      </motion.div>
+                    )
+                  })}
             </motion.div>
           )}
 
           {activeTab === 'tips' && (
             <motion.div
               key="tips"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
               className="space-y-3"
             >
               {myTips.length === 0 ? (
-                <EmptyState icon="💡" title="Hakuna tips bado" />
+                <EmptyState icon="💡" title="No tips yet" />
               ) : (
                 myTips.map((tip) => (
-                  <div
+                  <motion.div
                     key={tip.id}
-                    className="rounded-2xl p-4"
-                    style={{
-                      background: 'rgba(26,26,36,0.8)',
-                      border: '1px solid rgba(255,255,255,0.07)',
-                    }}
+                    className="rounded-2xl p-4 bg-bg-elevated border border-border-subtle"
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <p className="text-xs text-text-muted mb-1">
-                      {tip.category}
-                    </p>
-                    <p className="text-sm font-bold text-text-primary">
-                      {tip.title}
-                    </p>
-                    <p className="text-xs text-text-muted mt-0.5 line-clamp-2">
-                      {tip.description}
-                    </p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-text-muted">
+                    <p className="text-xs text-gold font-medium mb-1">{tip.category}</p>
+                    <p className="text-sm font-bold text-text-primary">{tip.title}</p>
+                    <p className="text-xs text-text-muted mt-1.5 line-clamp-2">{tip.description}</p>
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-xs text-text-muted flex items-center gap-1">
                         👍 {tip.upvotes}
                       </span>
                       {tip.is_verified && (
-                        <span className="text-xs text-kili-green font-bold">
-                          ✓ Imethibitishwa
+                        <span className="text-xs text-gold font-bold flex items-center gap-1">
+                          ✓ Verified
                         </span>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 ))
               )}
             </motion.div>
@@ -491,55 +548,50 @@ function ProfileContent() {
           {activeTab === 'experiences' && (
             <motion.div
               key="experiences"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
               className="space-y-3"
             >
               {myExps.length === 0 ? (
-                <EmptyState icon="⭐" title="Hakuna uzoefu bado" />
+                <EmptyState icon="⭐" title="No experiences yet" />
               ) : (
                 myExps.map((exp) => (
-                  <div
+                  <motion.div
                     key={exp.id}
-                    className="flex items-center gap-3 rounded-2xl p-3"
-                    style={{
-                      background: 'rgba(26,26,36,0.8)',
-                      border: '1px solid rgba(255,255,255,0.07)',
-                    }}
+                    className="flex items-center gap-3 rounded-2xl p-4 bg-bg-elevated border border-border-subtle"
+                    whileTap={{ scale: 0.98 }}
                   >
                     {exp.primary_image?.file_url ? (
                       <img
                         src={exp.primary_image.file_url}
                         alt={exp.title}
-                        className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
+                        className="w-20 h-20 rounded-xl object-cover flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-xl bg-bg-elevated flex items-center justify-center text-2xl flex-shrink-0">
+                      <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gold-dim to-gold/20 flex items-center justify-center text-3xl flex-shrink-0">
                         ⭐
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-text-primary truncate">
-                        {exp.title}
-                      </p>
-                      <p className="text-xs text-text-muted">{exp.category}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-text-muted">
+                      <p className="text-sm font-bold text-text-primary truncate">{exp.title}</p>
+                      <p className="text-xs text-gold mt-0.5">{exp.category}</p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="text-xs text-text-muted flex items-center gap-1">
                           👁️ {exp.views}
                         </span>
                         {exp.today_moment_active && (
-                          <span className="text-xs text-kili-green font-bold">
-                            ⚡ Leo!
+                          <span className="text-xs text-gold font-bold flex items-center gap-1">
+                            ⚡ Today
                           </span>
                         )}
                         {exp.price_range && (
-                          <span className="text-xs text-gold">
-                            {exp.price_range}
-                          </span>
+                          <span className="text-xs text-gold font-bold">{exp.price_range}</span>
                         )}
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))
               )}
             </motion.div>

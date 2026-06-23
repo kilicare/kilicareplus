@@ -424,33 +424,47 @@ export default function DiscoverPage() {
             </Link>
           </div>
           <div className="grid grid-cols-3 gap-1.5">
-            {trendingMoments.map((m, i) => (
-              <Link key={m.id} href="/feed">
-                <motion.div
-                  className="aspect-square rounded-xl overflow-hidden relative bg-bg-elevated"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.7 + (i * 0.05) }}
-                  whileHover={{ scale: 1.05, zIndex: 10 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  {m.media_url && (
-                    <Image
-                      src={m.media_url}
-                      alt={m.caption || ''}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                  )}
-                  <div className="absolute bottom-1 left-1">
-                    <span className="text-[9px] text-white font-bold drop-shadow-lg">
-                      👁 {formatCount(m.views)}
-                    </span>
-                  </div>
-                </motion.div>
-              </Link>
-            ))}
+            {trendingMoments.map((m, i) => {
+              const primaryMedia = m.media_items?.find((item: any) => item.media_type !== 'audio') || m.media_items?.[0]
+              const mediaUrl = primaryMedia?.url
+              const isVideo = primaryMedia?.media_type === 'video'
+              return (
+                <Link key={m.id} href="/feed">
+                  <motion.div
+                    className="aspect-square rounded-xl overflow-hidden relative bg-bg-elevated"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.7 + (i * 0.05) }}
+                    whileHover={{ scale: 1.05, zIndex: 10 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    {mediaUrl && isVideo ? (
+                      <video
+                        src={mediaUrl}
+                        className="w-full h-full object-cover"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                      />
+                    ) : mediaUrl ? (
+                      <Image
+                        src={mediaUrl}
+                        alt={m.caption || ''}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : null}
+                    <div className="absolute bottom-1 left-1">
+                      <span className="text-[9px] text-white font-bold drop-shadow-lg">
+                        👁 {formatCount(m.views)}
+                      </span>
+                    </div>
+                  </motion.div>
+                </Link>
+              )
+            })}
           </div>
         </motion.div>
       )}

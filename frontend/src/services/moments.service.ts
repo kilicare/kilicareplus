@@ -1,4 +1,17 @@
 import api from '@/core/api/axios'
+import { tokenManager } from '@/core/auth/TokenManager'
+
+export interface MediaItem {
+  id: number
+  media_type: 'image' | 'video' | 'audio'
+  url: string
+  public_id: string
+  duration?: number
+  width?: number
+  height?: number
+  file_size?: number
+  created_at: string
+}
 
 export interface Moment {
   id: number
@@ -6,10 +19,7 @@ export interface Moment {
   posted_by_avatar_url: string | null
   posted_by_role: string
   posted_by_verified: boolean
-  media_url: string | null
-  thumbnail_url: string | null
-  audio_url: string | null
-  media_type: 'image' | 'video'
+  media_items: MediaItem[]
   caption: string | null
   location: string | null
   latitude: number | null
@@ -46,10 +56,28 @@ export const momentsService = {
     return data
   },
 
-  async create(formData: FormData): Promise<Moment> {
-    const { data } = await api.post<Moment>('/api/moments/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+  async createWithMetadata(payload: {
+    media_items_data: Array<{
+      media_type: 'image' | 'video' | 'audio'
+      url: string
+      public_id: string
+      duration?: number
+      width?: number
+      height?: number
+      file_size?: number
+    }>
+    caption?: string
+    location?: string
+  }): Promise<Moment> {
+    // Verify token exists before making request
+    const token = tokenManager.getAccessToken()
+    if (!token) {
+      console.error('[Moments] No access token available for POST /api/moments/')
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    console.log('[Moments] POST /api/moments/ with token:', token.substring(0, 20) + '...')
+    const { data } = await api.post<Moment>('/api/moments/', payload)
     return data
   },
 
