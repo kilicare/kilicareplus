@@ -92,15 +92,16 @@ TEMPLATES = [{
     },
 }]
 
+# Database configuration using DATABASE_URL
+# Automatically switches between local PostgreSQL and Render PostgreSQL
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME'),
-        'USER': env('DB_USER'),
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST'),
-        'PORT': env('DB_PORT'),
-    }
+    'default': dj_database_url.config(
+        default=env('DATABASE_URL', default='postgresql://lastmateru:Gervas03@@@localhost:5432/kilicarego'),
+        conn_max_age=600,
+        ssl_require='sslmode=require' if not DEBUG else None,
+    )
 }
 
 # Safe channel layer: Use InMemoryChannelLayer for dev mode (no Redis dependency)
