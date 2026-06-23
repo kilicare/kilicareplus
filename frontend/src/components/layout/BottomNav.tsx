@@ -67,12 +67,9 @@ export function BottomNav({ className }: { className?: string }) {
       {...swipeUpHandlers}
     >
       <div className="flex items-center justify-around h-full px-1">
-          {NAV.map(({ href, Icon, label, id, isSOS, isMore, isNotifications, isChat }) => {
-          // Skip notifications and chat items for LOCAL_GUIDE, TOURIST, and ADMIN
-          if ((isNotifications || isChat) && shouldHideNavItems) {
-            return null
-          }
-
+          {NAV.filter(({ isNotifications, isChat }) => 
+            !((isNotifications || isChat) && shouldHideNavItems)
+          ).map(({ href, Icon, label, id, isSOS, isMore, isNotifications }) => {
           const active =
             pathname === href ||
             (href !== '/' && pathname.startsWith(href + '/'))
