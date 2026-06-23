@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/ui.store'
 import { useMoreGridStore } from '@/stores/moreGrid.store'
 import { useLongPress, useSwipeUp } from '@/hooks/useGestures'
+import { useSession } from '@/hooks/useSession'
 
 // Color mapping for each nav item
 const ICON_COLORS: { [key: string]: { base: string; active: string; glow: string } } = {
@@ -19,14 +20,14 @@ const ICON_COLORS: { [key: string]: { base: string; active: string; glow: string
 }
 
 const NAV = [
-  { href: '/feed',     Icon: Home,          label: 'Feed',     id: 'feed'     },
-  { href: '/discover', Icon: Compass,       label: 'Gundua',   id: 'discover' },
-  { href: '/ai',       Icon: Bot,           label: 'AI',       id: 'ai'       },
-  { href: '/sos',      Icon: Shield,        label: 'SOS',      id: 'sos', isSOS: true },
-  { href: '/chat',     Icon: MessageSquare, label: 'Chat',     id: 'chat'     },
-  { href: '/notifications', Icon: Bell,     label: 'Arifa',   id: 'notifications', isNotifications: true },
-  { href: '/profile',  Icon: User,          label: 'Mimi',     id: 'profile'  },
-  { href: '/more',     Icon: Grid,          label: 'More',     id: 'more',   isMore: true },
+  { href: '/feed',     Icon: Home,          label: 'Home',        id: 'feed' },
+  { href: '/discover', Icon: Compass,       label: 'Explore',     id: 'discover' },
+  { href: '/ai',       Icon: Bot,           label: 'AI',          id: 'ai' },
+  { href: '/sos',      Icon: Shield,        label: 'SOS',         id: 'sos', isSOS: true },
+  { href: '/chat',     Icon: MessageSquare, label: 'Chats',       id: 'chat', isChat: true },
+  { href: '/notifications', Icon: Bell,     label: 'Alerts',     id: 'notifications', isNotifications: true },
+  { href: '/profile',  Icon: User,          label: 'Profile',     id: 'profile' },
+  { href: '/more',     Icon: Grid,          label: 'More',        id: 'more', isMore: true },
 ]
 
 export function BottomNav({ className }: { className?: string }) {
@@ -34,6 +35,10 @@ export function BottomNav({ className }: { className?: string }) {
   const router = useRouter()
   const { notificationCount } = useUIStore()
   const { openMoreGrid } = useMoreGridStore()
+  const { user, sessionValid } = useSession()
+
+  // Check if user is LOCAL_GUIDE, TOURIST, or ADMIN - hide notifications and chat for these roles
+  const shouldHideNavItems = sessionValid && user && (user.role === 'LOCAL_GUIDE' || user.role === 'TOURIST' || user.role === 'ADMIN')
 
   // Long press to open MoreGrid
   const longPressHandlers = useLongPress({
@@ -62,7 +67,12 @@ export function BottomNav({ className }: { className?: string }) {
       {...swipeUpHandlers}
     >
       <div className="flex items-center justify-around h-full px-1">
-          {NAV.map(({ href, Icon, label, id, isSOS, isMore, isNotifications }) => {
+          {NAV.map(({ href, Icon, label, id, isSOS, isMore, isNotifications, isChat }) => {
+          // Skip notifications and chat items for LOCAL_GUIDE, TOURIST, and ADMIN
+          if ((isNotifications || isChat) && shouldHideNavItems) {
+            return null
+          }
+
           const active =
             pathname === href ||
             (href !== '/' && pathname.startsWith(href + '/'))

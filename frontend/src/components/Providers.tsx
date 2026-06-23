@@ -36,14 +36,23 @@ function NetworkErrorWatcher() {
   const [showNetworkError, setShowNetworkError] = useState(false)
 
   useEffect(() => {
+    let hideTimer: NodeJS.Timeout
+
     // Listen for network errors from axios interceptor
     const handleNetworkError = (event: CustomEvent) => {
       setShowNetworkError(true)
+      // Auto-hide after 5 seconds
+      hideTimer = setTimeout(() => {
+        setShowNetworkError(false)
+      }, 5000)
     }
 
     // Hide banner when network comes back
     const handleOnline = () => {
       setShowNetworkError(false)
+      if (hideTimer) {
+        clearTimeout(hideTimer)
+      }
     }
 
     window.addEventListener('network-error' as any, handleNetworkError as any)
@@ -52,6 +61,9 @@ function NetworkErrorWatcher() {
     return () => {
       window.removeEventListener('network-error' as any, handleNetworkError as any)
       window.removeEventListener('online', handleOnline)
+      if (hideTimer) {
+        clearTimeout(hideTimer)
+      }
     }
   }, [])
 

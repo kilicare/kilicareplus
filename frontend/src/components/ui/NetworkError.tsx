@@ -31,10 +31,10 @@ export function NetworkError({ visible, onRetry }: NetworkErrorProps) {
               </div>
               <div>
                 <p className="text-sm font-medium text-red-300">
-                  Hakuna mtandao / No network connection
+                  No Internet
                 </p>
                 <p className="text-xs text-red-400/70">
-                  Tafuta mtandao uunganisho ili kuendelea
+                  Check your connection
                 </p>
               </div>
             </div>

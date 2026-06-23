@@ -15,9 +15,12 @@ import {
   Users,
   Activity,
   Building2,
+  Bell,
+  MessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/hooks/useSession'
+import { useUIStore } from '@/stores/ui.store'
 
 // Color mapping for each feature
 const FEATURE_COLORS: { [key: string]: { gradient: string; glow: string; text: string } } = {
@@ -28,6 +31,8 @@ const FEATURE_COLORS: { [key: string]: { gradient: string; glow: string; text: s
   analytics: { gradient: 'from-red-500/20 to-pink-500/10', glow: 'rgba(239, 68, 68, 0.3)', text: 'text-red-300' },
   showcase: { gradient: 'from-yellow-500/20 to-amber-500/10', glow: 'rgba(234, 179, 8, 0.3)', text: 'text-yellow-300' },
   settings: { gradient: 'from-slate-500/20 to-gray-500/10', glow: 'rgba(100, 116, 139, 0.3)', text: 'text-slate-300' },
+  notifications: { gradient: 'from-pink-500/20 to-rose-500/10', glow: 'rgba(236, 72, 153, 0.3)', text: 'text-pink-300' },
+  chat: { gradient: 'from-purple-500/20 to-violet-500/10', glow: 'rgba(167, 139, 250, 0.3)', text: 'text-purple-300' },
   // Admin-specific colors
   'admin-dashboard': { gradient: 'from-red-600/20 to-rose-500/10', glow: 'rgba(220, 38, 38, 0.3)', text: 'text-red-400' },
   'admin-payments': { gradient: 'from-green-600/20 to-emerald-500/10', glow: 'rgba(16, 185, 129, 0.3)', text: 'text-green-400' },
@@ -92,6 +97,20 @@ const FEATURES: MoreFeature[] = [
     description: 'Portfolio view',
     Icon: Star,
     href: '/showcase',
+  },
+  {
+    id: 'chat',
+    label: 'Chats',
+    description: 'Messages',
+    Icon: MessageSquare,
+    href: '/chat',
+  },
+  {
+    id: 'notifications',
+    label: 'Arifa',
+    description: 'Notifications',
+    Icon: Bell,
+    href: '/notifications',
   },
   {
     id: 'settings',
@@ -171,10 +190,28 @@ interface MoreGridProps {
 export function MoreGrid({ isOpen, onClose }: MoreGridProps) {
   const router = useRouter()
   const { sessionValid, user } = useSession()
+  const { notificationCount, chatCount } = useUIStore()
   const isAdmin = sessionValid && user?.role === 'ADMIN'
 
   // Combine features with admin features if user is admin
   const allFeatures = isAdmin ? [...FEATURES, ...ADMIN_FEATURES] : FEATURES
+
+  // Add notification badge to notifications feature
+  const featuresWithBadges = allFeatures.map(feature => {
+    if (feature.id === 'notifications' && notificationCount > 0) {
+      return {
+        ...feature,
+        badge: notificationCount > 9 ? '9+' : notificationCount.toString(),
+      }
+    }
+    if (feature.id === 'chat' && chatCount > 0) {
+      return {
+        ...feature,
+        badge: chatCount > 9 ? '9+' : chatCount.toString(),
+      }
+    }
+    return feature
+  })
 
   const handleFeatureClick = (href: string) => {
     router.push(href)
@@ -268,7 +305,7 @@ export function MoreGrid({ isOpen, onClose }: MoreGridProps) {
                 animate="visible"
                 className="grid grid-cols-2 gap-4"
               >
-                {allFeatures.map((feature) => {
+                {featuresWithBadges.map((feature) => {
                   const colors = FEATURE_COLORS[feature.id] || FEATURE_COLORS.settings
                   return (
                     <motion.button
