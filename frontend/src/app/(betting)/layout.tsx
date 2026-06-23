@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator'
@@ -12,37 +12,18 @@ export default function BettingLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { isAuthenticated, isLoading } = useAuthStore()
+  const { sessionValid, isLoading } = useSession()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  // LOADING STATE
+  // LOADING STATE - Splash screen handles boot UI, no spinner here
   if (isLoading) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center bg-bg-base">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 rounded-full border-2 border-gold border-t-transparent animate-spin" />
-          <p className="text-sm text-text-muted">
-            Verifying authentication...
-          </p>
-        </div>
-      </div>
-    )
+    return null
   }
 
-  // NOT AUTHENTICATED STATE
-  // REMOVED: Redirect logic that was causing race condition
-  // ProtectedRoute handles redirect logic - layout should only show loading state
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center bg-bg-base">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 rounded-full border-2 border-gold border-t-transparent animate-spin" />
-          <p className="text-sm text-text-muted">
-            Verifying authentication...
-          </p>
-        </div>
-      </div>
-    )
+  // NOT AUTHENTICATED STATE - Redirect to login
+  // ProtectedRoute handles the actual redirect - this is a fallback
+  if (!sessionValid) {
+    return null // Let ProtectedRoute handle redirect
   }
 
   // MAIN APP LAYOUT

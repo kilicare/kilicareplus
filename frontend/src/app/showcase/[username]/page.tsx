@@ -20,7 +20,7 @@ import { KiliBottomSheet } from '@/components/ui/KiliBottomSheet'
 import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatCurrency, parseApiError } from '@/lib/utils'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 
 // ── Item detail sheet ───────────────────────────────
 function ItemDetailSheet({
@@ -35,7 +35,7 @@ function ItemDetailSheet({
   ownerUsername: string
 }) {
   const router = useRouter()
-  const { user } = useAuthStore()
+  const { sessionValid, user } = useSession()
   const qc = useQueryClient()
   const [qty, setQty] = useState(1)
   const [imgIdx, setImgIdx] = useState(0)

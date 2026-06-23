@@ -3,18 +3,21 @@ import type { AuthResponse, User } from '@/types'
 import { tokenManager } from '@/core/auth/TokenManager'
 
 /**
- * Authentication Service
+ * Authentication Service (Phase 2: Memory-Based)
  * 
- * Handles all auth-related API calls with localStorage-based JWT tokens.
+ * Handles all auth-related API calls with memory-based JWT tokens.
  * 
  * FLOW:
  * 1. Login: Backend returns tokens in JSON response
- * 2. Frontend stores both tokens in localStorage
- * 3. Axios interceptor automatically attaches access token to Authorization header
- * 4. On 401: Axios interceptor reads refresh token from localStorage
- * 5. Axios calls /auth/refresh/ with refresh token in request body
- * 6. Backend returns new access token
- * 7. Axios updates localStorage and retries original request
+ * 2. Frontend stores access token in memory (refresh token in cookie)
+ * 3. Axios interceptor automatically attaches access token from memory
+ * 4. On 401: Backend handles refresh automatically via cookies
+ * 5. Axios retries request with new access token from API response
+ * 
+ * Phase 2 changes:
+ * - No localStorage usage
+ * - Access tokens in memory only
+ * - Refresh tokens in HttpOnly cookies (backend responsibility)
  */
 export const authService = {
   async register(data: {
@@ -50,9 +53,8 @@ export const authService = {
   },
 
   async login(email: string, password: string): Promise<AuthResponse> {
-    // CRITICAL: Clear stale auth state BEFORE authentication attempt
-    // This prevents legacy token leakage and ensures clean login
-    tokenManager.clearTokens()
+    // Phase 2: SessionManager handles token clearing via logout()
+    // This service only makes the API call
 
     try {
       const { data } = await api.post<AuthResponse>('/auth/login/', {
@@ -63,32 +65,26 @@ export const authService = {
       // NOTE: Tokens are NOT stored here
       // SessionManager.login() is the SINGLE entry point for session state
       // Call SessionManager.login() after receiving this response
+      // SessionManager will store access token in memory
 
       return data
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      // On login failure, ensure tokens remain cleared
-      tokenManager.clearTokens()
       throw error
     }
   },
 
   async logout() {
     try {
-      // Get refresh token before clearing
-      const refreshToken = tokenManager.getRefreshToken()
-
-      // CRITICAL ARCHITECTURE CHANGE:
-      // DO NOT clear tokens here. SessionManager.logout() is the SINGLE entry point.
-      // This method only calls the backend blacklist API.
-      // Token clearing is handled by SessionManager.logout() in the caller.
+      // Phase 2: No refresh token to send (it's in HttpOnly cookie)
+      // Backend handles cookie deletion when we call /auth/logout/
 
       try {
-        // Send refresh token to backend for blacklisting (optional)
-        await api.post('/auth/logout/', { refresh: refreshToken })
+        // Call backend to blacklist tokens (optional)
+        await api.post('/auth/logout/', {})
       } catch {
-        // Log error but don't throw - tokens will be cleared by SessionManager
         // Silently ignore API errors
+        // Token clearing is handled by SessionManager.logout()
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -193,26 +189,20 @@ export const authService = {
   /**
    * Get current authenticated user from backend
    *
-   * CRITICAL: Called on app load to verify localStorage-based JWT tokens
+   * Phase 2: Called during SessionManager.boot() to validate session
    *
    * Flow:
-   * 1. Check if tokens exist in localStorage
-   * 2. If yes, send GET request to /auth/me/ with Authorization header
-   * 3. Axios request interceptor automatically attaches access token
-   * 4. Backend validates token and returns user data
-   * 5. If 401 → tokens are invalid/expired, refresh will be attempted
-   * 6. If refresh succeeds → user is authenticated
-   * 7. If refresh fails → user must login again
+   * 1. Send GET request to /auth/me/ with Authorization header
+   * 2. Axios request interceptor automatically attaches access token from memory
+   * 3. Backend validates token and returns user data
+   * 4. If 401 → axios will attempt cookie-based refresh automatically
+   * 5. If success → user is authenticated
+   * 6. If all retries fail → axios rejects with isAuthError
    *
    * This endpoint is the SOURCE OF TRUTH for authentication state
    */
   async getMe(): Promise<User> {
     try {
-      // Check if tokens exist before attempting
-      if (!tokenManager.hasTokens()) {
-        throw new Error('No tokens found in localStorage')
-      }
-
       const { data } = await api.get<User>('/auth/me/')
 
       return data

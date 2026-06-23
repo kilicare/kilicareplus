@@ -122,16 +122,24 @@ class WebSocketManager {
     // Validate token before connecting
     if (!tokenManager.isTokenValid()) {
       console.log('[WS] Token invalid, attempting refresh...')
-      const refreshed = await tokenManager.refreshIfPossible()
-      if (!refreshed) {
-        console.warn('[WS] Token refresh failed, skipping connection')
+      
+      try {
+        // Import api dynamically to avoid circular dependency
+        const api = (await import('@/core/api/axios')).default
+        const { data } = await api.post('/auth/refresh/', {})
+        
+        console.log('[WS] ✅ Token refresh successful')
+        tokenManager.setAccessToken(data.access)
+        
+        // Rebuild URL with fresh token
+        const token = tokenManager.getAccessToken()
+        this.url = buildWsUrl(this.path)
+        if (token) {
+          this.url += this.url.includes('?') ? `&kili_access_token=${encodeURIComponent(token)}` : `?kili_access_token=${encodeURIComponent(token)}`
+        }
+      } catch (refreshError) {
+        console.warn('[WS] ❌ Token refresh failed, skipping connection')
         return
-      }
-      // Rebuild URL with fresh token
-      const token = tokenManager.getAccessToken()
-      this.url = buildWsUrl(this.path)
-      if (token) {
-        this.url += this.url.includes('?') ? `&kili_access_token=${encodeURIComponent(token)}` : `?kili_access_token=${encodeURIComponent(token)}`
       }
     }
 

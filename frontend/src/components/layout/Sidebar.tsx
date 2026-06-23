@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 import { performLogout } from '@/core/auth/logout'
 import { authService } from '@/services/auth.service'
 import { KiliAvatar } from '@/components/ui/KiliAvatar'
@@ -76,11 +76,11 @@ export function Sidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user } = useAuthStore()
+  const { sessionValid, user } = useSession()
   const { notificationCount } = useUIStore()
 
-  const isGuide = user?.role === 'LOCAL_GUIDE'
-  const isAdmin = user?.role === 'ADMIN'
+  const isGuide = sessionValid && user?.role === 'LOCAL_GUIDE'
+  const isAdmin = sessionValid && user?.role === 'ADMIN'
 
   function NavItem({
     href,

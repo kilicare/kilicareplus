@@ -14,6 +14,7 @@ import { sessionManager } from '@/core/auth/SessionManager'
  * - Subscribe to SessionManager state
  * - Sync SessionManager state to useAuthStore
  * - Skip auth verification for public routes
+ * - Trigger session rehydration on protected routes
  * 
  * AUTHENTICATION DECISIONS are made by SessionManager ONLY
  * 
@@ -23,14 +24,17 @@ import { sessionManager } from '@/core/auth/SessionManager'
  * - This prevents redirect loops and race conditions
  * 
  * PUBLIC ROUTES: Skip loading state for /landing and other public routes
+ * 
+ * Phase 3: Hard boot on protected routes - NO SKIPPING
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setAuthenticated, setLoading } = useAuthStore()
+  const { setUser, setAuthenticated, setLoading, setSessionValid } = useAuthStore()
   const pathname = usePathname()
   
   // Public routes that don't require auth verification
-  const publicRoutes = ['/', '/landing', '/login', '/register']
-  const isPublicRoute = publicRoutes.some(route => pathname?.startsWith(route))
+  // CRITICAL FIX: '/' must only match exactly '/', not as prefix for all routes
+  const publicRoutes = ['/landing', '/login', '/register']
+  const isPublicRoute = publicRoutes.some(route => pathname?.startsWith(route)) || pathname === '/'
 
   useEffect(() => {
     console.log('[AuthProvider] 🚀 AUTH PROVIDER MOUNT')
@@ -41,11 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isPublicRoute) {
       console.log('[AuthProvider] Public route detected, skipping auth verification')
       setLoading(false)
+      setSessionValid(false)
       return
     }
 
     const initializeAuth = async () => {
-      console.log('[AuthProvider] 🚀 Initializing auth via SessionManager...')
+      console.log('[AuthProvider] 🚀 Initializing auth via SessionManager.rehydrate()...')
       
       // Subscribe FIRST to ensure immediate state sync
       // SessionManager.subscribe() immediately calls listener with current state
@@ -54,18 +59,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isAuthenticated: sessionState.isAuthenticated,
           isLoading: sessionState.isLoading,
           hasUser: !!sessionState.user,
+          sessionValid: sessionState.sessionValid,
         })
         
         // Sync SessionManager state to useAuthStore
         setAuthenticated(sessionState.isAuthenticated)
         setLoading(sessionState.isLoading)
         setUser(sessionState.user)
+        
+        // CRITICAL FIX: Use sessionValid from SessionManager instead of deriving it
+        // sessionValid is only true when authenticated AND user is present
+        // This prevents feed from triggering when user is null
+        setSessionValid(sessionState.sessionValid)
       })
       
-      // THEN boot SessionManager (this handles token validation and refresh)
-      console.log('[AuthProvider] Calling SessionManager.boot()...')
-      await sessionManager.boot()
-      console.log('[AuthProvider] SessionManager.boot() completed')
+      // Phase 3: HARD BOOT - NO SKIPPING under ANY condition
+      // Always call rehydrate() on protected routes
+      console.log('[AuthProvider] Calling SessionManager.rehydrate() (HARD BOOT - NO SKIP)...')
+      const rehydrated = await sessionManager.rehydrate()
+      console.log('[AuthProvider] SessionManager.rehydrate() completed:', rehydrated)
       
       // Cleanup on unmount
       return () => {

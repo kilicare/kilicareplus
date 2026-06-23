@@ -1,5 +1,5 @@
 'use client'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -8,17 +8,22 @@ export default function CreatorLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user } = useAuthStore()
+  const { sessionValid, user } = useSession()
   const router = useRouter()
 
   useEffect(() => {
-    // MINIMAL ROLE GUARD: UI-level protection only
-    // Redirect to /feed if user doesn't have required role
-    // This is a UI guard, not a navigation redirect
-    if (user && !['LOCAL_GUIDE', 'ADMIN'].includes(user.role)) {
+    // ENFORCEMENT RULE: Check sessionValid BEFORE role check
+    // This ensures session is validated before role-based decisions
+    if (sessionValid && user && !['LOCAL_GUIDE', 'ADMIN'].includes(user.role)) {
       router.push('/feed')
     }
-  }, [user, router])
+  }, [sessionValid, user, router])
+
+  // ENFORCEMENT RULE: Return null if session is not valid
+  // This prevents rendering without proper session validation
+  if (!sessionValid) {
+    return null
+  }
 
   return <>{children}</>
 }

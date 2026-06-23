@@ -17,7 +17,9 @@ export class ApiClient {
     }
 
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('kili_access_token')
+      // Phase 2: Use TokenManager for memory-based access token (not localStorage)
+      const { tokenManager } = require('@/core/auth/TokenManager')
+      const token = tokenManager.getAccessToken()
       if (token) {
         headers['Authorization'] = `Bearer ${token}`
       }

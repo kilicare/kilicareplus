@@ -72,7 +72,9 @@ class OfflineQueue {
   }
 
   private async executeAction(action: QueuedAction): Promise<void> {
-    const token = localStorage.getItem('kili_access_token')
+    // Phase 2: Use TokenManager for memory-based access token (not localStorage)
+    const { tokenManager } = await import('@/core/auth/TokenManager')
+    const token = tokenManager.getAccessToken()
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     }

@@ -187,21 +187,28 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
     
     # Rotation & Blacklist
-    # DISABLED: Custom refresh endpoint does not implement rotation
-    # Backend and frontend agree on static refresh tokens
-    'ROTATE_REFRESH_TOKENS': False,
+    # Phase 1: Enable token rotation for hybrid auth system
+    'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
     
-    # localStorage-based JWT (no cookies)
-    # Tokens are returned in response body and stored in frontend localStorage
+    # Hybrid auth support:
+    # - Refresh tokens now sent in HttpOnly cookies (Phase 1)
+    # - Access tokens still returned in response body
+    # - localStorage-based JWT still supported (backward compatibility)
 }
 
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     'http://localhost:3000',
 ])
-# No credentials needed - tokens sent via Authorization headers
-CORS_ALLOW_CREDENTIALS = False
+
+# Phase 1: Enable credentials support for cookie-based refresh tokens
+CORS_ALLOW_CREDENTIALS = True
+
+# Add CSRF trusted origins for cookie-based requests
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
+    'http://localhost:3000',
+])
 
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': env('CLOUDINARY_CLOUD_NAME', default=''),

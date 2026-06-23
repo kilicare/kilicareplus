@@ -9,8 +9,10 @@ export function mediaUrl(path: string | null | undefined): string {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://'))
     return path
-  const base =
-    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const base = process.env.NEXT_PUBLIC_API_URL
+  if (!base) {
+    throw new Error('❌ Missing NEXT_PUBLIC_API_URL environment variable')
+  }
   return `${base}${path.startsWith('/') ? '' : '/'}${path}`
 }
 

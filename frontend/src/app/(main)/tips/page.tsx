@@ -15,7 +15,7 @@ import { KiliButton } from '@/components/ui/KiliButton'
 import { KiliBottomSheet } from '@/components/ui/KiliBottomSheet'
 import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 import { timeAgo, parseApiError, vibrate } from '@/lib/utils'
 
 const CATEGORIES = [
@@ -276,7 +276,7 @@ function TipCard({ tip, onUpvote }: { tip: Tip; onUpvote: (id: number) => void }
 
 // ── Main Tips Page ────────────────────────────────────
 export default function TipsPage() {
-  const { user } = useAuthStore()
+  const { sessionValid, user } = useSession()
   const qc = useQueryClient()
   const [activeCategory, setActiveCategory] = useState('')
   const [showCreate, setShowCreate] = useState(false)

@@ -17,7 +17,7 @@ import { KiliBottomSheet } from '@/components/ui/KiliBottomSheet'
 import { KiliInput } from '@/components/ui/KiliInput'
 import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { formatCurrency, parseApiError } from '@/lib/utils'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 import api from '@/core/api/axios'
 
 // ── Booking Sheet ─────────────────────────────────────
@@ -171,7 +171,7 @@ export default function ExperienceDetailPage({
 }) {
   const resolvedParams = use(params)
   const router = useRouter()
-  const { user } = useAuthStore()
+  const { sessionValid, user } = useSession()
   const [showBooking, setShowBooking] = useState(false)
   const [activeImg, setActiveImg] = useState(0)
 

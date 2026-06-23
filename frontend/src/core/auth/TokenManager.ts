@@ -1,87 +1,106 @@
 /**
- * TokenManager - Centralized Token Management
+ * TokenManager - Centralized Token Management (Phase 2: Memory-Only)
  * 
- * Single source of truth for all JWT token operations.
- * All token reads, writes, and deletes must go through this manager.
+ * Phase 2 changes:
+ * - Access tokens stored in memory ONLY (not localStorage)
+ * - Refresh tokens stored in HttpOnly cookies (backend responsibility)
+ * - Single source of truth for access token operations
  * 
  * Responsibilities:
- * - getAccessToken()
+ * - getAccessToken() - from memory
+ * - setAccessToken() - to memory
+ * - clearAccessToken() - from memory
+ * - isTokenValid() - JWT expiry check
+ * 
+ * DEPRECATED (handled by backend cookies):
  * - getRefreshToken()
  * - setTokens()
- * - clearTokens()
- * - updateTokens()
- * - isAuthenticated()
+ * - updateAccessToken()
+ * - refreshIfPossible()
  * - hasTokens()
  */
 
-const ACCESS_TOKEN_KEY = 'kili_access_token'
-const REFRESH_TOKEN_KEY = 'kili_refresh_token'
+// Phase 2: In-memory storage for access token
+let accessToken: string | null = null
 
 class TokenManager {
   /**
-   * Get access token from localStorage
+   * Get access token from memory
+   * Phase 2: Memory-only (not localStorage)
    */
   getAccessToken(): string | null {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem(ACCESS_TOKEN_KEY)
+    return accessToken
   }
 
   /**
-   * Get refresh token from localStorage
+   * Set access token in memory
+   * Phase 2: Memory-only (not localStorage)
+   */
+  setAccessToken(token: string): void {
+    accessToken = token
+  }
+
+  /**
+   * Get refresh token
+   * Phase 2: DEPRECATED - Refresh tokens are now in HttpOnly cookies
+   * Kept for backward compatibility, returns null
    */
   getRefreshToken(): string | null {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem(REFRESH_TOKEN_KEY)
+    // Phase 2: Refresh tokens are in HttpOnly cookies
+    // This method is deprecated and returns null
+    return null
   }
 
   /**
-   * Set both access and refresh tokens in localStorage
+   * Set both tokens
+   * Phase 2: DEPRECATED - Only access token is stored in memory
+   * Refresh token is automatically in HttpOnly cookie
    */
-  setTokens(accessToken: string, refreshToken: string): void {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+  setTokens(accessToken: string, _refreshToken?: string): void {
+    // Phase 2: Only set access token (refresh token from cookie)
+    this.setAccessToken(accessToken)
   }
 
   /**
-   * Update access token only (used after token refresh)
+   * Update access token only
+   * Phase 2: Same as setAccessToken since we only store access tokens now
    */
   updateAccessToken(accessToken: string): void {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
+    this.setAccessToken(accessToken)
   }
 
   /**
-   * Clear both tokens from localStorage
+   * Clear tokens
+   * Phase 2: Clear memory token (refresh token cleared by backend via cookie delete)
    */
   clearTokens(): void {
-    if (typeof window === 'undefined') return
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
+    accessToken = null
   }
 
   /**
-   * Check if both tokens exist in localStorage
+   * Check if tokens exist
+   * Phase 2: Only check access token (refresh token is automatic in cookie)
    */
   hasTokens(): boolean {
-    if (typeof window === 'undefined') return false
-    return !!(
-      localStorage.getItem(ACCESS_TOKEN_KEY) && 
-      localStorage.getItem(REFRESH_TOKEN_KEY)
-    )
+    return !!accessToken
   }
 
   /**
-   * Check if user is authenticated (has valid access token)
+   * Check if user is authenticated
+   * Phase 2: Same as hasTokens()
+   * 
+   * @deprecated This method is misleading and should not be used for session validation.
+   * Use useSession() hook and check sessionValid instead.
+   * Having a token doesn't mean the session is valid (user could be null, token could be expired).
    */
   isAuthenticated(): boolean {
+    console.warn('[TokenManager] ⚠️ isAuthenticated() is deprecated. Use useSession() hook and check sessionValid instead.')
     return this.hasTokens()
   }
 
   /**
    * Check if access token is valid (not expired)
    * Returns true if token exists and has more than 10 seconds remaining
-   * Reduced from 60s to 10s to reduce unnecessary refresh attempts
    */
   isTokenValid(): boolean {
     const token = this.getAccessToken()
@@ -101,51 +120,14 @@ class TokenManager {
 
   /**
    * Refresh token if possible
-   * This performs actual token refresh by calling the refresh endpoint
-   * Returns true if refresh was successful, false otherwise
-   * 
-   * SAFETY: Silently returns false on missing token or errors
-   * Does NOT throw errors or trigger UI side effects
+   * Phase 2: DEPRECATED - Cookie-based refresh is automatic
+   * Backend will automatically return new refresh token in cookie on 401
+   * This method is kept for backward compatibility but does nothing
    */
   async refreshIfPossible(): Promise<boolean> {
-    const refreshToken = this.getRefreshToken()
-    if (!refreshToken) {
-      // Silently return false - no console warnings to avoid UI interference
-      return false
-    }
-
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL
-      if (!API_URL) {
-        // Silently return false - no console errors
-        return false
-      }
-
-      const response = await fetch(`${API_URL}/auth/refresh/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh: refreshToken }),
-      })
-
-      if (!response.ok) {
-        // Silently return false - no console errors
-        return false
-      }
-
-      const data = await response.json()
-      if (data.access) {
-        this.updateAccessToken(data.access)
-        return true
-      }
-
-      // Silently return false - no console errors
-      return false
-    } catch (error) {
-      // Silently return false - no console errors to avoid UI interference
-      return false
-    }
+    // Phase 2: Refresh is handled by backend via cookies and axios interceptor
+    // This method is deprecated
+    return false
   }
 }
 

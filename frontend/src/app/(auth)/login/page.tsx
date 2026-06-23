@@ -22,7 +22,8 @@ export default function LoginPage() {
     mutationFn: () => authService.login(email, password),
     onSuccess: (data) => {
       // SINGLE ENTRY POINT: Use SessionManager.login() for all auth state mutation
-      sessionManager.login(data.user, data.access, data.refresh)
+      // Phase 2: Only pass access token (refresh token is in HttpOnly cookie)
+      sessionManager.login(data.user, data.access)
       toast.success(
         `Karibu ${data.user.first_name || data.user.username}! 🌍`
       )
@@ -153,7 +154,7 @@ export default function LoginPage() {
 
         <div className="flex items-center gap-4">
           <div className="flex-1 h-px bg-border-subtle" />
-          <span className="text-xs text-text-muted">or</span>
+          <span className="text-xs text-text-muted">au</span>
           <div className="flex-1 h-px bg-border-subtle" />
         </div>
 

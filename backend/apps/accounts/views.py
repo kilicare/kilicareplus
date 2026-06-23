@@ -384,7 +384,8 @@ def login_view(request):
 
         
 
-        # Return tokens in response body (localStorage-based auth)
+        # Return access token in response body (memory-based auth - Phase 2)
+        # Refresh token is ONLY in HttpOnly cookie (never in response body)
 
         response = Response({
 
@@ -392,13 +393,24 @@ def login_view(request):
 
             'message': 'Welcome to Kilicare+! 🎉',
 
-            'access': access_token,        # ← Client stores in localStorage
-
-            'refresh': refresh_token,      # ← Client stores in localStorage
+            'access': access_token,        # ← Client stores in memory only (Phase 2)
 
             'user': UserSerializer(user, context={'request': request}).data,
 
         }, status=status.HTTP_200_OK)
+
+        
+
+        # Phase 1: Add refresh token to HttpOnly cookie (new hybrid auth)
+        # SECURITY: Refresh token is ONLY in cookie, NEVER in response body
+        response.set_cookie(
+            key='refresh_token',
+            value=refresh_token,
+            httponly=True,
+            secure=not django_settings.DEBUG,  # HTTPS in production
+            samesite='Lax',
+            max_age=30 * 24 * 60 * 60,  # 30 days
+        )
 
         
 
@@ -439,13 +451,13 @@ def token_refresh_view(request):
 
     """
 
-    Token Refresh endpoint - Accepts refresh token from request body
+    Token Refresh endpoint - Accepts refresh token from cookie or request body
 
     
 
     FLOW:
 
-    1. Extract refresh token from request body
+    1. Extract refresh token (prioritize cookie, fallback to body)
 
     2. Validate refresh token
 
@@ -453,9 +465,11 @@ def token_refresh_view(request):
 
     4. Return new access token in response body
 
+    5. Update refresh token cookie (if rotation enabled)
+
     
 
-    Request: { "refresh": "<refresh_token>" }
+    Request: { "refresh": "<refresh_token>" } (optional if cookie present)
 
     
 
@@ -473,25 +487,26 @@ def token_refresh_view(request):
 
     IMPORTANT:
 
-    - Refresh token comes from request body (sent by frontend)
+    - Phase 1: Support BOTH cookie and body (dual auth support)
+
+    - Prioritize cookie if present, fallback to request body
+
+    - Frontend can use either method (backward compatibility)
 
     - New access token returned in response body
 
-    - Frontend updates localStorage with new token
-
-    - Called automatically by frontend interceptor on 401
+    - Frontend updates localStorage with new token (if using body method)
 
     """
 
-    # Get refresh token from request body (localStorage-based auth)
-
-    refresh_token = request.data.get('refresh')
+    # Phase 1: Dual support - prioritize cookie, fallback to body
+    refresh_token = request.COOKIES.get('refresh_token') or request.data.get('refresh')
 
     
 
     if not refresh_token:
 
-        logger.warning(f'[REFRESH] Refresh token not provided in request')
+        logger.warning(f'[REFRESH] Refresh token not provided in cookie or request body')
 
         return Response(
 
@@ -532,6 +547,25 @@ def token_refresh_view(request):
             'access': new_access_token,  # ← Client updates localStorage
 
         }, status=status.HTTP_200_OK)
+
+        
+
+        # Phase 1: If rotation enabled, set new refresh token in cookie
+        # Note: simple_jwt RefreshToken with ROTATE_REFRESH_TOKENS=True
+        # provides both new access and refresh tokens
+        try:
+            new_refresh_token = str(refresh)  # New refresh token from rotation
+            response.set_cookie(
+                key='refresh_token',
+                value=new_refresh_token,
+                httponly=True,
+                secure=False,  # Set True in production later
+                samesite='Lax',
+                max_age=30 * 24 * 60 * 60,  # 30 days
+            )
+            logger.debug(f'[REFRESH] New refresh token set in cookie')
+        except Exception as cookie_error:
+            logger.warning(f'[REFRESH] Could not set new refresh token in cookie: {str(cookie_error)}')
 
         
 
@@ -1251,7 +1285,7 @@ def logout_view(request):
 
     """
 
-    Logout endpoint - Blacklist refresh token
+    Logout endpoint - Blacklist refresh token and clear cookie
 
     """
 
@@ -1288,6 +1322,11 @@ def logout_view(request):
         'message': 'Logged out successfully. See you again!',
 
     }, status=status.HTTP_200_OK)
+
+    
+    # Phase 1: Delete refresh token cookie
+    response.delete_cookie('refresh_token')
+    logger.debug(f'[LOGOUT] Refresh token cookie deleted for user: {user_id}')
 
     
 

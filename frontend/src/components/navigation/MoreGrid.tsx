@@ -17,7 +17,7 @@ import {
   Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 
 // Color mapping for each feature
 const FEATURE_COLORS: { [key: string]: { gradient: string; glow: string; text: string } } = {
@@ -170,8 +170,8 @@ interface MoreGridProps {
 
 export function MoreGrid({ isOpen, onClose }: MoreGridProps) {
   const router = useRouter()
-  const { user } = useAuthStore()
-  const isAdmin = user?.role === 'ADMIN'
+  const { sessionValid, user } = useSession()
+  const isAdmin = sessionValid && user?.role === 'ADMIN'
 
   // Combine features with admin features if user is admin
   const allFeatures = isAdmin ? [...FEATURES, ...ADMIN_FEATURES] : FEATURES

@@ -14,8 +14,35 @@ const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
-  // No withCredentials - tokens sent via Authorization header
+  // Phase 2: Enable credentials (withCredentials) to send/receive cookies
+  withCredentials: true,
 })
+
+// Refresh lock to prevent multiple simultaneous refresh calls
+let isRefreshing = false
+// Retry queue for requests that fail during refresh
+let failedQueue: Array<{
+  resolve: (value: any) => void
+  reject: (reason?: any) => void
+  config: InternalAxiosRequestConfig
+}> = []
+
+/**
+ * Process retry queue after successful refresh
+ * Replay all queued requests with new access token
+ */
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error)
+    } else {
+      // Update the config with new token
+      prom.config.headers.Authorization = `Bearer ${token}`
+      prom.resolve(api(prom.config))
+    }
+  })
+  failedQueue = []
+}
 
 // Public endpoints that MUST NOT receive Authorization headers
 const PUBLIC_ENDPOINTS = [
@@ -24,7 +51,7 @@ const PUBLIC_ENDPOINTS = [
   '/auth/refresh/',
   '/auth/otp/send/',
   '/auth/otp/verify/',
-  '/auth/logout/', // CRITICAL: Logout endpoint should not trigger token refresh
+  '/auth/logout/',
 ]
 
 // Check if request URL is a public endpoint
@@ -33,31 +60,38 @@ const isPublicEndpoint = (url?: string): boolean => {
   return PUBLIC_ENDPOINTS.some(endpoint => url.includes(endpoint))
 }
 
-// Request interceptor: Attach access token to Authorization header ONLY for protected endpoints
+/**
+ * Request Interceptor - Phase 2: Simple Memory-Based Auth
+ *
+ * FLOW:
+ * 1. Check if endpoint is public
+ * 2. If protected: Attach access token from memory to Authorization header
+ * 3. If public: Remove Authorization header
+ * 
+ * Phase 2 changes:
+ * - Access token comes from memory (not localStorage)
+ * - Refresh token is automatic via cookies
+ * - No complex refresh logic here
+ */
 api.interceptors.request.use(
   (config) => {
     const accessToken = tokenManager.getAccessToken()
     const isPublic = isPublicEndpoint(config.url)
     
-    // Log token presence for debugging
+    // Debug logging for protected endpoints
     if (!isPublic) {
       console.log('[API Request]', {
         url: config.url,
         hasToken: !!accessToken,
         tokenPreview: accessToken ? `${accessToken.substring(0, 20)}...` : 'none',
-        isPublic
       })
     }
     
-    // Only attach token if:
-    // 1. Token exists AND
-    // 2. Endpoint is NOT public
+    // Attach token to protected endpoints
     if (accessToken && !isPublic) {
       config.headers.Authorization = `Bearer ${accessToken}`
-    }
-    
-    // Explicitly remove Authorization header for public endpoints
-    if (isPublic) {
+    } else if (isPublic) {
+      // Explicitly remove Authorization header for public endpoints
       delete config.headers.Authorization
     }
     
@@ -66,261 +100,150 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-let isRefreshing = false
-let queue: Array<{
-  resolve: (v: void) => void
-  reject: (e: unknown) => void
-}> = []
-
-function flush(err: unknown) {
-  queue.forEach((p) => (err ? p.reject(err) : p.resolve()))
-  queue = []
-}
-
 /**
- * Axios Response Interceptor
- *
- * Handles 401 errors by attempting to refresh the access token
- *
+ * Response Interceptor - Production-Grade 401 Refresh Logic
+ * 
  * FLOW:
- * 1. On 401: read refreshToken from localStorage
- * 2. POST /auth/refresh/ with { refresh: token }
- * 3. Backend returns new access token
- * 4. Update localStorage
- * 5. Retry original request with exponential backoff
- *
- * CRITICAL RULES:
- * 1. Attempt refresh with exponential backoff (1s → 2s → 4s)
- * 2. Max 3 refresh attempts total (SaaS-grade resilience)
- * 3. If all retries fail → reject with isAuthError (SessionManager decides logout)
- * 4. Queue other requests while refreshing
- * 5. Never logout directly - delegate to SessionManager
+ * 1. Pass successful responses through
+ * 2. On 401: Attempt token refresh using cookie, then retry original request
+ * 3. On refresh failure: Clear tokens, reject with isAuthError
+ * 4. On other errors: Pass through with context
+ * 
+ * Production features:
+ * - Refresh lock to prevent multiple simultaneous refresh calls
+ * - Retry queue for requests that fail during refresh
+ * - Automatic retry after successful refresh
+ * - Safe logout fallback on refresh failure
  */
-
-// Exponential backoff delay helper
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 api.interceptors.response.use(
   (res) => {
     return res
   },
   async (err: AxiosError) => {
-    const orig = err.config as InternalAxiosRequestConfig & {
-      _retry?: number
-      _refreshAttempts?: number
-    }
-    
-    // Initialize retry counter
-    orig._retry = orig._retry ?? 0
-    orig._refreshAttempts = orig._refreshAttempts ?? 0
-    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const errorData = (err.response?.data as any) || {}
+    const errorMessage = errorData.message || errorData.detail || 'Unknown error'
+    const originalRequest = err.config as InternalAxiosRequestConfig
+
     // Handle network errors (no response)
     if (!err.response) {
-      console.error('[API Interceptor] 🔴 Network Error', {
+      console.error('[API] 🔴 Network Error', {
         url: err.config?.url,
-        method: err.config?.method,
         message: err.message,
       })
       
-      // Reject with safe error message
+      // Dispatch custom event for NetworkErrorWatcher
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('network-error', { detail: err }))
+      }
+      
       return Promise.reject({
         ...err,
         isNetworkError: true,
         message: 'Network error. Please check your connection.',
       })
     }
-    
+
     // Handle 500 errors - DO NOT LOGOUT (SaaS-grade policy)
     if (err.response.status === 500) {
-      console.error('[API Interceptor] 🔴 Server Error (500)', {
+      console.error('[API] 🔴 Server Error (500)', {
         url: err.config?.url,
-        method: err.config?.method,
       })
       
-      // Reject with safe error message - DO NOT LOGOUT
       return Promise.reject({
         ...err,
         isServerError: true,
         message: 'Server error. Please try again later.',
       })
     }
-    
+
     // Handle timeout errors
     if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-      console.error('[API Interceptor] 🔴 Timeout Error', {
+      console.error('[API] 🔴 Timeout Error', {
         url: err.config?.url,
-        method: err.config?.method,
       })
       
-      // Reject with safe error message
       return Promise.reject({
         ...err,
         isTimeout: true,
         message: 'Request timeout. Please try again.',
       })
     }
-    
-    // Handle 401 Unauthorized - attempt token refresh (SaaS-grade policy)
+
+    // Handle 401 Unauthorized
     if (err.response?.status === 401) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const errorData = (err.response?.data as any) || {}
-      const errorMessage = errorData.message || errorData.detail || 'Unauthorized'
-      
-      console.warn('[API Interceptor] 🔴 401 Unauthorized', {
+      console.warn('[API] 🔴 401 Unauthorized', {
         url: err.config?.url,
-        method: err.config?.method,
-        retries: orig._retry,
         reason: errorMessage,
       })
-      
-      // CRITICAL: Skip refresh logic for public endpoints (login, register, etc.)
-      // These endpoints should never trigger token refresh
+
+      // Skip refresh for public endpoints (they should not be protected)
       if (isPublicEndpoint(err.config?.url)) {
-        console.warn('[API Interceptor] 🚫 401 on public endpoint. Skipping refresh.', {
+        console.warn('[API] 🚫 401 on public endpoint. Not retrying.', {
           url: err.config?.url,
         })
         return Promise.reject(err)
       }
-      
-      // Prevent infinite retries - max 3 refresh attempts with exponential backoff
-      if (orig._refreshAttempts >= 3) {
-        console.error('[API Interceptor] 🚫 Max refresh attempts (3) reached. Rejecting request.', {
-          url: err.config?.url,
-          method: err.config?.method,
-        })
 
-        flush(err)
-
-        // CRITICAL ARCHITECTURE CHANGE:
-        // DO NOT logout here. Let SessionManager decide when to logout.
-        // Only reject the request so the component can handle the error.
-        // SessionManager will detect token failure and handle logout appropriately.
+      // Skip refresh for /auth/refresh/ itself to prevent infinite loop
+      if (err.config?.url?.includes('/auth/refresh/')) {
+        console.error('[API] 🚫 Refresh endpoint returned 401. Clearing tokens.')
+        tokenManager.clearTokens()
         return Promise.reject({
           ...err,
           isAuthError: true,
-          message: 'Authentication failed. Please refresh the page.',
+          message: 'Session expired. Please log in again.',
         })
       }
 
-      // If already retried this request, don't retry again
-      if (orig._retry >= 3) {
-        console.warn('[API Interceptor] Request already retried 3 times. Not retrying again.', {
-          url: err.config?.url,
-        })
-
-        flush(err)
-
-        // CRITICAL ARCHITECTURE CHANGE:
-        // DO NOT logout here. Let SessionManager decide when to logout.
-        return Promise.reject({
-          ...err,
-          isAuthError: true,
-          message: 'Authentication failed. Please refresh the page.',
-        })
-      }
-      
-      // Queue requests while refreshing
+      // If already refreshing, queue this request
       if (isRefreshing) {
-        console.log('[API Interceptor] Already refreshing. Queuing request:', {
-          url: err.config?.url,
-          queueSize: queue.length,
-        })
-        
+        console.log('[API] 🔄 Refresh in progress, queuing request:', err.config?.url)
         return new Promise((resolve, reject) => {
-          queue.push({ resolve, reject })
-        }).then(() => api(orig))
+          failedQueue.push({ resolve, reject, config: originalRequest })
+        })
       }
-      
-      // Begin refresh with exponential backoff
-      orig._retry += 1
-      orig._refreshAttempts += 1
+
+      // Start refresh process
       isRefreshing = true
-
-      // Calculate exponential backoff delay: 1s → 2s → 4s
-      const backoffDelay = Math.pow(2, orig._refreshAttempts - 1) * 1000
-      console.log(`[API Interceptor] 🔄 Attempting token refresh (attempt ${orig._refreshAttempts}/3) with ${backoffDelay}ms backoff...`)
-
-      // Apply backoff delay before refresh attempt
-      await delay(backoffDelay)
+      console.log('[API] 🔄 Attempting token refresh...')
 
       try {
-        const refreshToken = tokenManager.getRefreshToken()
+        // Call /auth/refresh/ using cookie (withCredentials: true)
+        const { data } = await api.post('/auth/refresh/', {})
         
-        if (!refreshToken) {
-          console.error('[API Interceptor] ❌ No refresh token found in localStorage')
-          flush(err)
-          
-          // CRITICAL ARCHITECTURE CHANGE:
-          // DO NOT logout here. Let SessionManager decide when to logout.
-          return Promise.reject({
-            ...err,
-            isAuthError: true,
-            message: 'No refresh token available. Please refresh the page.',
-          })
-        }
+        console.log('[API] ✅ Token refresh successful')
         
-        // Call refresh endpoint with refresh token in body
-        const refreshStart = performance.now()
+        // Store new access token in memory
+        tokenManager.setAccessToken(data.access)
         
-        const refreshResponse = await axios.post<{ access: string; success: boolean }>(
-          `${API_URL}/auth/refresh/`,
-          { refresh: refreshToken },
-          {
-            headers: { 'Content-Type': 'application/json' },
-            timeout: 30000,
-          }
-        )
+        // Process retry queue with new token
+        processQueue(null, data.access)
         
-        const refreshDuration = (performance.now() - refreshStart).toFixed(0)
-        console.log(`[API Interceptor] ✅ Token refreshed successfully (${refreshDuration}ms)`)
+        // Retry original request with new token
+        originalRequest.headers.Authorization = `Bearer ${data.access}`
+        return api(originalRequest)
         
-        // Update access token in localStorage
-        const newAccessToken = refreshResponse.data.access
-        tokenManager.updateAccessToken(newAccessToken)
+      } catch (refreshError) {
+        console.error('[API] ❌ Token refresh failed', refreshError)
         
-        console.log('[API Interceptor] ✅ New access token saved to localStorage')
+        // Clear tokens on refresh failure
+        tokenManager.clearTokens()
         
-        // Update Authorization header for original request
-        orig.headers.Authorization = `Bearer ${newAccessToken}`
+        // Process retry queue with error
+        processQueue(refreshError, null)
         
-        // Refresh successful, retry original request
-        flush(null)
-        
-        console.log('[API Interceptor] 🔄 Retrying original request after refresh', {
-          url: err.config?.url,
-          method: err.config?.method,
-        })
-        
-        return api(orig)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (refreshError: any) {
-        const refreshErrorStatus = refreshError?.response?.status || 'unknown'
-        const refreshErrorMessage =
-          refreshError?.response?.data?.message ||
-          refreshError?.message ||
-          'Unknown error'
-        
-        console.error('[API Interceptor] ❌ Token refresh failed', {
-          status: refreshErrorStatus,
-          reason: refreshErrorMessage,
-        })
-        
-        flush(refreshError)
-        
-        // CRITICAL ARCHITECTURE CHANGE:
-        // DO NOT logout here. Let SessionManager decide when to logout.
-        // Only reject the request so the component can handle the error.
-        // SessionManager will detect token failure and handle logout appropriately.
+        // Reject with isAuthError flag for SessionManager to handle logout
         return Promise.reject({
           ...err,
           isAuthError: true,
-          message: 'Token refresh failed. Please refresh the page.',
+          message: 'Session expired. Please log in again.',
         })
       } finally {
         isRefreshing = false
-        console.log('[API Interceptor] Refresh cycle complete')
       }
     }
-    
+
     // Non-401 error - pass through
     return Promise.reject(err)
   }

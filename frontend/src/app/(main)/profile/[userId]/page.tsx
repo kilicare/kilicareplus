@@ -9,7 +9,7 @@ import {
   ChevronLeft, UserPlus, UserCheck, MessageSquare, Award, Crown,
 } from 'lucide-react'
 import type { User } from '@/types'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 import { followService } from '@/services/follow.service'
 import { momentsService } from '@/services/moments.service'
 import { tipsService } from '@/services/tips.service'
@@ -183,7 +183,7 @@ function FollowListModal({
 
 // ── Main Profile Page ─────────────────────────────────
 function ProfileContent() {
-  const { user: currentUser } = useAuthStore()
+  const { sessionValid, user: currentUser } = useSession()
   const router = useRouter()
   const params = useParams()
   const qc = useQueryClient()

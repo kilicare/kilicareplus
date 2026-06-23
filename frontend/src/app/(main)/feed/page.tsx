@@ -78,7 +78,17 @@ function AIChatSheet({
         {
           id: 'context',
           role: 'assistant',
-          content: `🤖 Karibu! Mimi ni AI Travel Assistant yako. Ninaelewa kuhusu post hili: "${moment.caption || 'Post bila caption'}" kutoka ${moment.location || 'Tanzania'}. Unaweza kuuliza maswali yoyote kuhusu eneo hili, usafiri, au mahitaji yako!`,
+          content: `🤖 **AI Assistant for Moments**
+
+I'm here to help you learn more about this moment from the feed. I understand this post: *"${moment.caption || 'Post without caption'}"* from ${moment.location || 'Tanzania'}.
+
+💡 **I can help you with:**
+• Get detailed information about this location
+• Discover nearby attractions and hidden gems
+• Travel tips and recommendations
+• Local culture and expert advice
+
+Ask me anything about this moment or the area!`,
           timestamp: new Date(),
         },
       ])
@@ -151,46 +161,92 @@ function AIChatSheet({
     <KiliBottomSheet
       isOpen={isOpen}
       onClose={onClose}
-      title="🤖 Ask AI"
-      height="75"
+      title="🤖 AI Travel Assistant"
+      height="90"
     >
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full bg-gradient-to-b from-gray-900 via-gray-900 to-black">
         {/* Chat messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`max-w-[80%] p-3 rounded-2xl ${
-                  msg.role === 'user'
-                    ? 'bg-gold text-black'
-                    : 'bg-bg-elevated text-text-primary'
-                }`}
-              >
-                <p className="text-sm leading-relaxed">{msg.content}</p>
-                <p className="text-[10px] opacity-70 mt-1">
-                  {msg.timestamp.toLocaleTimeString('sw-TZ', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
+              <div className="flex items-end gap-2 max-w-[85%]">
+                {msg.role === 'assistant' && (
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center shadow-2xl ${
+                    msg.id === 'context' 
+                      ? 'bg-gradient-to-br from-gold-dim to-gold shadow-gold/50 animate-pulse' 
+                      : 'bg-gradient-to-br from-gold-dim to-gold shadow-gold/40'
+                  }`}>
+                    <span className="text-lg">{msg.id === 'context' ? '✨' : '🤖'}</span>
+                  </div>
+                )}
+                <div
+                  className={`relative p-5 rounded-3xl shadow-2xl ${
+                    msg.role === 'user'
+                      ? 'bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 text-black'
+                      : msg.id === 'context'
+                        ? 'bg-gray-800 text-white border border-gray-700'
+                        : 'bg-gradient-to-br from-gray-800 to-gray-900 text-white border border-gray-700'
+                  }`}
+                  style={
+                    msg.role === 'user'
+                      ? {
+                          boxShadow: '0 8px 32px rgba(245, 158, 11, 0.4), 0 0 20px rgba(245, 158, 11, 0.2)',
+                        }
+                      : {
+                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+                        }
+                  }
+                >
+                  <p className="text-sm leading-relaxed font-medium whitespace-pre-line">{msg.content}</p>
+                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-white/10">
+                    <p className="text-[10px] opacity-60 font-medium">
+                      {msg.timestamp.toLocaleTimeString('sw-TZ', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                    {msg.role === 'user' && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                        <span className="text-[9px] opacity-70">Sent</span>
+                      </div>
+                    )}
+                  </div>
+                  {msg.role === 'user' && (
+                    <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full shadow-xl animate-pulse" />
+                  )}
+                </div>
+                {msg.role === 'user' && (
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 flex items-center justify-center shadow-2xl shadow-amber-500/40">
+                    <span className="text-lg">👤</span>
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}
           {isLoading && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               className="flex justify-start"
             >
-              <div className="bg-bg-elevated p-3 rounded-2xl flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-gold animate-bounce" />
-                <div className="w-2 h-2 rounded-full bg-gold animate-bounce" style={{ animationDelay: '0.1s' }} />
-                <div className="w-2 h-2 rounded-full bg-gold animate-bounce" style={{ animationDelay: '0.2s' }} />
+              <div className="flex items-end gap-2">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-gold-dim to-gold flex items-center justify-center shadow-lg shadow-gold/30 animate-pulse">
+                  <span className="text-sm">🤖</span>
+                </div>
+                <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 p-4 rounded-3xl shadow-2xl">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-gold animate-bounce shadow-lg shadow-gold/50" />
+                    <div className="w-2 h-2 rounded-full bg-gold-dim animate-bounce shadow-lg shadow-gold-dim/50" style={{ animationDelay: '0.1s' }} />
+                    <div className="w-2 h-2 rounded-full bg-gold animate-bounce shadow-lg shadow-gold/50" style={{ animationDelay: '0.2s' }} />
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}
@@ -198,29 +254,35 @@ function AIChatSheet({
         </div>
 
         {/* Input */}
-        <div
-          className="flex-shrink-0 flex items-center gap-3 p-4 border-t"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Uliza AI kuhusu post hili..."
-            className="flex-1 bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-2.5 text-sm text-text-primary outline-none focus:border-gold"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && input.trim()) {
-                handleSendMessage()
-              }
-            }}
-            disabled={isLoading}
-          />
-          <KiliButton
-            size="sm"
-            disabled={!input.trim() || isLoading}
-            onClick={handleSendMessage}
-          >
-            {isLoading ? '...' : 'Tuma'}
-          </KiliButton>
+        <div className="flex-shrink-0 p-4 bg-gradient-to-t from-gray-900 to-transparent">
+          <div className="flex items-center gap-3 bg-gray-800/80 backdrop-blur-xl border border-gray-700 rounded-3xl p-2 shadow-2xl">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Uliza AI kuhusu post hili..."
+              className="flex-1 bg-transparent px-4 py-3 text-sm text-white placeholder-gray-400 outline-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && input.trim()) {
+                  handleSendMessage()
+                }
+              }}
+              disabled={isLoading}
+            />
+            <KiliButton
+              size="sm"
+              disabled={!input.trim() || isLoading}
+              onClick={handleSendMessage}
+              className="!rounded-2xl !bg-gradient-to-r !from-gold-dim !to-gold !text-white !shadow-lg !shadow-gold/30 hover:!shadow-gold/50 transition-all duration-300"
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                </div>
+              ) : (
+                <span>Send</span>
+              )}
+            </KiliButton>
+          </div>
         </div>
       </div>
     </KiliBottomSheet>
@@ -364,129 +426,174 @@ function CreateMomentSheet({
     <KiliBottomSheet
       isOpen={isOpen}
       onClose={onClose}
-      title="📸 Chapisha Moment"
-      height="90"
+      title=""
+      height="full"
     >
-      <div className="p-5 space-y-4">
-        {/* Media picker */}
-        {!preview ? (
-          <motion.div
-            className="rounded-3xl border-2 border-dashed flex flex-col items-center justify-center py-16 cursor-pointer"
-            style={{ borderColor: 'var(--border-gold)' }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => fileRef.current?.click()}
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
+          <h2 className="text-xl font-bold text-text-primary">Create Moment</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-bg-elevated flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
           >
-            <div className="text-5xl mb-3">📸</div>
-            <p className="text-text-primary font-bold">
-              Chagua Picha au Video
-            </p>
-            <p className="text-text-muted text-sm mt-1">
-              PNG, JPG, MP4 — max 50MB
-            </p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,video/*"
-              className="hidden"
-              onChange={handleFile}
-            />
-          </motion.div>
-        ) : (
-          <div className="relative rounded-3xl overflow-hidden aspect-square">
-            {file?.type.startsWith('video') ? (
-              <video
-                src={preview}
-                className="w-full h-full object-cover"
-                controls
-              />
-            ) : (
-              <Image
-                src={preview}
-                alt="preview"
-                fill
-                className="object-cover"
-                quality={85}
-                unoptimized
-              />
-            )}
-            <button
-              onClick={() => { setFile(null); setPreview(null) }}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center text-white text-lg"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* Audio picker */}
-        {preview && (
-          <motion.button
-            className="w-full rounded-2xl border-2 border-dashed p-4 flex items-center gap-3 cursor-pointer"
-            style={{ borderColor: 'var(--border-gold)' }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => audioRef.current?.click()}
-          >
-            <div className="text-2xl">🎵</div>
-            <div className="flex-1 text-left">
-              <p className="text-text-primary text-sm font-bold">
-                {audioPreview ? `✅ Sauti iliyochaguliwa` : 'Chagua Sauti (Iختار)'}
-              </p>
-              <p className="text-text-muted text-xs mt-0.5">
-                {audioPreview ? audioPreview : 'MP3, WAV, M4A — max 20MB (zingira)'}
-              </p>
-            </div>
-            {audio && (
-              <div
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setAudio(null)
-                  setAudioPreview(null)
-                }}
-                className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 text-sm cursor-pointer hover:bg-red-500/30 transition-colors"
-              >
-                ✕
-              </div>
-            )}
-            <input
-              ref={audioRef}
-              type="file"
-              accept="audio/*"
-              className="hidden"
-              onChange={handleAudio}
-            />
-          </motion.button>
-        )}
-
-        {/* Caption */}
-        <textarea
-          value={caption}
-          onChange={(e) => setCaption(e.target.value)}
-          placeholder="Andika kitu kuhusu moment hii... #Tanzania"
-          rows={3}
-          maxLength={500}
-          className="w-full bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 text-sm text-text-primary outline-none focus:border-gold resize-none"
-        />
-
-        {/* Location */}
-        <div className="flex items-center gap-2 bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3">
-          <MapPin size={16} className="text-gold flex-shrink-0" />
-          <input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Mahali — mf. Zanzibar, Tanzania"
-            className="flex-1 bg-transparent text-sm text-text-primary outline-none"
-          />
+            ✕
+          </button>
         </div>
 
-        <KiliButton
-          fullWidth
-          size="lg"
-          loading={createMut.isPending}
-          disabled={!file}
-          onClick={() => createMut.mutate()}
-        >
-          Chapisha Moment 🌍
-        </KiliButton>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Media picker */}
+          {!preview ? (
+            <motion.div
+              className="rounded-3xl bg-gradient-to-br from-bg-elevated to-bg-base border-2 border-dashed flex flex-col items-center justify-center py-20 cursor-pointer overflow-hidden relative"
+              style={{ borderColor: 'var(--border-gold)' }}
+              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.01 }}
+              onClick={() => fileRef.current?.click()}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-gold/5 to-transparent" />
+              <motion.div
+                className="relative z-10 text-6xl mb-4"
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                📸
+              </motion.div>
+              <p className="relative z-10 text-text-primary font-bold text-lg">
+                Add Photo or Video
+              </p>
+              <p className="relative z-10 text-text-muted text-sm mt-2">
+                PNG, JPG, MP4 — Max 50MB
+              </p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={handleFile}
+              />
+            </motion.div>
+          ) : (
+            <div className="relative rounded-3xl overflow-hidden aspect-square bg-bg-elevated">
+              {file?.type.startsWith('video') ? (
+                <video
+                  src={preview}
+                  className="w-full h-full object-cover"
+                  controls
+                />
+              ) : (
+                <Image
+                  src={preview}
+                  alt="preview"
+                  fill
+                  className="object-cover"
+                  quality={85}
+                  unoptimized
+                />
+              )}
+              <button
+                onClick={() => { setFile(null); setPreview(null) }}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white text-lg hover:bg-black/80 transition-colors shadow-lg"
+              >
+                ✕
+              </button>
+              <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur-sm text-white text-xs font-medium">
+                {file?.type.startsWith('video') ? 'Video' : 'Photo'}
+              </div>
+            </div>
+          )}
+
+          {/* Audio picker */}
+          {preview && (
+            <motion.div
+              className="rounded-2xl bg-bg-elevated border border-border-subtle p-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold-dim to-gold flex items-center justify-center">
+                  <Music size={24} className="text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-text-primary text-sm font-bold">
+                    {audioPreview ? 'Audio Selected' : 'Add Background Music'}
+                  </p>
+                  <p className="text-text-muted text-xs mt-0.5">
+                    {audioPreview ? audioPreview : 'MP3, WAV, M4A — Max 10MB'}
+                  </p>
+                </div>
+                {audio ? (
+                  <button
+                    onClick={() => { setAudio(null); setAudioPreview(null) }}
+                    className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 text-sm hover:bg-red-500/30 transition-colors"
+                  >
+                    ✕
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => audioRef.current?.click()}
+                    className="px-4 py-2 rounded-xl bg-gold/10 text-gold text-sm font-medium hover:bg-gold/20 transition-colors"
+                  >
+                    Add
+                  </button>
+                )}
+                <input
+                  ref={audioRef}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={handleAudio}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {/* Caption */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">Caption</label>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Share your experience with the world..."
+              rows={4}
+              maxLength={500}
+              className="w-full bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 text-sm text-text-primary outline-none focus:border-gold focus:ring-2 focus:ring-gold/20 resize-none transition-all"
+            />
+            <div className="flex justify-between text-xs text-text-muted">
+              <span>Add hashtags like #Tanzania #Travel</span>
+              <span>{caption.length}/500</span>
+            </div>
+          </div>
+
+          {/* Location */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-text-primary">Location</label>
+            <div className="flex items-center gap-3 bg-bg-elevated border border-border-subtle rounded-2xl px-4 py-3 focus-within:border-gold focus-within:ring-2 focus-within:ring-gold/20 transition-all">
+              <MapPin size={18} className="text-gold flex-shrink-0" />
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Where was this taken?"
+                className="flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border-subtle bg-bg-elevated">
+          <KiliButton
+            fullWidth
+            size="lg"
+            loading={createMut.isPending}
+            disabled={!file}
+            onClick={() => createMut.mutate()}
+            className="!rounded-2xl"
+          >
+            {createMut.isPending ? 'Posting...' : 'Post Moment'}
+          </KiliButton>
+        </div>
       </div>
     </KiliBottomSheet>
   )
@@ -875,10 +982,13 @@ const MomentCard = memo(function MomentCard({
         <motion.button
           onClick={() => onAskAI(moment)}
           whileTap={{ scale: 0.8 }}
-          className="flex flex-col items-center gap-1"
+          whileHover={{ scale: 1.1 }}
+          className="flex flex-col items-center gap-1 relative"
         >
-          <Bot size={30} className="text-white" />
-          <span className="text-white text-xs font-bold">Ask AI</span>
+          <div className="relative">
+            <Bot size={32} className="text-gold" />
+          </div>
+          <span className="text-white text-xs font-bold bg-gradient-to-r from-gold-dim to-gold bg-clip-text text-transparent">Ask AI</span>
         </motion.button>
 
         {/* Add to Journey */}
@@ -890,7 +1000,7 @@ const MomentCard = memo(function MomentCard({
           <Bookmark
             size={28}
             fill={localSaved ? '#F5A623' : 'none'}
-            className={localSaved ? 'text-gold' : 'text-white'}
+            className={localSaved ? 'text-gold' : 'text-gold'}
           />
           <span className="text-white text-xs font-bold">Add</span>
         </motion.button>
@@ -906,7 +1016,7 @@ const MomentCard = memo(function MomentCard({
           whileTap={{ scale: 0.8 }}
           className="flex flex-col items-center gap-1"
         >
-          <Share2 size={28} className="text-white" />
+          <Share2 size={28} className="text-gold" />
           <span className="text-white text-xs font-bold">Share</span>
         </motion.button>
 
@@ -985,9 +1095,9 @@ function TouristFeedView({
   feedAudio: ReturnType<typeof useFeedAudio>
   sessionId: string
 }) {
-  const { isLoading: authLoading, isAuthenticated } = useAuthStore()
+  const { sessionValid } = useAuthStore()
   
-  console.log('[Feed TouristFeedView] Auth state:', { authLoading, isAuthenticated })
+  console.log('[Feed TouristFeedView] Auth state:', { sessionValid })
   
   const {
     data,
@@ -1016,10 +1126,9 @@ function TouristFeedView({
       return failureCount < 3
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-    // CRITICAL: Don't fetch until auth is loaded
-    // FIXED: Remove tokenManager.hasTokens() check - SessionManager handles this
-    // isAuthenticated is sufficient - SessionManager ensures token exists when authenticated
-    enabled: !authLoading && isAuthenticated,
+    // CRITICAL FIX: ONLY fetch when sessionValid === true (backend-confirmed session with user)
+    // This ensures feed NEVER fires when user is null
+    enabled: sessionValid === true,
   })
 
   // CRITICAL ARCHITECTURE CHANGE:
@@ -1041,7 +1150,7 @@ function TouristFeedView({
   )
 
   // Show loading while auth is being verified
-  if (authLoading) {
+  if (!sessionValid) {
     return (
       <div className="min-h-dvh bg-black flex flex-col">
         {[0, 1, 2].map((i) => (

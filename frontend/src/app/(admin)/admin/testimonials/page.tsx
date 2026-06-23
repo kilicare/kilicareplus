@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, Edit, Trash2, Save, Loader2, ArrowLeft, ExternalLink, Star, Upload, X } from 'lucide-react'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { apiClient } from '@/lib/apiClient'
@@ -45,7 +45,7 @@ interface FormData {
 
 export default function TestimonialsAdmin() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuthStore()
+  const { sessionValid, user } = useSession()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
@@ -65,12 +65,12 @@ export default function TestimonialsAdmin() {
   })
 
   useEffect(() => {
-    // REMOVED: Page-level auth redirect logic
-    // ProtectedRoute handles auth and role checks - pages should NOT make auth decisions
-    if (isAuthenticated && user?.role === 'ADMIN') {
+    // ENFORCEMENT RULE: Check sessionValid BEFORE role check
+    // This ensures session is validated before role-based decisions
+    if (sessionValid && user?.role === 'ADMIN') {
       fetchTestimonials()
     }
-  }, [isAuthenticated, user])
+  }, [sessionValid, user])
 
   async function fetchTestimonials() {
     try {

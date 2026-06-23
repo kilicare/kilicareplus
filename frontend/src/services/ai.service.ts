@@ -2,7 +2,11 @@ import axios from 'axios'
 import api from '@/core/api/axios'
 import { tokenManager } from '@/core/auth/TokenManager'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+if (!API_URL) {
+  throw new Error('❌ Missing NEXT_PUBLIC_API_URL environment variable')
+}
 
 // Error mapping - converts backend errors to user-friendly messages
 const mapErrorMessage = (backendError: string): string => {
@@ -46,10 +50,6 @@ const getAccessToken = () => {
   return tokenManager.getAccessToken()
 }
 
-const getRefreshToken = () => {
-  return tokenManager.getRefreshToken()
-}
-
 const setAccessToken = (token: string) => {
   tokenManager.updateAccessToken(token)
 }
@@ -62,31 +62,6 @@ const logoutUser = () => {
   clearTokens()
   if (typeof window !== 'undefined') {
     window.location.href = '/login'
-  }
-}
-
-const refreshAccessToken = async (): Promise<string | null> => {
-  const refreshToken = getRefreshToken()
-  if (!refreshToken) return null
-
-  try {
-    const { data } = await axios.post(
-      `${API_URL}/auth/refresh/`,
-      { refresh: refreshToken },
-      {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 30000,
-      }
-    )
-
-    if (data?.access) {
-      setAccessToken(data.access)
-      return data.access
-    }
-
-    return null
-  } catch {
-    return null
   }
 }
 
@@ -140,22 +115,6 @@ export const aiService = {
 
     let response = await runStream(accessToken)
 
-    if (response.status === 401) {
-      const refreshedToken = await refreshAccessToken()
-      if (!refreshedToken) {
-        onError('Authentication failed. Please login again.')
-        logoutUser()
-        return
-      }
-
-      response = await runStream(refreshedToken)
-      if (response.status === 401) {
-        onError('Authentication failed. Please login again.')
-        logoutUser()
-        return
-      }
-    }
-
     if (!response.ok || !response.body) {
       // Handle HTTP error responses
       if (response.status === 503) {
@@ -163,7 +122,7 @@ export const aiService = {
       } else if (response.status >= 500) {
         onError('AI service is temporarily unavailable. Please try again later.')
       } else if (response.status === 401) {
-        onError('Authentication failed. Please login again.')
+        onError('Session expired. Please log in again.')
       } else {
         onError('Connection error. Please check your internet connection and try again.')
       }

@@ -1,6 +1,6 @@
-// Kilicare+ Service Worker v1.0
+// Kilicare+ Service Worker v1.1
 // Cache version - increment this on each deployment to force cache invalidation
-const CACHE_VERSION = 'v1.0.0'
+const CACHE_VERSION = 'v1.1.0'
 const CACHE_NAME = `kilicarego-${CACHE_VERSION}`
 const STATIC_CACHE = `kilicarego-static-${CACHE_VERSION}`
 const DYNAMIC_CACHE = `kilicarego-dynamic-${CACHE_VERSION}`

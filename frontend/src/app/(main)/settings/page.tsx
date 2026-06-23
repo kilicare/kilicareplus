@@ -10,7 +10,7 @@ import {
   Bell, Lock, Eye, Palette, Globe, LogOut, HelpCircle, Info,
   ChevronRight, ToggleLeft, Sun, Moon, Volume2, Zap, Shield, Smartphone, Mail,
 } from 'lucide-react'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 import { performLogout } from '@/core/auth/logout'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -31,7 +31,7 @@ interface SettingItem {
 }
 
 export default function SettingsPage() {
-  const { user } = useAuthStore()
+  const { sessionValid, user } = useSession()
   const router = useRouter()
 
   const [settings, setSettings] = useState<UserSettings>({

@@ -17,7 +17,7 @@ import { SkeletonCard } from '@/components/ui/SkeletonCard'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatCurrency, timeAgo } from '@/lib/utils'
 import { parseApiError } from '@/lib/utils'
-import { useAuthStore } from '@/stores/auth.store'
+import { useSession } from '@/hooks/useSession'
 
 const STATUS_CONFIG: Record<
   string,
@@ -279,7 +279,7 @@ function BookingCard({
 
 // ── Main Bookings Page ──────────────────────────────
 export default function BookingsPage() {
-  const { user } = useAuthStore()
+  const { sessionValid, user } = useSession()
   const qc = useQueryClient()
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
   const [reviewBookingId, setReviewBookingId] = useState<number | null>(null)
